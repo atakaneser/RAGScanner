@@ -20,9 +20,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          required=(AGENTS.md README.md PRODUCT.md ARCHITECTURE.md FEATURES.md SECURITY.md PRIVACY.md CONTRIBUTING.md SUPPORT.md CHANGELOG.md ROADMAP.md PLANS.md LICENSE_DECISION.md DEPLOYMENT.md OPENWEBUI_INTEGRATION.md BYOM.md WEBSITE.md TESTING.md RELEASES.md docs/status/current.md)
+          required=(AGENTS.md README.md README.tr.md README.de.md README.fr.md README.zh-CN.md README.it.md PRODUCT.md ARCHITECTURE.md FEATURES.md SECURITY.md PRIVACY.md CONTRIBUTING.md SUPPORT.md CHANGELOG.md ROADMAP.md PLANS.md LICENSE_DECISION.md DEPLOYMENT.md OPENWEBUI_INTEGRATION.md BYOM.md WEBSITE.md TESTING.md RELEASES.md docs/status/current.md)
           for file in "${required[@]}"; do
             test -s "$file"
           done
-          test "$(find docs/issues -maxdepth 1 -name 'RS-*.md' | wc -l | tr -d ' ')" = "58"
+          test "$(find docs/issues -maxdepth 1 -name 'RS-*.md' | wc -l | tr -d ' ')" = "59"
           test "$(find docs/decisions -maxdepth 1 -name '[0-9][0-9][0-9][0-9]-*.md' | wc -l | tr -d ' ')" -ge "1"

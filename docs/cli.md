@@ -1,5 +1,18 @@
 # CLI
 
+Normal users can open the English onboarding flow with this command:
+
+```bash
+ragscanner
+```
+
+The flow can start a local file or folder scan directly. If OpenWebUI is selected, fixed loopback
+health endpoints are checked only after consent. This check does not read document content or prove
+that a responding service is OpenWebUI. The flow clearly states that the content connector is not
+implemented yet.
+
+Explicit commands remain available for automation and advanced use:
+
 ```bash
 uv run ragscanner --version
 uv run ragscanner doctor

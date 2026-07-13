@@ -1,10 +1,13 @@
 import json
 from pathlib import Path
 
+import httpx
 from ragscanner.cli import app
+from ragscanner.onboarding import discover_local_sources, discover_openwebui_services
 from typer.testing import CliRunner
 
 runner = CliRunner()
+TURKISH_OUTPUT_CHARACTERS = set("çğıöşüÇĞİÖŞÜ")
 
 
 def test_version() -> None:
@@ -18,6 +21,85 @@ def test_doctor_is_local_and_offline() -> None:
     assert result.exit_code == 0
     assert "OK configuration" in result.stdout
     assert "no network request performed" in result.stdout
+
+
+def test_bare_command_opens_english_onboarding_and_can_exit() -> None:
+    result = runner.invoke(app, input="4\n")
+    assert result.exit_code == 0
+    assert "What would you like to scan?" in result.stdout
+    assert "No action was taken." in result.stdout
+
+
+def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "bilgi tabanı.txt"
+    source.write_text("Güvenli ve yerel örnek bilgi.", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, input=f"1\n{source}\nn\n")
+    assert result.exit_code == 0
+    assert "RAGScanner report" in result.stdout
+    assert "bilgi tabanı.txt" in result.stdout
+
+
+def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    called = False
+
+    def fail_if_called() -> list[object]:
+        nonlocal called
+        called = True
+        return []
+
+    monkeypatch.setattr("ragscanner.cli.discover_openwebui_services", fail_if_called)
+    result = runner.invoke(app, input="2\nn\n")
+    assert result.exit_code == 0
+    assert called is False
+    assert "not implemented yet" in result.stdout
+
+
+def test_local_discovery_is_bounded_to_known_immediate_paths(tmp_path) -> None:
+    (tmp_path / "root.pdf").write_bytes(b"synthetic")
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "rehber.md").write_text("örnek", encoding="utf-8")
+    ignored = tmp_path / "unrelated" / "nested"
+    ignored.mkdir(parents=True)
+    (ignored / "secret.pdf").write_bytes(b"synthetic")
+
+    candidates = discover_local_sources(tmp_path)
+
+    assert [(item.path.name, item.supported_file_count) for item in candidates] == [
+        ("RAGScaner" if tmp_path.name == "RAGScaner" else tmp_path.name, 1),
+        ("docs", 1),
+    ]
+
+
+def test_openwebui_discovery_uses_only_supplied_loopback_health_endpoint(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    requested: list[str] = []
+
+    class Response:
+        status_code = 200
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    def stream(self, method: str, url: str) -> Response:  # type: ignore[no-untyped-def]
+        requested.append(f"{method} {url}")
+        return Response()
+
+    monkeypatch.setattr(httpx.Client, "stream", stream)
+    candidates = discover_openwebui_services(endpoints=["http://127.0.0.1:8080"])
+    assert requested == ["GET http://127.0.0.1:8080/health"]
+    assert candidates[0].base_url == "http://127.0.0.1:8080"
+
+
+def test_product_generated_cli_and_pdf_messages_are_english() -> None:
+    root = Path(__file__).resolve().parents[2] / "packages/scanner/src/ragscanner"
+    generated_message_modules = [root / "cli.py", root / "parsers/pdf.py"]
+    for module in generated_message_modules:
+        text = module.read_text(encoding="utf-8")
+        assert TURKISH_OUTPUT_CHARACTERS.isdisjoint(text), module
 
 
 def test_static_security_scan_terminal_json_filters_and_fail_on(tmp_path) -> None:  # type: ignore[no-untyped-def]

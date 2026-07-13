@@ -28,15 +28,18 @@ _PDF_DATE = re.compile(r"^D:(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})")
 
 class PdfParserErrorCategory(StrEnum):
     UNSUPPORTED = "unsupported"
+    INVALID_SIGNATURE = "invalid_signature"
     MALFORMED = "malformed"
+    ZERO_PAGES = "zero_pages"
     ENCRYPTED = "encrypted"
     LIMIT_EXCEEDED = "limit_exceeded"
     TIMEOUT = "timeout"
 
 
 class PdfParserError(Exception):
-    def __init__(self, category: PdfParserErrorCategory, message: str) -> None:
+    def __init__(self, category: PdfParserErrorCategory, message: str, *, remediation: str) -> None:
         self.category = category
+        self.remediation = mask_secret_like_values(remediation)
         super().__init__(mask_secret_like_values(message))
 
     def __repr__(self) -> str:
@@ -89,9 +92,12 @@ class PdfParser:
 
     def parse(self, source: SourceContent) -> ParserResult:
         self._validate_source(source)
+        self._validate_signature(source.content_bytes)
         if len(source.content_bytes) > self.config.maximum_file_size:
             raise PdfParserError(
-                PdfParserErrorCategory.LIMIT_EXCEEDED, "PDF exceeds the configured file-size limit"
+                PdfParserErrorCategory.LIMIT_EXCEEDED,
+                "PDF exceeds the configured file-size limit.",
+                remediation="Increase the limit carefully or use a smaller PDF.",
             )
         started = self._monotonic()
         try:
@@ -100,22 +106,27 @@ class PdfParser:
             )
         except (pymupdf.FileDataError, RuntimeError, ValueError) as error:
             raise PdfParserError(
-                PdfParserErrorCategory.MALFORMED, "PDF data is malformed or unsupported"
+                PdfParserErrorCategory.MALFORMED,
+                "PDF is malformed, incomplete, or uses an unsupported structure.",
+                remediation="Download the file again or export it as a valid PDF.",
             ) from error
         try:
             if document.needs_pass:
                 raise PdfParserError(
                     PdfParserErrorCategory.ENCRYPTED,
-                    "Password-protected PDF requires authentication",
+                    "Password-protected PDF requires authentication.",
+                    remediation="Create an authorized unencrypted copy and scan it again.",
                 )
-            if document.page_count > self.config.maximum_page_count:
+            page_count = self._page_count(document)
+            if page_count > self.config.maximum_page_count:
                 raise PdfParserError(
                     PdfParserErrorCategory.LIMIT_EXCEEDED,
-                    "PDF exceeds the configured page-count limit",
+                    "PDF exceeds the configured page-count limit.",
+                    remediation="Increase the page limit carefully or split the document.",
                 )
             warnings: list[ParserWarning] = []
             safe_metadata = self._metadata(document.metadata or {}, warnings)
-            safe_metadata["page_count"] = document.page_count
+            safe_metadata["page_count"] = page_count
             self._active_content_warnings(document, warnings)
             page_metadata: list[PdfPageMetadata] = []
             parts: list[str] = []
@@ -125,7 +136,7 @@ class PdfParser:
             empty_pages = 0
             total_extracted_characters = 0
             nonempty_texts: list[str] = []
-            for page_index in range(document.page_count):
+            for page_index in range(page_count):
                 self._check_timeout(started)
                 page_number = page_index + 1
                 page_warning_codes: list[str] = []
@@ -168,7 +179,8 @@ class PdfParser:
                 if len(page_text) > self.config.maximum_characters_per_page:
                     raise PdfParserError(
                         PdfParserErrorCategory.LIMIT_EXCEEDED,
-                        "A PDF page exceeds the extracted-character limit",
+                        "A PDF page exceeds the extracted-character limit.",
+                        remediation="Increase the character limit carefully or split the document.",
                     )
                 separator_start: int | None = None
                 separator_end: int | None = None
@@ -209,11 +221,12 @@ class PdfParser:
                 if total_extracted_characters > self.config.maximum_extracted_characters:
                     raise PdfParserError(
                         PdfParserErrorCategory.LIMIT_EXCEEDED,
-                        "PDF exceeds the total extracted-character limit",
+                        "PDF exceeds the total extracted-character limit.",
+                        remediation="Increase the character limit carefully or split the document.",
                     )
             content = "".join(parts)
             self._document_quality_warnings(
-                document.page_count,
+                page_count,
                 pages_with_text,
                 empty_pages,
                 images_detected,
@@ -222,7 +235,7 @@ class PdfParser:
             )
             self._check_timeout(started)
             statistics = PdfExtractionStatistics(
-                page_count=document.page_count,
+                page_count=page_count,
                 pages_with_text=pages_with_text,
                 empty_pages=empty_pages,
                 total_characters=total_extracted_characters,
@@ -276,8 +289,36 @@ class PdfParser:
         ):
             raise PdfParserError(
                 PdfParserErrorCategory.UNSUPPORTED,
-                "PDF parser requires application/pdf content or a .pdf source",
+                "PDF parser requires application/pdf content or a .pdf source.",
+                remediation="Select the correct file or correct the source type.",
             )
+
+    @staticmethod
+    def _validate_signature(data: bytes) -> None:
+        if data[:1024].find(b"%PDF-") < 0:
+            raise PdfParserError(
+                PdfParserErrorCategory.INVALID_SIGNATURE,
+                "File does not contain a valid PDF signature.",
+                remediation="Confirm that the file is a PDF and download it again.",
+            )
+
+    @staticmethod
+    def _page_count(document: pymupdf.Document) -> int:
+        try:
+            page_count = int(document.page_count)
+        except (pymupdf.FileDataError, RuntimeError, ValueError) as error:
+            raise PdfParserError(
+                PdfParserErrorCategory.MALFORMED,
+                "PDF page information could not be read; the file may be malformed or incomplete.",
+                remediation="Download the file again or export it as a valid PDF.",
+            ) from error
+        if page_count <= 0:
+            raise PdfParserError(
+                PdfParserErrorCategory.ZERO_PAGES,
+                "PDF contains no scannable pages.",
+                remediation="Use a valid PDF containing at least one page.",
+            )
+        return page_count
 
     def _metadata(self, metadata: dict[str, Any], warnings: list[ParserWarning]) -> dict[str, Any]:
         key_mapping = {
@@ -485,7 +526,9 @@ class PdfParser:
     def _check_timeout(self, started: float) -> None:
         if self._monotonic() - started >= self.config.timeout_seconds:
             raise PdfParserError(
-                PdfParserErrorCategory.TIMEOUT, "PDF parsing exceeded the cooperative timeout"
+                PdfParserErrorCategory.TIMEOUT,
+                "PDF parsing exceeded the time limit.",
+                remediation="Split the document or increase the time limit carefully.",
             )
 
     def _now(self) -> datetime:

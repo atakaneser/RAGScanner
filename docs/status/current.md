@@ -9,6 +9,10 @@
 - `uv` ile kilitlenen Python 3.12+ src-layout paket
 - Typer CLI, Pydantic environment config ve structured logging
 - `ragscanner --version` ve network kullanmayan `ragscanner doctor`
+- English guided local scanning from a bare `ragscanner` command, bounded nearby-source discovery,
+  and loopback OpenWebUI health-candidate checks only after explicit consent
+- Canonical English root README with Turkish, German, French, Simplified Chinese, and Italian
+  localized README pages
 - Framework-bağımsız static modeller: `SourceLocation`, `Document`, `Chunk`
 - Active kontratlar: target, authorization, safety, payload/test-case, request/response, execution/evaluation
 - Ortak `Finding`, `Scan` ve `ScoreSummary`
@@ -29,7 +33,9 @@
 - Provider-neutral sequential active scan runner; plan/result/event, control, budget, cancellation ve finding üretimi
 - Root-confined local filesystem SourceConnector; TXT/Markdown discovery, bounded content ve snapshot change detection
 - Plain-text ve non-rendering Markdown parser; valid `Document`/`ParserResult`, front matter title ve heading metadata
-- PyMuPDF tabanlı bounded text PDF parser; page offset map, metadata, scanned/quality/active-content warning'leri
+- Bounded PyMuPDF text parser with signature/page preflight, typed malformed/encrypted/zero-page/
+  limit/timeout errors, remediation metadata, page offset maps, and scanned/quality/active-content
+  warnings
 - python-docx tabanlı bounded DOCX parser; ordered block/offset metadata ve active/hidden/external-content warning'leri
 - Deterministic NFC-default document normalizer; conservative whitespace/PDF repair, structural annotation ve bounded original-source mapping
 - Deterministic structure/paragraph/token-window chunker; vendor-neutral token approximation, bounded overlap, stable ID ve source mapping
@@ -50,7 +56,7 @@
 
 ## Henüz bulunmayanlar
 
-OCR, semantic duplicate scanner, freshness/contradiction/metadata-quality analizleri, birleşik Health/RAG Rot score, diğer SourceConnector/TargetAdapter adaptörleri, ModelProvider/OpenWebUI kodu, persistence, API, dashboard, worker, scheduler, gerçek LLM-assisted evaluation ve Docker deployment.
+OCR, semantic duplicate scanner, freshness/contradiction/metadata-quality analizleri, birleşik Health/RAG Rot score, diğer SourceConnector/TargetAdapter adaptörleri, gerçek OpenWebUI içerik connector'ı, ModelProvider kodu, persistence, API, dashboard, worker, scheduler, gerçek LLM-assisted evaluation ve Docker deployment.
 
 Domain modelleri scan yapmaz ve hiçbir network/filesystem erişimi içermez.
 
