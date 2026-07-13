@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.system-prompt-extraction",
+  "description": "System and hidden instruction extraction attempts.",
+  "rules": [
+    {
+      "id": "STATIC-SP-001",
+      "version": "1.0.0",
+      "name": "System prompt extraction request",
+      "category": "system_prompt_extraction",
+      "description": "Content requests disclosure or reconstruction of hidden model instructions.",
+      "severity": "high",
+      "default_confidence": 0.88,
+      "detection_type": "deterministic",
+      "scope": [
+        "normalized_document",
+        "chunk"
+      ],
+      "matchers": [
+        {
+          "type": "regex",
+          "patterns": [
+            "(?:reveal|print|repeat|reconstruct|show).{0,40}(?:system prompt|system message|hidden instructions|initial instructions)",
+            "(?:sistem mesajını|sistem istemini|gizli talimatları|başlangıç talimatlarını).{0,30}(?:göster|açıkla|tekrarla|yeniden yaz)"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        },
+        {
+          "type": "decoded_content",
+          "patterns": [
+            "reveal system prompt",
+            "print hidden instructions",
+            "repeat initial instructions",
+            "gizli sistem talimatlarını"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 24,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 180,
+      "remediation": "Treat retrieved disclosure requests as untrusted data and prevent prompt serialization.",
+      "references": [
+        "OWASP-LLM07"
+      ],
+      "enabled": true,
+      "tags": [
+        "prompt-extraction",
+        "encoded"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Private model instructions may be exposed."
+      }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible non-sensitive defect
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include secrets, customer documents, private reports, personal data, or vulnerability details."
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: RAGScanner version/commit and rule-pack version, if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python/container, mode, source type; redact endpoints and usernames.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use synthetic content only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, personal/customer data, and vulnerability details.
+          required: true
+

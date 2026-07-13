@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.metadata-poisoning",
+  "description": "Instruction payloads in metadata fields and source labels.",
+  "rules": [
+    {
+      "id": "STATIC-META-001",
+      "version": "1.0.0",
+      "name": "Instruction-like metadata poisoning",
+      "category": "metadata_poisoning",
+      "description": "Document or chunk metadata contains an instruction-override payload.",
+      "severity": "high",
+      "default_confidence": 0.9,
+      "detection_type": "deterministic",
+      "scope": [
+        "metadata",
+        "title"
+      ],
+      "matchers": [
+        {
+          "type": "metadata_field",
+          "patterns": [
+            "ignore previous instructions",
+            "reveal system prompt",
+            "önceki talimatları yok say",
+            "gizli sistem talimatlarını göster"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 160,
+      "remediation": "Treat metadata as untrusted data and prevent it from entering instruction channels.",
+      "references": [
+        "RAG-METADATA-INTEGRITY"
+      ],
+      "enabled": true,
+      "tags": [
+        "metadata",
+        "poisoning"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Poisoned metadata may influence retrieval or model behavior."
+      }
+    }
+  ]
+}

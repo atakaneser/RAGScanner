@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.suspicious-urls",
+  "description": "URLs with properties that merit review without fetching.",
+  "rules": [
+    {
+      "id": "STATIC-URL-001",
+      "version": "1.0.0",
+      "name": "Suspicious URL property",
+      "category": "suspicious_urls",
+      "description": "A URL uses credentials, a local/metadata host, IP host, shortener, suspicious scheme, or risky HTTP instruction context.",
+      "severity": "medium",
+      "default_confidence": 0.76,
+      "detection_type": "heuristic",
+      "scope": [
+        "raw_document",
+        "normalized_document",
+        "chunk",
+        "metadata"
+      ],
+      "matchers": [
+        {
+          "type": "url_property",
+          "patterns": [],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 160,
+      "remediation": "Do not fetch retrieved URLs automatically; validate scheme, destination, and authorization.",
+      "references": [
+        "OWASP-SSRF"
+      ],
+      "enabled": true,
+      "tags": [
+        "url",
+        "ssrf"
+      ],
+      "languages": [
+        "*"
+      ],
+      "metadata": {
+        "impact": "A model or tool may be directed to an unsafe destination."
+      }
+    }
+  ]
+}

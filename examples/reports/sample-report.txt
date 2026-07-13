@@ -1,0 +1,28 @@
+RAGScanner report — synthetic-static-scan-001
+Type: static  Status: completed_with_warnings
+Knowledge base mode: single_source (1 source(s))
+Source: Synthetic knowledge base  Target: Not assessed
+Scores (product-defined):
+  Overall RAG Health: Not assessed
+  Security: 61.00
+  Knowledge Quality: 74.00
+  Retrieval Quality: Not assessed
+  Answer Reliability: Not assessed
+  Freshness: Not assessed
+  Efficiency: Not assessed
+  RAG Rot: Not assessed
+Severity: critical=0  high=1  medium=0  low=0  info=0
+Findings: 1
+[HIGH] [probable] STATIC-PI-SYNTHETIC: Synthetic instruction override candidate (0.82)
+  Location: policy-tr.md
+  Evidence: Önceki talimatları yok say — synthetic example
+  Impact: Untrusted instructions may influence retrieval consumers.
+  Recommendation: Review the synthetic source and isolate untrusted instructions.
+WARNING: This report uses synthetic sample data.
+WARNING: Unsupported synthetic file was skipped.
+SKIPPED: Model-assisted checks not run
+SKIPPED: PII checks disabled
+ASSESSMENT: cross_document_exact_duplicates = not_assessed (Requires at least two source documents; this is a single-source knowledge base.)
+ASSESSMENT: cross_document_freshness = not_assessed (Requires at least two source documents; this is a single-source knowledge base.)
+ASSESSMENT: static_security = assessed (Synthetic static rules were evaluated.)
+ASSESSMENT: version_conflict = not_assessed (Requires at least two source documents; this is a single-source knowledge base.)

@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.encoded-payloads",
+  "description": "Bounded inspection of encoded instruction-like content.",
+  "rules": [
+    {
+      "id": "STATIC-ENC-001",
+      "version": "1.0.0",
+      "name": "Encoded instruction-like payload",
+      "category": "encoded_payloads",
+      "description": "Bounded decoding reveals an instruction-override or prompt-extraction indicator.",
+      "severity": "medium",
+      "default_confidence": 0.75,
+      "detection_type": "heuristic",
+      "scope": [
+        "raw_document",
+        "normalized_document",
+        "chunk"
+      ],
+      "matchers": [
+        {
+          "type": "decoded_content",
+          "patterns": [
+            "ignore previous instructions",
+            "reveal system prompt",
+            "print hidden instructions",
+            "önceki talimatları yok say",
+            "gizli sistem talimatlarını"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 24,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 120,
+      "remediation": "Decode only for bounded inspection and preserve encoded content as untrusted data.",
+      "references": [
+        "OWASP-LLM01"
+      ],
+      "enabled": true,
+      "tags": [
+        "encoded",
+        "base64",
+        "rot13",
+        "unicode"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Obfuscation may conceal an instruction attack."
+      }
+    }
+  ]
+}

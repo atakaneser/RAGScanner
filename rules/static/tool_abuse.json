@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.tool-abuse",
+  "description": "Instructions directing an AI agent to invoke tools or privileged functions.",
+  "rules": [
+    {
+      "id": "STATIC-TA-001",
+      "version": "1.0.0",
+      "name": "Tool or function abuse instruction",
+      "category": "tool_abuse",
+      "description": "Content directs a model or agent to call tools, functions, services, or privileged actions.",
+      "severity": "high",
+      "default_confidence": 0.82,
+      "detection_type": "heuristic",
+      "scope": [
+        "normalized_document",
+        "chunk"
+      ],
+      "matchers": [
+        {
+          "type": "regex",
+          "patterns": [
+            "(?:assistant|agent|model|ai).{0,80}(?:call|invoke|use|run|send|modify|access|read).{0,40}(?:tool|function|message|record|service|local file|privileged)",
+            "(?:asistan|ajan|model|yapay zeka).{0,80}(?:araç|fonksiyon|işlev|mesaj|kayıt|yerel dosya).{0,40}(?:çağır|çalıştır|gönder|değiştir|oku|eriş)"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [
+        "agent_instruction"
+      ],
+      "evidence_window": 220,
+      "remediation": "Allowlist tools and arguments and treat retrieved tool instructions as data.",
+      "references": [
+        "OWASP-LLM08"
+      ],
+      "enabled": true,
+      "tags": [
+        "tool",
+        "function"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "An agent may perform unauthorized actions."
+      }
+    }
+  ]
+}

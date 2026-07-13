@@ -1,0 +1,24 @@
+title = "RAGScanner Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Synthetic password fixture used to test evidence masking"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''RAGSYNTH_abcdef123456789''']
+paths = ['''^tests/unit/test_quality_scanners\.py$''']
+
+[[rules]]
+id = "private-key"
+
+[[rules.allowlists]]
+description = "Synthetic non-key material used to test private-key redaction"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''SYNTHETICKEYMATERIAL123456789''']
+paths = ['''^tests/unit/test_static_security_scanner\.py$''']

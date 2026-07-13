@@ -1,0 +1,1 @@
+SYNTHETIC DUPLICATE SAMPLE. Retrieval quality improves when documents have clear ownership, stable source identity, bounded chunks, and explicit review dates. This content is harmless test data.

@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.suspicious-commands",
+  "description": "Destructive or privileged commands in agent-instruction context.",
+  "rules": [
+    {
+      "id": "STATIC-CMD-001",
+      "version": "1.0.0",
+      "name": "Suspicious command instruction",
+      "category": "suspicious_commands",
+      "description": "A model-directed instruction contains a destructive, privileged, or download-and-execute command.",
+      "severity": "high",
+      "default_confidence": 0.84,
+      "detection_type": "heuristic",
+      "scope": [
+        "normalized_document",
+        "chunk"
+      ],
+      "matchers": [
+        {
+          "type": "regex",
+          "patterns": [
+            "(?:rm\\s+-rf|sudo\\s+|curl\\s+[^\\n]{0,100}\\|\\s*(?:sh|bash)|wget\\s+[^\\n]{0,100}(?:&&|;)\\s*(?:sh|bash)|powershell[^\\n]{0,120}(?:iex|invoke-expression)|(?:drop|truncate)\\s+(?:table|database)|delete\\s+from|cat\\s+/(?:etc|root)/|read\\s+local\\s+files?)"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [
+        "agent_instruction"
+      ],
+      "evidence_window": 220,
+      "remediation": "Prevent retrieved content from authorizing shell, SQL, file, or network actions.",
+      "references": [
+        "OWASP-LLM08"
+      ],
+      "enabled": true,
+      "tags": [
+        "command",
+        "shell",
+        "sql"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Following the instruction may cause destructive or privileged side effects."
+      }
+    }
+  ]
+}

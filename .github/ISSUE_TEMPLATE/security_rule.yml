@@ -1,0 +1,40 @@
+name: Security rule proposal
+description: Propose a deterministic rule using synthetic evidence only
+title: "[Security Rule]: "
+labels: ["security-rule", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not submit real exploits, credentials, personal data, or customer documents. Use inert synthetic examples."
+  - type: input
+    id: category
+    attributes:
+      label: Rule category
+    validations:
+      required: true
+  - type: textarea
+    id: positive
+    attributes:
+      label: Synthetic true-positive examples
+    validations:
+      required: true
+  - type: textarea
+    id: negative
+    attributes:
+      label: Synthetic false-positive controls
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Risk, confidence, remediation, and references
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: All submitted data is synthetic, inert, and safe to publish.
+          required: true
+

@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.hidden-content",
+  "description": "Invisible Unicode, parser hidden-text signals, and instruction-bearing comments.",
+  "rules": [
+    {
+      "id": "STATIC-HID-001",
+      "version": "1.0.0",
+      "name": "Hidden or invisible instruction content",
+      "category": "hidden_content",
+      "description": "Parser or normalization signals indicate hidden or invisible content relevant to model instructions.",
+      "severity": "medium",
+      "default_confidence": 0.92,
+      "detection_type": "deterministic",
+      "scope": [
+        "normalization_annotation",
+        "parser_warning",
+        "normalized_document"
+      ],
+      "matchers": [
+        {
+          "type": "annotation_type",
+          "patterns": [
+            "invisible_unicode",
+            "bidi_control",
+            "replacement_character"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        },
+        {
+          "type": "warning_code",
+          "patterns": [
+            "hidden_text_present"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        },
+        {
+          "type": "regex",
+          "patterns": [
+            "<!--[\\s\\S]{0,300}(?:ignore previous instructions|reveal system prompt|önceki talimatları yok say)[\\s\\S]{0,300}-->"
+          ],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 160,
+      "remediation": "Expose hidden text to trust-boundary checks and prevent it from becoming executable instruction context.",
+      "references": [
+        "OWASP-LLM01"
+      ],
+      "enabled": true,
+      "tags": [
+        "hidden",
+        "unicode",
+        "comments"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Invisible instructions can evade human review."
+      }
+    }
+  ]
+}

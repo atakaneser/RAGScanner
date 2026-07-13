@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>RAGScanner report synthetic-static-scan-001</title><style>
+:root{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}header,main,footer{max-width:1180px;margin:auto;padding:1.25rem}header{background:#17202a;color:#fff;max-width:none}header>div{max-width:1140px;margin:auto}h1,h2,h3{line-height:1.2}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}.card,section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}.card{margin:0}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}.badge{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}.critical{color:var(--critical)}.high{color:var(--high)}.medium{color:var(--medium)}.low{color:var(--low)}.info{color:var(--info)}code,pre{white-space:pre-wrap;overflow-wrap:anywhere}summary{cursor:pointer;font-weight:700}.muted{color:var(--muted)}@media(max-width:650px){table{display:block;overflow-x:auto}header,main,footer{padding:.8rem}}@media print{body{background:#fff}header{color:#000;background:#fff;border-bottom:2px solid #000}section,.card{break-inside:avoid;box-shadow:none}details{display:block}details>*{display:block}}
+</style></head><body><header role="banner"><div><h1>RAGScanner report</h1><p>synthetic-static-scan-001 · static · completed_with_warnings</p></div></header>
+<main id="main-content"><section aria-labelledby="identity"><h2 id="identity">Scan identity</h2><dl><dt>Source</dt><dd>Synthetic knowledge base</dd><dt>Target</dt><dd>Not assessed</dd><dt>Generated</dt><dd>2026-07-13T09:00:03+00:00</dd><dt>Privacy</dt><dd>local_only</dd><dt>Safety</dt><dd>safe</dd></dl></section>
+<section aria-labelledby="scores"><h2 id="scores">Scores</h2><p class="muted">Product-defined scores. Missing values are Not assessed, never zero.</p><div class="grid"><article class="card"><h3>Overall</h3><p>Not assessed</p><small>Product-defined</small></article><article class="card"><h3>Knowledge Quality</h3><p>74.00</p><small>Product-defined</small></article><article class="card"><h3>Retrieval Quality</h3><p>Not assessed</p><small>Product-defined</small></article><article class="card"><h3>Answer Reliability</h3><p>Not assessed</p><small>Product-defined</small></article><article class="card"><h3>Security</h3><p>61.00</p><small>Product-defined</small></article><article class="card"><h3>Freshness</h3><p>Not assessed</p><small>Product-defined</small></article><article class="card"><h3>Efficiency</h3><p>Not assessed</p><small>Product-defined</small></article><article class="card"><h3>Rag Rot</h3><p>Not assessed</p><small>Product-defined</small></article></div></section>
+<section aria-labelledby="severity"><h2 id="severity">Severity distribution</h2><div class="grid"><div class="card critical"><strong>Critical</strong><p>0</p></div><div class="card high"><strong>High</strong><p>1</p></div><div class="card medium"><strong>Medium</strong><p>0</p></div><div class="card low"><strong>Low</strong><p>0</p></div><div class="card info"><strong>Info</strong><p>0</p></div></div></section>
+<section aria-labelledby="statistics"><h2 id="statistics">Scan statistics</h2><pre>{
+  &quot;active_requests_failed&quot;: 0,
+  &quot;active_requests_planned&quot;: 0,
+  &quot;active_requests_sent&quot;: 0,
+  &quot;chunks_scanned&quot;: 3,
+  &quot;documents_parsed&quot;: 1,
+  &quot;errors&quot;: 0,
+  &quot;files_discovered&quot;: 2,
+  &quot;files_scanned&quot;: 1,
+  &quot;files_skipped&quot;: 1,
+  &quot;rules_evaluated&quot;: 1,
+  &quot;rules_skipped&quot;: 1,
+  &quot;warnings&quot;: 2
+}</pre></section>
+<section aria-labelledby="top"><h2 id="top">Top findings</h2><details class="finding"><summary><span class="badge high">HIGH</span> Synthetic instruction override candidate · probable</summary><dl><dt>Finding ID</dt><dd>synthetic-finding-001</dd><dt>Category</dt><dd>prompt_injection</dd><dt>Confidence</dt><dd>0.82</dd><dt>Rule</dt><dd>STATIC-PI-SYNTHETIC / 1.0.0</dd><dt>Source</dt><dd>policy-tr.md</dd><dt>Document</dt><dd>synthetic-doc-001</dd><dt>Page</dt><dd>1</dd><dt>Chunk</dt><dd>synthetic-chunk-001</dd><dt>Target</dt><dd>Not assessed</dd><dt>Test case</dt><dd>Not assessed</dd></dl><h3>Evidence</h3><pre>Önceki talimatları yok say — synthetic example</pre><h3>Impact</h3><p>Untrusted instructions may influence retrieval consumers.</p><h3>Recommendation</h3><p>Review the synthetic source and isolate untrusted instructions.</p><p class="muted">Fingerprint: 1111111111111111111111111111111111111111111111111111111111111111</p></details></section>
+<section aria-labelledby="all"><h2 id="all">All findings</h2><details class="finding"><summary><span class="badge high">HIGH</span> Synthetic instruction override candidate · probable</summary><dl><dt>Finding ID</dt><dd>synthetic-finding-001</dd><dt>Category</dt><dd>prompt_injection</dd><dt>Confidence</dt><dd>0.82</dd><dt>Rule</dt><dd>STATIC-PI-SYNTHETIC / 1.0.0</dd><dt>Source</dt><dd>policy-tr.md</dd><dt>Document</dt><dd>synthetic-doc-001</dd><dt>Page</dt><dd>1</dd><dt>Chunk</dt><dd>synthetic-chunk-001</dd><dt>Target</dt><dd>Not assessed</dd><dt>Test case</dt><dd>Not assessed</dd></dl><h3>Evidence</h3><pre>Önceki talimatları yok say — synthetic example</pre><h3>Impact</h3><p>Untrusted instructions may influence retrieval consumers.</p><h3>Recommendation</h3><p>Review the synthetic source and isolate untrusted instructions.</p><p class="muted">Fingerprint: 1111111111111111111111111111111111111111111111111111111111111111</p></details></section>
+<section aria-labelledby="duplicates"><h2 id="duplicates">Duplicate analysis</h2><p>Redundant token and character values are estimates.</p><table><thead><tr><th>Type</th><th>Canonical item</th><th>Related</th><th>Similarity</th><th>Redundant tokens</th></tr></thead><tbody><tr><td colspan="5">No duplicate groups reported.</td></tr></tbody></table></section>
+<section aria-labelledby="chunks"><h2 id="chunks">Chunk-quality analysis</h2><pre>Not assessed</pre></section>
+<section aria-labelledby="active"><h2 id="active">Active security summary</h2><pre>Not assessed</pre></section>
+<section aria-labelledby="warnings"><h2 id="warnings">Warnings and skipped checks</h2><h3>Warnings</h3><ul><li>This report uses synthetic sample data.</li><li>Unsupported synthetic file was skipped.</li></ul><h3>Skipped checks</h3><ul><li>Model-assisted checks not run</li><li>PII checks disabled</li></ul><h3>Errors</h3><ul><li>None</li></ul><h3>Limits</h3><ul><li>None</li></ul></section>
+<section aria-labelledby="configuration"><h2 id="configuration">Configuration summary</h2><pre>{
+  &quot;offline&quot;: true,
+  &quot;sample_data&quot;: true
+}</pre></section>
+<section aria-labelledby="methodology"><h2 id="methodology">Methodology and limitations</h2><h3>Methodology</h3><ul><li>Deterministic and heuristic local analysis</li></ul><h3>Limitations</h3><ul><li>Synthetic sample; not a real security assessment</li></ul></section>
+<section aria-labelledby="coverage"><h2 id="coverage">Assessment coverage</h2><p>Knowledge base mode: <strong>single_source</strong> · Sources: 1</p><pre>{
+  &quot;cross_document_exact_duplicates&quot;: {
+    &quot;reason&quot;: &quot;Requires at least two source documents; this is a single-source knowledge base.&quot;,
+    &quot;status&quot;: &quot;not_assessed&quot;
+  },
+  &quot;cross_document_freshness&quot;: {
+    &quot;reason&quot;: &quot;Requires at least two source documents; this is a single-source knowledge base.&quot;,
+    &quot;status&quot;: &quot;not_assessed&quot;
+  },
+  &quot;static_security&quot;: {
+    &quot;reason&quot;: &quot;Synthetic static rules were evaluated.&quot;,
+    &quot;status&quot;: &quot;assessed&quot;
+  },
+  &quot;version_conflict&quot;: {
+    &quot;reason&quot;: &quot;Requires at least two source documents; this is a single-source knowledge base.&quot;,
+    &quot;status&quot;: &quot;not_assessed&quot;
+  }
+}</pre></section>
+<section aria-labelledby="metadata"><h2 id="metadata">Report metadata</h2><p>Schema 1.0.0 · Reporter 1.0.0</p><p>Filters active: False</p></section></main>
+<footer role="contentinfo"><p>Generated locally by RAGScanner. No external assets, analytics, or network requests.</p></footer></body></html>

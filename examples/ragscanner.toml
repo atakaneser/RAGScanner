@@ -1,0 +1,37 @@
+[scan]
+recursive = true
+include = ["**/*.txt", "**/*.md", "**/*.pdf", "**/*.docx"]
+exclude = ["**/archive/**"]
+max_file_size_mb = 25
+max_files = 10000
+
+[security]
+enabled = true
+include_pii = false
+minimum_severity = "low"
+
+[chunking]
+strategy = "structure_aware"
+target_tokens = 300
+max_tokens = 500
+min_tokens = 50
+overlap_tokens = 30
+
+[duplicates]
+exact = true
+near = true
+similarity_threshold = 0.82
+
+[limits]
+pdf_max_pages = 1000
+pdf_max_characters = 5000000
+docx_max_characters = 5000000
+normalized_max_characters = 5000000
+max_chunks_per_document = 10000
+
+[report]
+format = "terminal"
+show_relative_paths = true
+max_findings = 500
+overwrite = false
+create_parent_directories = false

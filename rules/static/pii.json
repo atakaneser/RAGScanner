@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "pack_id": "static.pii",
+  "description": "Optional conservative PII-shaped indicators.",
+  "rules": [
+    {
+      "id": "STATIC-PII-001",
+      "version": "1.0.0",
+      "name": "Possible personal-data indicator",
+      "category": "pii",
+      "description": "Pattern matching found a possible personal identifier; this does not prove identity or sensitivity.",
+      "severity": "medium",
+      "default_confidence": 0.68,
+      "detection_type": "heuristic",
+      "scope": [
+        "raw_document",
+        "chunk",
+        "metadata"
+      ],
+      "matchers": [
+        {
+          "type": "pii_pattern",
+          "patterns": [],
+          "flags": [],
+          "metadata_fields": [],
+          "minimum_length": 0,
+          "metadata": {}
+        }
+      ],
+      "exclusions": [],
+      "context_requirements": [],
+      "evidence_window": 100,
+      "remediation": "Review data minimization, access controls, retention, and masking requirements.",
+      "references": [
+        "PRIVACY-DATA-MINIMIZATION"
+      ],
+      "enabled": false,
+      "tags": [
+        "pii",
+        "optional"
+      ],
+      "languages": [
+        "en",
+        "tr"
+      ],
+      "metadata": {
+        "impact": "Personal-data-shaped content may require policy review."
+      }
+    }
+  ]
+}

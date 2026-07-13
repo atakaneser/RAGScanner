@@ -1,0 +1,36 @@
+RAGScanner report — 53c121723ea1559f4184db9fc987032eb57d9179fc94100f62a479dd4c71c1af
+Type: static  Status: completed_with_warnings
+Knowledge base mode: collection (8 source(s))
+Source: sample-kb  Target: Not assessed
+Scores (product-defined):
+  Overall RAG Health: 90.96
+  Security: 80.42
+  Knowledge Quality: 99.17
+  Retrieval Quality: Not assessed
+  Answer Reliability: Not assessed
+  Freshness: Not assessed
+  Efficiency: 93.29
+  RAG Rot: Not assessed
+Severity: critical=0  high=1  medium=3  low=5  info=0
+Findings: 9
+[HIGH] [probable] STATIC-PI-001: Prompt injection instruction (0.90)
+[MEDIUM] [confirmed] QUALITY-EXACT-DUPLICATE-CHUNK: Exact normalized-content duplicate group (1.00)
+[MEDIUM] [confirmed] QUALITY-EXACT-DUPLICATE-DOCUMENT: Exact normalized-content duplicate group (1.00)
+[MEDIUM] [probable] STATIC-URL-001: Suspicious URL property (0.76)
+[LOW] [probable] QUALITY-CHUNK-UNDERSIZED-CHUNK: Undersized Chunk (0.95)
+[LOW] [probable] QUALITY-CHUNK-UNDERSIZED-CHUNK: Undersized Chunk (0.95)
+[LOW] [probable] QUALITY-CHUNK-UNDERSIZED-CHUNK: Undersized Chunk (0.95)
+[LOW] [probable] QUALITY-CHUNK-UNDERSIZED-CHUNK: Undersized Chunk (0.95)
+[LOW] [probable] QUALITY-CHUNK-UNDERSIZED-CHUNK: Undersized Chunk (0.95)
+Duplicate groups: 2 (token savings are estimates)
+Chunk quality: assessed using product-defined heuristics
+WARNING: A chunk is below the configured minimum token target.
+WARNING: Token counts use a deterministic model-independent approximation.
+ASSESSMENT: chunk_quality = assessed (Chunk-quality heuristics were evaluated.)
+ASSESSMENT: cross_document_exact_duplicates = assessed (Normalized content was compared across source documents.)
+ASSESSMENT: cross_document_freshness = not_assessed (The corresponding scanner is not implemented in this release.)
+ASSESSMENT: cross_document_near_duplicates = assessed (Lexical similarity was compared across source documents.)
+ASSESSMENT: static_security = assessed (Static document and chunk rules were evaluated.)
+ASSESSMENT: version_conflict = not_assessed (The corresponding scanner is not implemented in this release.)
+ASSESSMENT: within_document_near_duplicates = assessed (Lexical near-duplicate chunks inside the source were evaluated.)
+ASSESSMENT: within_document_repeated_chunks = assessed (Repeated chunks inside the source were evaluated.)

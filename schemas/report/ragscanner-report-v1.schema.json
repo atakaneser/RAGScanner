@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragscanner.dev/schemas/report/ragscanner-report-v1.schema.json",
+  "title": "RAGScanner Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "reporter_version", "generated_at", "scan", "processing", "scores",
+    "score_policy", "severity_summary", "classification_summary", "findings",
+    "duplicate_groups", "duplicate_summary", "chunk_quality", "active_security", "warnings",
+    "skipped_checks", "errors", "configuration", "methodology", "limitations",
+    "filters_active", "filter_summary", "truncation_notices", "metadata",
+    "knowledge_base_mode", "source_count", "assessment_coverage"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "reporter_version": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "scan": {"type": "object"},
+    "processing": {"type": "object"},
+    "scores": {
+      "type": "object",
+      "additionalProperties": {"type": ["number", "null"], "minimum": 0, "maximum": 100}
+    },
+    "score_policy": {"type": "string"},
+    "severity_summary": {"$ref": "#/$defs/counts"},
+    "classification_summary": {"$ref": "#/$defs/counts"},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "duplicate_groups": {"type": "array", "items": {"type": "object"}},
+    "duplicate_summary": {"type": "object"},
+    "chunk_quality": {"type": ["object", "null"]},
+    "active_security": {"type": ["object", "null"]},
+    "warnings": {"$ref": "#/$defs/strings"},
+    "skipped_checks": {"$ref": "#/$defs/strings"},
+    "errors": {"$ref": "#/$defs/strings"},
+    "configuration": {"type": "object"},
+    "methodology": {"$ref": "#/$defs/strings"},
+    "limitations": {"$ref": "#/$defs/strings"},
+    "filters_active": {"type": "boolean"},
+    "filter_summary": {"type": "object"},
+    "truncation_notices": {"$ref": "#/$defs/strings"},
+    "metadata": {"type": "object"}
+    ,"knowledge_base_mode": {"type": "string"}
+    ,"source_count": {"type": "integer", "minimum": 0}
+    ,"assessment_coverage": {"type": "object"}
+  },
+  "$defs": {
+    "strings": {"type": "array", "items": {"type": "string"}},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "finding": {
+      "type": "object",
+      "required": ["id", "title", "category", "severity", "confidence", "scanner", "rule_id", "rule_version", "evidence", "impact", "recommendation", "first_seen", "last_seen", "fingerprint"],
+      "properties": {
+        "id": {"type": "string"}, "title": {"type": "string"}, "category": {"type": "string"},
+        "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "classification": {"type": ["string", "null"]}, "scanner": {"type": "string"},
+        "rule_id": {"type": "string"}, "rule_version": {"type": "string"},
+        "evidence": {"type": "string"}, "impact": {"type": "string"},
+        "recommendation": {"type": "string"}, "first_seen": {"type": "string", "format": "date-time"},
+        "last_seen": {"type": "string", "format": "date-time"}, "fingerprint": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
+}
