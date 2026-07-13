@@ -1,131 +1,102 @@
-# Güvenlik politikası
+# Security policy
 
-## Mevcut durum
+## Current status
 
-Repository scaffold, core kontratlar, active güvenlik bileşenleri, local ingestion pipeline ve ilk deterministic static RAG Security Scan motorunu içerir. Henüz API, dashboard veya worker yoktur. Tam koruma sağlandığı iddia edilmemelidir.
+The repository contains Core contracts, active-security components, a local ingestion pipeline, and
+the first deterministic static RAG Security Scan engine. API, dashboard, persistence, and worker are
+not implemented. No current feature provides complete protection or a security guarantee.
 
-## Scaffold güvenlik ilkeleri
+## Project-wide rules
 
-- Gerçek secret, credential, müşteri belgesi veya production raporu Git, fixture, log, issue ve CI’a konmaz.
-- `.env.example` yalnız inert yerel değerler içerir; gerçek `.env` Git tarafından dışlanır.
-- `ragscanner doctor` ağ bağlantısı kurmaz.
-- Harici AI API’si, telemetry, OpenWebUI veya başka remote endpoint yapılandırılmaz.
-- Structured logging altyapısı ileride key/content redaksiyonuna uygun tutulur.
-- Target/request/response/evaluation/finding/scan domain modelleri raw secret serialization’ını doğrulama hatasıyla reddeder; yalnız opaque external secret reference kabul edilir.
-- CI secret scan ve dependency review çalıştırır; testler gerçek cloud credential gerektirmez.
-- Gelecekte dosya, parser output, connector response, model output ve report evidence untrusted kabul edilecektir.
-- Source descriptor, cursor, health, warning ve error metadata'sı ham credential taşıyamaz; yalnız güvenli secret reference kabul edilir. Kaynak içeriği hassas olabilir ve log/hata/metadata'ya kopyalanmaz. Üretim connector'ları byte limiti, timeout ve async cancellation uygulamalıdır.
+- Never commit or publish real secrets, customer documents, production reports, private endpoints,
+  or personal data.
+- `.env.example` contains inert values; real `.env` files are ignored.
+- Local static scans and `ragscanner doctor` perform no remote model, telemetry, or hidden network
+  call.
+- Domain and source metadata reject raw credential serialization and accept only opaque references.
+- Inputs, parser/connector/model output, evidence, and browser-rendered values are untrusted.
+- Tests and CI use synthetic fixtures and no real cloud credential.
 
-## Gelecekteki Security Scan için zorunlu sınırlar
+## Active scanning
 
-Security rule’ları sürümlü ve testli olmalı; severity ile confidence ayrılmalı; deterministic, heuristic ve LLM-assisted bulgular ayrıştırılmalıdır. Payload/command çalıştırılmamalı, URL otomatik fetch edilmemeli, evidence sınırlandırılıp güvenli biçimde escape/redact edilmelidir.
+Active Scan requires explicit target-owner authorization and defaults to non-destructive `safe`
+tests. Target adapters enforce allowed-host/SSRF policy, TLS, redirect rules, timeout, rate limits,
+request/token/error budgets, cancellation, bounded responses, and credential references. Tool tests
+use canary, simulated, dry-run, or no-op actions. Disabling safe mode never auto-enables destructive
+payloads.
 
-Active Scan yalnız açık yetkili hedefte, varsayılan non-destructive payload profiliyle çalışmalıdır. SSRF/redirect/DNS rebinding kontrolleri, allowed-host policy, TLS doğrulama, timeout, rate limit, maksimum request/token budget ve cancellation zorunludur. Tool/function çağrısı tetikleyebilecek payload’lar ayrı risk profili ve ikinci onay olmadan gönderilmez. Target response içindeki secret/PII rapora yazılmadan redakte edilir; geniş regex eşleşmeleri tek başına confirmed vulnerability oluşturmaz.
+Target responses are escaped, truncated, and redacted before reporting. Keyword matches alone do
+not produce confirmed vulnerabilities. Evaluation keeps `confirmed`, `probable`, `ambiguous`, and
+`not_detected` distinct; transport errors remain failed/skipped tests.
 
-İlk `TargetAdapter` kontratı bu politikayı model seviyesinde somutlaştırır: safe varsayılanı,
-açık destructive capability, geçerli/süresi dolmamış authorization, tükenebilir request/süre/hata
-bütçesi ve canary/no-op tool testi zorunludur. Observation header/body/citation/source/tool verisi
-bounded ve redacted serialize edilir. Bu kontrat transport veya vulnerability evaluation içermez.
+The active test library contains reviewed declarative data only. It rejects real targets/contact
+values, credential-like content, destructive commands/SQL, unknown placeholders, and unsafe payloads
+mislabelled as safe. Loading a test never executes it.
 
-İlk active rule pack'ler yalnız non-destructive veri tanımlarıdır. Gerçek credential/e-posta/hedef,
-destructive command/SQL, unknown placeholder ve safe olarak yanlış etiketlenen unsafe payload
-yükleme sırasında reddedilir. Tool testleri yalnız canary/simulated/no-op davranış ister. Bu
-conservative doğrulama tüm tehlikeli metni yakalama garantisi vermez; pack review zorunludur.
+## Network adapters
 
-Generic REST adaptörü explicit host/port allowlist, DNS IP sınıflandırması, private-network opt-in,
-metadata/loopback/link-local blokları, TLS-on default, bounded response ve manuel redirect
-doğrulaması uygular. Cross-host redirect credential koruması için bloklanır. Secret header yalnız
-resolver portundan alınır. DNS kontrolü ile transport çözümlemesi arasındaki rebinding penceresi
-bilinen sınırlamadır.
+Generic REST uses explicit host/port allowlists, DNS address classification, private-network opt-in,
+TLS by default, bounded streaming, and manually validated redirects. Metadata, loopback, and
+link-local destinations are blocked unless a narrowly authorized policy allows them. Cross-host
+credential redirects are blocked. DNS validation cannot fully eliminate the rebinding window and
+that limitation remains documented.
 
-Response evaluation keyword echo'yu confirmed saymaz; structured action yalnız test case bunu
-açıkça unsafe tanımlarsa yüksek güven alır. Control overlap confidence'ı düşürür. Base64/ROT13/
-Unicode incelemesi tek katman ve 4 KiB ile sınırlıdır; decoded veri çalıştırılmaz. Evidence bounded,
-redacted ve HTML-escaped tutulur. Heuristic sonuçlar kusursuz detection iddiası taşımaz.
+## Files and parsers
 
-Active runner authorization, environment, capability, safe-mode, placeholder, request/duration/
-failure budget ve cancellation kapılarını invocation öncesi uygular. Control her case için bir
-kez sayılır ve başarısız control finding üretmez. Gerçek authorization actor payload'a konmaz;
-sentetik placeholder kullanılır. Partial failure diğer payload'ları varsayılan olarak durdurmaz.
+The filesystem connector is confined to an explicit absolute non-root directory. Traversal,
+external symlinks, special files, and uncontrolled discovery/read sizes fail closed. Symlinks are
+off by default. TOCTOU risk is reduced with descriptor checks but cannot be eliminated.
 
-Filesystem connector absolute explicit root'a kilitlidir; filesystem root, traversal, root dışı
-symlink ve special file okumayı reddeder. Symlink varsayılan kapalıdır. File/discovery/byte limitleri
-ve binary-text ayrımı fail-closed uygulanır. Markdown HTML/code/link yalnız untrusted metindir;
-render, execute veya fetch edilmez. Filesystem TOCTOU riski azaltılır fakat tamamen yok edilemez.
+PDF parsing operates on bounded memory, executes no JavaScript/action, follows no link, extracts no
+attachment, and rejects encryption. Page/text/metadata/time limits apply. Image-only files produce
+an OCR-needed warning; OCR is not implemented. Native calls use cooperative rather than process-level
+preemption.
 
-PDF parser memory buffer üzerinde text extraction yapar; JavaScript/action çalıştırmaz, link
-izlemez, attachment çıkarmaz ve remote resource fetch etmez. Encryption fail-closed reddedilir.
-File/page/text/metadata limitleri vardır. Timeout cooperative'dir; native open/page extraction için
-process-level preemption henüz yoktur. Image-only PDF warning üretir, OCR yapılmaz.
+DOCX parsing preflights ZIP entry count, decompressed size, XML parts, compression ratio, unsafe
+paths, and encryption. XML uses an entity-safe parser. Macros, OLE/embedded objects, comments,
+tracked changes, hidden text, and external relationships are reported as signals; nothing is
+executed, extracted, rendered, or fetched.
 
-DOCX parser yalnız memory buffer içindeki OPC/ZIP paketini işler. Parse öncesinde byte, entry,
-decompressed-size, XML-part ve compression-ratio limitlerini uygular; traversal ve encrypted ZIP
-entry'lerini reddeder. XML incelemesi entity-safe parser kullanır. Macro, OLE/embedded object,
-comments, tracked changes, hidden text ve external relationship sinyal olarak raporlanır; hiçbir
-active content çalıştırılmaz, embedded içerik çıkarılmaz, URL veya template fetch edilmez. Timeout
-cooperative'dir; tek bir native/XML işlemine process-level preemption henüz uygulanmaz. DOCX
-görünür metin çıkarımı Word rendering'i değildir; tracked-change ve karmaşık layout fidelity'si
-sınırlıdır.
+## Normalization and chunking
 
-Document normalizer sanitizasyon veya security scanner değildir. Original parsed content'i mutate
-etmez; NFC varsayılanıyla multilingual text'i korur. NUL, bidi, zero-width, replacement ve soft
-hyphen gibi invisible/control karakterler original'de kalır; normalized görünümde deterministik
-marker veya emoji ZWJ için korunmuş karakter ile warning/annotation taşır. Markdown/code/table/
-preformatted whitespace conservative korunur. PDF wrap/hyphen repair page, heading, list, table,
-URL/path ve code sınırlarında fail-conservative davranır. Boilerplate yalnız candidate olarak
-işaretlenir, kaldırılmaz. Ağ, subprocess, render, arbitrary regex veya içerik loglama yoktur.
+Normalization is not sanitization. Original content is not mutated. Multilingual text is preserved
+with NFC default; invisible/control characters remain auditable through deterministic markers,
+warnings, and annotations. Markdown/code/table/preformatted whitespace is treated conservatively.
+PDF repair never crosses page, heading, list, table, URL/path, or code boundaries. Boilerplate is
+only marked as a candidate.
 
-Document chunker normalization hash/document identity bağını fail-closed doğrular. Şüpheli metni
-silmez veya özetlemez; table/code/list hard split'lerini typed warning olmadan yapmaz. Token, input,
-block, chunk, overlap, character ve metadata limitleri bounded'dır; maximum chunk aşımında partial
-çıktı verilmez. Overlap farklı page/section/heading branch arasında uygulanmaz ve table/code
-tekrarında azaltılır. Mapping kayıplıysa açıkça approximate olur. Tokenizer yalnız deterministic
-local approximation'dır; network, subprocess, render, link fetch, embedding, LLM veya content
-logging yoktur.
+Chunking validates document identity and normalization hash, never summarizes or deletes suspicious
+text, and reports hard structural splits. Input, token, block, chunk, overlap, character, metadata,
+and mapping limits are explicit. It performs no network, embedding, LLM, rendering, or content log.
 
-Static rule engine yalnız reviewed declarative JSON ve restricted matcher çalıştırır; arbitrary
-Python/shell/template/expression yoktur. Riskli regex construct'ları load sırasında reddedilir ve
-input bounded'dır. Base64/ROT13/Unicode/hex yalnız strict byte/depth limitinde decode edilir; decoded
-veri execute edilmez. URL parse edilir fakat fetch edilmez. Evidence bounded, HTML-escaped ve secret
-pattern'lerinde mandatory masked'dır; private key/credential finding serialization'ına ham girmez.
-PII varsayılan kapalıdır ve pattern eşleşmesi kimlik kanıtı sayılmaz. Documentation/example/canary
-bağlamı finding'i gizlemek yerine confidence/classification düşürür. False negative/positive riski ve
-`not detected` durumunun garanti olmadığı belgelenir.
+## Rules and analysis
 
-Duplicate ve chunk-quality scanner'ları tamamen yerel, salt-okunur analizdir. Exact grup özeti
-kimlik doğrulama amacıyla kullanılmaz ve canonical üye otomatik silme önerisi değildir. Near
-duplicate yalnız bounded lexical karşılaştırmadır; semantic eşdeğerlik iddia etmez ve sonuçları
-manual review gerektirir. Boilerplate yalnız karşılaştırma imzasından çıkarılır, kaynak metinden
-silinmez. Quality evidence bounded, HTML-escaped ve secret-masked'dir; tam içerik loglanmaz.
-Belge/chunk/grup/finding/shingle/candidate/time limitleri structured warning üretir. Bu katmanda ağ,
-subprocess, render, fetch, embedding, LLM veya detected content execution yoktur.
+Static rules are reviewed declarative JSON executed by restricted matchers. Arbitrary Python, shell,
+templates, and unsafe regex constructs are rejected. Base64/ROT13/Unicode/hex decoding is strictly
+bounded and decoded content is never executed. URLs are parsed but not fetched. Evidence is bounded,
+escaped, and secret-masked. PII detection is off by default and pattern matches are not proof of
+identity.
 
-Credential yalnız environment, OS keychain veya secret-manager reference ile çözülür; config export, finding, artifact veya rapora secret değeri yazılmaz. Safe mode varsayılandır ve kapatılsa bile destructive payload otomatik açılmaz. Tool testleri canary/no-op action kullanır. Active sonuçlar `confirmed`, `probable`, `ambiguous` ve `not_detected` olarak ayrılır.
+Duplicate and chunk-quality analysis is local and read-only. Canonical duplicate members are report
+references, not automatic deletion decisions. Lexical near duplicates do not prove semantic
+equivalence and require review. Limits produce structured warnings rather than hidden omissions.
 
-Reporting engine evidence ve metadata'yı trust boundary'de yeniden redakte eder; private key,
-connection string, bearer/API key/cookie, credential URL ve sensitive-key değeri output'a yazılmaz.
-Absolute path varsayılan gizlidir. HTML dynamic değerleri escape eder, URL'leri linke çevirmez,
-source dosyalarını gömmez ve CSP ile script/connect/default source'u kapatır. External asset,
-analytics, network veya subprocess yoktur; limit aşımı sessiz omission değildir.
+## Reports and persistence boundary
 
-Unified static pipeline yalnız explicit local root altında read-only connector kullanır. Parser
-registry sabittir; config dynamic import, code execution veya environment interpolation yapmaz.
-TXT/Markdown binary kontrolü sürer; PDF/DOCX bytes yalnız bounded parser'a gider. Per-file stage
-failure diğer dosyalara içerik taşımaz. Error/log/event mesajları full content/evidence içermez ve
-source root maskelenir. Report write aynı dizinde temporary file ve atomic replace kullanır;
-overwrite ve parent creation varsayılan kapalıdır.
+Reporting performs final-boundary redaction for private keys, connection strings, bearer/API keys,
+cookies, credential URLs, and sensitive fields. Absolute paths are hidden by default. HTML escapes
+dynamic values, creates no links from source URLs, embeds no source documents, loads no external
+asset, and uses a restrictive CSP. Limit exhaustion is explicit.
 
-Tek dosya scan parent directory'yi root olarak kullanır fakat exact filename allowlist uygular;
-komşu dosyaları örtük discover etmez. Single-source modu tek başına warning değildir. File/page,
-extracted/normalized character ve chunk limitleri config ile bounded'dır; limit aşımı typed
-skip/error ve partial/failed status üretir, content execution veya uncontrolled growth sağlamaz.
+Future storage will persist secret references only. Raw content/artifacts remain local and subject to
+an explicit retention policy before persistence is considered complete.
 
-## Güvenlik bildirimi
+## Reporting a vulnerability
 
-Bir güvenlik açığı bildirmek için public issue açmayın. Canonical repository'nin
-[Security Advisories](https://github.com/atakaneser/RAGScanner/security/advisories/new) sayfasından
-özel taslak advisory oluşturun. Gerçek secret, exploit payload'ı, müşteri belgesi veya production
-raporunu issue, discussion ya da pull request'e eklemeyin.
+Do not open a public issue. Create a private draft through
+[GitHub Security Advisories](https://github.com/atakaneser/RAGScanner/security/advisories/new).
+Do not attach real secrets, customer documents, production reports, or unnecessary exploit data to
+issues, discussions, or pull requests.
 
-Henüz public stable sürüm yoktur. `0.1.0a1` teknik alpha için best-effort güvenlik düzeltmesi
-sağlanır; eski alpha snapshot'ları için backport garantisi verilmez.
+There is no stable release. Security fixes for technical alpha `0.1.0a1` are best effort; old alpha
+snapshots have no backport guarantee.

@@ -1,11 +1,14 @@
 # Code of Conduct
 
-RAGScanner topluluğu; saygılı, kapsayıcı, teknik tartışmaya açık ve güvenli bir işbirliği ortamı sağlamayı amaçlar.
+The RAGScanner community aims to provide a respectful, inclusive, technically open, and safe
+environment for collaboration.
 
-- Kişilere değil fikirlere ve kanıtlara odaklanın.
-- Taciz, ayrımcılık, tehdit, kişisel saldırı ve izinsiz kişisel veri paylaşımı kabul edilmez.
-- Güvenlik açıklarını, secret’ları ve müşteri içeriğini public kanallarda paylaşmayın.
-- Maintainer yönlendirmelerine ve disclosure sürecine uyun.
+- Focus criticism on ideas and evidence, not people.
+- Harassment, discrimination, threats, personal attacks, and unauthorized sharing of personal data
+  are not accepted.
+- Do not disclose vulnerabilities, secrets, or customer content in public channels.
+- Follow maintainer guidance and the coordinated-disclosure process.
 
-İhlaller maintainer’lara özel olarak bildirilmelidir. İletişim adresi public release öncesinde eklenecektir. Maintainer’lar içerik kaldırma, uyarı verme veya katılımı sınırlandırma hakkını saklı tutar.
-
+Report violations privately to the maintainers. A contact address will be added before the first
+public release. Maintainers may remove content, issue warnings, or limit participation to protect the
+community and project.

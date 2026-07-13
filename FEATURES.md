@@ -18,7 +18,7 @@ Status legend: **Foundation** means documented only; every planned capability is
 | API | Authenticated scan and result contracts | M3 |
 | Operations | History, comparisons, schedules, trends, notifications | M4 |
 | Workflow | Acknowledge, resolve, suppress, false-positive with audit trail | M4 |
-| Web | Ücretsiz yerel/self-hosted dashboard ve dokümantasyon | M4–M5 |
+| Web | Free local/self-hosted dashboard and documentation | M4–M5 |
 | Protocol | Basic MCP adapter | Future |
 
 Detailed detector coverage remains subject to source capabilities. Static filesystem scans cannot prove retrieval relevance, tenancy, or unused content without queries, labels, configuration, or telemetry.

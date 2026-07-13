@@ -1,9 +1,10 @@
 # Markdown parser
 
-Markdown parser `.md`/`.markdown` içeriğini orijinal Markdown metni olarak korur. HTML render
-etmez, embedded code çalıştırmaz, link/image fetch etmez ve remote kaynak çözmez.
+The Markdown parser preserves `.md`/`.markdown` content as original Markdown text. It does not
+render HTML, execute embedded code, fetch links/images, or resolve remote resources.
 
-Title sırası: bounded `---` scalar front matter `title`, ilk fenced-code dışı H1, filename stem.
-Front matter ilk 100 satır/16 KiB içinde kapanmalı; yalnız basit `key: scalar` alınır. Nested YAML,
-tag, anchor veya object construction yoktur. Secret-like değerler redakte edilir. Heading metadata
-level/text/line taşır; code fence içi yok sayılır. Markdown/HTML daima untrusted text'tir.
+Title precedence is: a bounded scalar `title` in `---` front matter, the first H1 outside a fenced
+code block, then the filename stem. Front matter must close within 100 lines/16 KiB; only simple
+`key: scalar` values are accepted. Nested YAML, tags, anchors, and object construction are not
+supported. Secret-like values are redacted. Heading metadata contains level, text, and line; content
+inside code fences is ignored for headings. Markdown and HTML always remain untrusted text.

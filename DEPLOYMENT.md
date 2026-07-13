@@ -1,6 +1,8 @@
-# Deployment stratejisi
+# Deployment strategy
 
-Henüz deploy edilebilir API, dashboard, worker, Dockerfile veya Compose topolojisi yoktur. Scaffold yalnız yerel Python geliştirme ve paket build’i için kullanılabilir.
+There is no deployable API, dashboard, worker, Dockerfile, or Compose topology yet. The current
+alpha supports local Python installation and package builds only.
 
-Mimari gelecekte aynı açık image’dan çalışan FastAPI uygulaması ve worker ile localhost’a bağlı basit Docker Compose öngörür. Docker dosyaları ilgili uygulamalar oluşmadan eklenmeyecektir. Kubernetes, private registry veya cloud-only servis planlanmaz.
-
+The planned topology uses a FastAPI application and worker built from the same open image, bound to
+localhost by default. Deployment files will be added only after those applications exist.
+Kubernetes, a private registry, and cloud-only services are not planned requirements.

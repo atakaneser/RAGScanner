@@ -1,17 +1,21 @@
-# ADR-0001: Tek açık kaynak repository
+# ADR-0001: Single open-source repository
 
 - Status: Proposed
 - Date: 2026-07-12
 
 ## Context
 
-RAGScanner’ın bütün geliştirmesi ücretsiz olacaktır. Ücretli sürüm, kapalı kaynak modül, entitlement veya özellik kısıtı olmayacaktır.
+All RAGScanner development is free and open source. There is no paid edition, closed module,
+entitlement, or artificial feature restriction.
 
 ## Decision
 
-Core, CLI, SDK, API, worker, OpenWebUI connector, dashboard, scheduler, güvenlik rule’ları ve dokümantasyon tek bir açık repository içinde modüler olarak geliştirilecektir. Core yine UI, connector, model sağlayıcısı ve veritabanı adaptörlerinden bağımsız kalır.
+Core, CLI, SDK, API, worker, OpenWebUI connector, dashboard, scheduler, security rules, and
+documentation are developed modularly in one public repository. Core remains independent of UI,
+connectors, model providers, and database adapters.
 
 ## Consequences
 
-Katkı, issue takibi, sürümleme ve güvenlik güncellemeleri sadeleşir. Repository büyüdükçe path-based CI ve net modül sahipliği gerekir. Dokümantasyon sitesi aynı repodan yayınlanabilir; ayrı deploy projesi yalnızca teknik gerekçeyle düşünülebilir.
-
+Contribution, issue tracking, versioning, and security updates remain straightforward. Repository
+growth requires path-based CI and clear module ownership. Documentation may be published from the
+same repository; a separate deployment project needs a concrete technical reason.

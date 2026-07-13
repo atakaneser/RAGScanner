@@ -8,8 +8,8 @@ automated gates pass.
 
 ## Release blockers
 
-- Alpha package/tag yalnız reviewed clean baseline ve final release verification sonrasında
-  yayımlanmalıdır.
+- The alpha package/tag may be published only after a reviewed clean baseline and final release
+  verification.
 
 ## Resolved approvals
 
@@ -36,7 +36,7 @@ automated gates pass.
 - Native parser calls have cooperative rather than process-level timeout preemption.
 - Lexical/heuristic detectors can produce false positives and false negatives.
 
-There is no previous public release or persistence migration. Report schema remains `1.0.0`.
+There is no previous public release or persistence migration. The current report schema is `1.1.0`.
 
 ## Local performance smoke record
 

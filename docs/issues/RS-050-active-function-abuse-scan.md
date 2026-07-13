@@ -1,14 +1,13 @@
 # RS-050: Active tool and function abuse scan
 
-**Objective:** Tool enumeration, unauthorized invocation ve privilege-escalation riskini side effect oluşturmadan değerlendirmek.  
-**Rationale:** Agentic RAG sistemlerinde en yüksek etkili risklerden biri tool abuse’dur.  
-**Dependencies:** RS-046/047/052; OD-026.  
-**Scope:** Capability-aware dry-run/no-op payload, tool exposure, authorization refusal ve synthetic canary tool.  
-**Out of scope:** Email gönderme, dosya silme, shell çalıştırma veya gerçek mutation.  
-**Implementation guidance:** TargetAdapter side-effect capability ve explicit safe test hook gerektir.  
-**Security considerations:** Varsayılan profile mutation yapamaz; destructive test ayrı gelecek ve bu issue kapsamında değildir.  
-**Acceptance criteria:** Fake unsafe/safe target ayrılır; gerçek yan etki üreten test yoktur.  
-**Tests:** Tool refusal, enumeration, fake no-op call, permission error ve malformed tool response.  
-**Documentation changes:** Tool testing safety policy.  
-**Completion checklist:** [ ] No-op design [ ] No mutation [ ] Contract tests [ ] Audit metadata [ ] Docs updated
-
+**Objective:** Assess tool enumeration, unauthorized invocation, and privilege-escalation risk without side effects.
+**Rationale:** Tool abuse is a high-impact risk in agentic RAG systems.
+**Dependencies:** RS-046/047/052; OD-026.
+**Scope:** Capability-aware dry-run/no-op payloads, tool exposure, authorization refusal, and synthetic canary tools.
+**Out of scope:** Sending email, deleting files, running shell commands, or real mutation.
+**Implementation guidance:** Require TargetAdapter side-effect metadata and an explicit safe test hook.
+**Security:** The default profile cannot mutate; destructive testing is outside this issue.
+**Acceptance:** Safe and unsafe fake targets differ without producing a real side effect.
+**Tests:** Refusal, enumeration, fake no-op call, permission error, and malformed tool response.
+**Documentation:** Tool-testing safety policy.
+**Checklist:** [ ] No-op design [ ] No mutation [ ] Contract tests [ ] Audit metadata [ ] Docs updated

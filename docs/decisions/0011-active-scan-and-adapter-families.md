@@ -1,23 +1,25 @@
-# ADR-0011: SourceConnector, TargetAdapter ve ModelProvider ayrımı
+# ADR-0011: Separate SourceConnector, TargetAdapter, and ModelProvider
 
 - Status: Accepted
 - Date: 2026-07-12
 
-## Bağlam
+## Context
 
-Filesystem, vector store, OpenWebUI, OpenAI ve Hugging Face gibi sistemler document source, test target veya analiz modeli rollerinden birini ya da birkaçını sağlayabilir. Bu rollerin tek “provider” arayüzünde birleşmesi credential, consent ve dependency sınırlarını bozar.
+Filesystem, vector stores, OpenWebUI, OpenAI, and Hugging Face may provide one or more document
+source, test target, or analysis-model roles. Combining them in one provider interface would blur
+credentials, consent, and dependency boundaries.
 
-## Karar
+## Decision
 
-Entegrasyonlar üç bağımsız port kullanır:
+- `SourceConnector` reads documents, chunks, metadata, or knowledge-base content.
+- `TargetAdapter` sends authorized black-box tests to a running RAG/LLM application.
+- `ModelProvider` supplies an optional analysis model for RAGScanner itself.
 
-- `SourceConnector`: document/chunk/metadata/knowledge-base içeriği okur.
-- `TargetAdapter`: yetkili çalışan RAG/LLM uygulamasına black-box test gönderir.
-- `ModelProvider`: scanner’ın opsiyonel dahili analiz modelini sağlar.
+Even when one platform fills multiple roles, each role has separate configuration, credential
+references, consent, and provenance. An LLM endpoint is not proof of retrieval. OpenWebUI is an
+adapter, not Core.
 
-Aynı platform farklı rollerde kullanılsa bile ayrı config, credential reference ve provenance taşır. LLM endpoint’i retrieval kanıtı değildir; yalnız doğrulanan retrieval pipeline `rag` target etiketini alır. OpenWebUI core değil, adapter’dır.
+## Consequences
 
-## Sonuçlar
-
-Daha fazla contract fixture gerekir fakat core vendor bağımsız kalır; source erişimi model kullanımını veya active testi örtük etkinleştiremez.
-
+More contract fixtures are required, but Core remains vendor-neutral. Source access cannot silently
+enable model use or active testing.

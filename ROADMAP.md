@@ -1,40 +1,48 @@
-# Yol haritası
+# Roadmap
 
-Tüm kilometre taşları ücretsiz ve açık kaynaktır.
+Every milestone is free and open source.
 
-## Milestone 0 — Ürün temeli
+## Milestone 0 — Product foundation
 
-Ürün belgeleri, mimari, scanner/security modeli, issue backlog, monorepo yapısı, Apache-2.0 lisansı
-ve açık kaynak governance. **Durum: tamamlandı.**
+Product documentation, architecture, scanner/security model, issue backlog, monorepo layout,
+Apache-2.0 licensing, and governance. **Status: complete.**
 
 ## Milestone 1 — Scanner Core
 
-Python scaffold, CLI, document/finding modelleri, TXT/Markdown/PDF/DOCX, normalization, chunking, persistence ve raporlar. **Durum: ingestion'dan static security/quality/scoring ve terminal/JSON/HTML report'a unified offline scan tamamlandı; OCR ve persistence yok.**
-
-The first usability slice now includes English bare-command onboarding, bounded local source
-discovery, and consent-based OpenWebUI service-candidate checks. The next slices cover PDF/path
-resilience, installation, and report UX.
+Python package, CLI, document/finding models, TXT/Markdown/PDF/DOCX ingestion, normalization,
+chunking, persistence, and reports. **Status:** the offline ingestion → static security/quality →
+scoring → terminal/JSON/HTML pipeline works. OCR and persistence are not implemented. Current work
+focuses on English canonical documentation and usability hardening.
 
 ## Milestone 2 — RAG Security Scan
 
-Static rule engine yanında active endpoint testing: sürümlü prompt-injection/data-leakage/function-abuse/context-manipulation payload’ları, generic target adapter, deterministic response analyzer, rate limit/timeout/budget, TP/FP fixture ve güvenli security reports. **Durum: İlk deterministic static rule engine/pack/CLI ile TargetAdapter, safe active test library, Generic REST transport, response evaluation, in-memory active runner ve ortak reporting tamamlandı; persistence ve ek adaptörler yok.**
+Static rules plus authorized active endpoint testing, versioned attack fixtures, target adapters,
+deterministic response evaluation, operational limits, and safe reports. **Status:** static rules,
+TargetAdapter contracts, safe test library, Generic REST transport, evaluator, in-memory runner, and
+shared reports exist. Persistence and platform-specific adapters do not.
 
 ## Milestone 3 — RAG Health Scan
 
-Exact/near/semantic duplicate, chunk quality, freshness, version conflict, metadata quality, Health Score ve RAG Rot. **Durum: exact normalized-content duplicate, bounded lexical near-duplicate ve deterministic chunk-quality analizleri tamamlandı; semantic duplicate, freshness, conflict, metadata quality, birleşik Health Score ve RAG Rot yok.**
+Exact/near/semantic duplicates, chunk quality, freshness, version conflicts, metadata quality,
+Health Score, and RAG Rot. **Status:** exact and lexical near-duplicate plus chunk-quality analysis
+exist. Semantic, freshness, conflict, metadata quality, and complete score formulas do not.
 
-## Milestone 4 — BYOM ve ileri analiz
+## Milestone 4 — BYOM and advanced analysis
 
-Local embeddings, OpenAI-compatible/Ollama/OpenWebUI model endpoint, model doctor, balanced/deep mode, contradiction verification ve answer faithfulness. **Durum: başlanmadı.**
+Local embeddings, explicitly configured model providers, model diagnostics, balanced/deep modes,
+contradiction verification, and answer faithfulness. **Status: not started.**
 
 ## Milestone 5 — Web dashboard
 
-Overview, knowledge bases, scans/detail/comparison, findings/detail, schedules, connectors, settings ve about. **Durum: başlanmadı; yalnız uygulama dizini ayrıldı.**
+Overview, knowledge bases, scan history/detail/comparison, finding detail, schedules, connectors,
+settings, and about. **Status: not started.**
 
-## Milestone 6 — OpenWebUI entegrasyonu
+## Milestone 6 — OpenWebUI and additional integrations
 
-OpenWebUI discovery/manual/scheduled scan yanında platform uyumluluk katmanı: OpenAI vector stores, Hugging Face TGI, generic OpenAI-compatible target, Ollama/vLLM/LiteLLM/NIM ve öncelikli vector-store connector’ları. **Durum: başlanmadı; yalnız connector paket sınırı ayrıldı.**
+OpenWebUI synchronization and manual/scheduled scans plus prioritized source/target/model adapters.
+**Status:** consent-based loopback health-candidate discovery exists; no content connector exists.
 
-## Milestone 7 — Paketleme ve sürüm
+## Milestone 7 — Packaging and release
 
-Docker/Compose, install scripts, CI, package publishing, docs website ve security hardening. **Durum: temel CI mevcut; Docker/Compose ve yayın yok.**
+Docker/Compose, install automation, CI, package publishing, documentation website, and security
+hardening. **Status:** baseline CI and GitHub installation work; no container or public release.

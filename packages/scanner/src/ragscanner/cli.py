@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -86,6 +88,23 @@ def version_callback(value: bool) -> None:
     if value:
         typer.echo(f"RAGScanner {__version__}")
         raise typer.Exit()
+
+
+def _run_uv_tool(*arguments: str) -> None:
+    uv = shutil.which("uv")
+    if uv is None:
+        typer.echo(
+            "uv was not found on PATH. Install uv, restart the terminal, and try again.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    result = subprocess.run([uv, "tool", *arguments], check=False)  # noqa: S603
+    if result.returncode != 0:
+        typer.echo(
+            f"Maintenance command failed with exit code {result.returncode}.",
+            err=True,
+        )
+        raise typer.Exit(code=result.returncode)
 
 
 def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
@@ -205,6 +224,38 @@ def doctor() -> None:
     typer.echo(f"OK network: {report.network.detail}")
 
 
+@app.command()
+def update() -> None:
+    """Upgrade the installed RAGScanner tool through uv."""
+    typer.echo("Updating RAGScanner through uv...")
+    _run_uv_tool("upgrade", "ragscanner")
+    typer.echo("RAGScanner update completed.")
+
+
+@app.command()
+def repair() -> None:
+    """Reinstall the current RAGScanner tool environment through uv."""
+    typer.echo("Repairing the RAGScanner installation through uv...")
+    _run_uv_tool("upgrade", "ragscanner", "--reinstall")
+    typer.echo("RAGScanner repair completed.")
+
+
+@app.command()
+def uninstall(
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", "-y", help="Skip the uninstall confirmation."),
+    ] = False,
+) -> None:
+    """Remove the installed RAGScanner tool through uv."""
+    if not yes and not typer.confirm("Uninstall RAGScanner from this user account?"):
+        typer.echo("Uninstall cancelled. No changes were made.")
+        return
+    typer.echo("Uninstalling RAGScanner through uv...")
+    _run_uv_tool("uninstall", "ragscanner")
+    typer.echo("RAGScanner uninstall completed.")
+
+
 def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
     parser_messages = [
         warning.message for values in result.parser_warnings.values() for warning in values
@@ -222,6 +273,38 @@ def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
     skipped_checks.extend(
         f"{error.stage.value}: {error.code}" for error in result.errors if not error.fatal
     )
+    ingestion_issues: list[dict[str, object]] = []
+    matched_items: set[tuple[str, str]] = set()
+    for error in result.errors:
+        if error.item_id is None and error.relative_path is None:
+            continue
+        path = error.relative_path or error.item_id or "unknown"
+        matched_items.add((error.item_id or "", path))
+        remediation = error.metadata.get("remediation")
+        ingestion_issues.append(
+            {
+                "path": path,
+                "stage": error.stage.value,
+                "code": error.code,
+                "message": error.message,
+                "remediation": remediation if isinstance(remediation, str) else None,
+                "fatal": error.fatal,
+            }
+        )
+    for item in result.skipped_items:
+        path = item.relative_path or item.item_id
+        if (item.item_id, path) in matched_items:
+            continue
+        ingestion_issues.append(
+            {
+                "path": path,
+                "stage": item.stage.value,
+                "code": "item_skipped",
+                "message": item.reason,
+                "remediation": "Review the file and scanner limits, then run the scan again.",
+                "fatal": False,
+            }
+        )
     return ReportInput(
         scan=result.scan,
         findings=result.findings,
@@ -259,6 +342,7 @@ def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
             name: value.model_dump(mode="json")
             for name, value in result.assessment_coverage.items()
         },
+        ingestion_issues=ingestion_issues,
     )
 
 

@@ -156,7 +156,7 @@ def test_cli_terminal_json_html_fail_on_and_no_overwrite(tmp_path: Path) -> None
     populate(tmp_path / "kb")
     terminal = runner.invoke(app, ["scan", str(tmp_path / "kb"), "--quiet"])
     assert terminal.exit_code == 0
-    assert "RAGScanner report" in terminal.stdout
+    assert "RAGScanner scan:" in terminal.stdout
     json_path = tmp_path / "report.json"
     json_result = runner.invoke(
         app,
@@ -198,7 +198,7 @@ def test_cli_config_override_invalid_config_and_output_failure(tmp_path: Path) -
     result = runner.invoke(
         app, ["scan", str(kb), "--config", str(config), "--format", "terminal", "--quiet"]
     )
-    assert result.exit_code == 0 and "RAGScanner report" in result.stdout
+    assert result.exit_code == 0 and "RAGScanner scan:" in result.stdout
     invalid = tmp_path / "invalid.toml"
     invalid.write_text("[scan]\nunknown = true\n")
     assert runner.invoke(app, ["scan", str(kb), "--config", str(invalid)]).exit_code == 2

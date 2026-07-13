@@ -1,17 +1,21 @@
-# ADR-0002: Python modüler monolith ve server-rendered dashboard
+# ADR-0002: Python modular monolith and server-rendered dashboard
 
 - Status: Accepted
 - Date: 2026-07-12
 
-## Karar
+## Decision
 
-Python scanner core, Typer CLI, FastAPI API ve Jinja2/HTMX dashboard seçildi. Next.js ilk sürümde kullanılmayacak. API ve worker aynı dağıtımın farklı process’leri olabilir; bu microservice ayrımı değildir.
+Use a Python scanner core, Typer CLI, FastAPI API, and Jinja2/HTMX dashboard. Next.js is not part of
+the first release. API and worker may run as separate processes from the same distribution; this is
+not a microservice split.
 
-## Gerekçe
+## Rationale
 
-Tek dil/toolchain, doğrudan Pydantic view modelleri, düşük Docker/RAM maliyeti ve scan/finding ağırlıklı UI için yeterli etkileşim sağlar. Next.js ancak ölçülen UI karmaşıklığı server-rendered yaklaşımı yetersiz bırakırsa yeni ADR ile değerlendirilir.
+One language/toolchain, direct Pydantic view models, low Docker/RAM cost, and sufficient interaction
+for scan/finding workflows reduce initial complexity. Reconsider a separate frontend only if
+measured UI needs exceed the server-rendered approach.
 
-## Sonuçlar
+## Consequences
 
-Frontend ekosistemi daha sınırlıdır fakat ilk sürümün bakım ve deployment maliyeti düşer. Raw HTML/model evidence template’e güvenilir markup olarak geçirilemez.
-
+The frontend ecosystem is narrower, but maintenance and deployment cost remain low. Raw HTML or
+model evidence may never be passed to templates as trusted markup.

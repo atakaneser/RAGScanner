@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added report schema 1.1 ingestion issues, a concise terminal summary, and an HTML executive
+  summary with partial-coverage and per-file remediation guidance.
+- Established English as the canonical project and runtime language while retaining localized
+  README entry points and multilingual scanner inputs; migrated canonical documentation and added a
+  regression audit.
+- Added CLI and filesystem tests for spaces, parentheses, Turkish, German, Arabic, Cyrillic, Chinese,
+  emoji, and decomposed-Unicode filenames.
+- Added shell-free `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`
+  commands for uv-managed installations.
 - Added English guided local scanning and consent-based OpenWebUI service-candidate discovery to the
   bare `ragscanner` command.
 - PDF signature, zero-page, and PyMuPDF page-count failures now produce typed categories and

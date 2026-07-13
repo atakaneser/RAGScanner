@@ -1,37 +1,46 @@
-# Planlar ve açık kararlar
+# Plans and open decisions
 
-Ürün tek ve ücretsizdir; Community/Pro ayrımı, ödeme, abonelik, entitlement ve ticari paket kararı bulunmaz.
+RAGScanner is one free and open-source product. There is no Community/Pro split, payment,
+subscription, entitlement, or commercial package decision.
 
-| ID | Açık karar | Engellediği iş |
+| ID | Open decision | Blocks |
 |---|---|---|
-| OD-001 | **Çözüldü:** Apache-2.0; `LICENSE_DECISION.md` | — |
-| OD-002 | Paket adı ve tek-repo modül yapısı | RS-003 |
-| OD-003 | Yerel geçmiş için varsayılan saklama/temizleme davranışı | RS-016 |
-| OD-005 | Health score formülü, kritik güvenlik tavanı, coverage ve kalibrasyon | RS-017 |
-| OD-006 | RAG Rot formülü, baseline/window ve eksik veri davranışı | RS-027 |
-| OD-007 | SQLAlchemy veya SQLModel | RS-004/016 |
-| OD-008 | Self-hosted queue/scheduler teknolojisi ve minimum topoloji | RS-035 |
-| OD-009 | Çok kullanıcılı modun auth/session yaklaşımı; yerel mod auth’suz kalacak | RS-030 |
-| OD-010 | Connector secret şifreleme/reference ve key rotation | Connector’lar |
-| OD-011 | Evidence/artifact retention, silme ve opsiyonel object storage | İzleme/gizlilik |
-| OD-012 | Desteklenen OpenWebUI sürümleri ve change-detection fallback | RS-028 |
-| OD-013 | Model provider compatibility contract ve offline model paketleme | M2 |
-| OD-014 | Bildirim kanalları, retry/dedup politikası | RS-036 |
-| OD-016 | İmzalı rapor gerçekten gerekli mi; gerekliyse teknik anlamı | Raporlama |
-| OD-017 | Telemetry tamamen kapalı mı, açık onaylı mı olacak? | Sürüm |
-| OD-018 | Güvenlik iletişim adresi, desteklenen sürümler, disclosure politikası | Açık sürüm |
-| OD-019 | Accessibility/browser hedefi | Dashboard/docs |
-| OD-021 | API/OpenWebUI modüllerinin tek repo içindeki yerleşimi | M3 |
-| OD-022 | Rule-pack formatı, imzalama, update ve rollback | M1/M4 |
-| OD-023 | Tek kullanıcı modu ile isteğe bağlı organizasyon modelinin ilişkisi | RS-030 |
-| OD-024 | Connector değişikliklerinde source/chunk kimliği | RS-004/006/028 |
-| OD-025 | Parser kaynak limitleri ve izolasyon yöntemi | Parser işleri |
-| OD-026 | Active Scan için varsayılan güvenli payload profili ve destructive-test politikası | Active Security Scan |
-| OD-027 | Generic TargetAdapter request/response/capability sözleşmesi | RS-046 |
-| OD-028 | Platformların Tier 1/2/Experimental uyumluluk kriterleri ve version matrix | Connector/target işleri |
-| OD-029 | Active response analyzer kalibrasyon datası ve confirmed/suspected semantiği | Active Security Scan |
-| OD-030 | OpenAI Responses ile Chat Completions target önceliği | OpenAI adapter |
+| OD-001 | **Resolved:** Apache-2.0; see `LICENSE_DECISION.md` | — |
+| OD-002 | Package name and single-repository module layout | RS-003 |
+| OD-003 | Default retention and cleanup for local history | RS-016 |
+| OD-005 | Health score formula, critical-security cap, coverage, and calibration | RS-017 |
+| OD-006 | RAG Rot baseline/window and missing-data behavior | RS-027 |
+| OD-007 | SQLAlchemy or SQLModel | RS-004/016 |
+| OD-008 | Self-hosted queue/scheduler technology and minimum topology | RS-035 |
+| OD-009 | Optional multi-user authentication/session model; local mode remains unauthenticated | RS-030 |
+| OD-010 | Connector secret references, encryption, and key rotation | Connectors |
+| OD-011 | Evidence/artifact retention, deletion, and optional object storage | Monitoring/privacy |
+| OD-012 | Supported OpenWebUI versions and change-detection fallback | RS-028 |
+| OD-013 | Model-provider compatibility contract and offline model packaging | M2 |
+| OD-014 | Notification channels and retry/deduplication policy | RS-036 |
+| OD-016 | Whether signed reports are required and what a signature would prove | Reporting |
+| OD-017 | Whether telemetry is always disabled or available through explicit opt-in | Release |
+| OD-018 | Security contact, supported versions, and disclosure policy | Public release |
+| OD-019 | Accessibility and browser support target | Dashboard/docs |
+| OD-021 | API/OpenWebUI module placement in the monorepo | M3 |
+| OD-022 | Rule-pack format, signing, update, and rollback | M1/M4 |
+| OD-023 | Relationship between single-user and optional organization models | RS-030 |
+| OD-024 | Source/chunk identity across connector changes | RS-004/006/028 |
+| OD-025 | Parser resource limits and isolation strategy | Parser work |
+| OD-026 | Default Active Scan safety profile and destructive-test policy | Active Security Scan |
+| OD-027 | Generic TargetAdapter request/response/capability contract | RS-046 |
+| OD-028 | Tier 1/2/Experimental compatibility criteria and version matrix | Connectors/targets |
+| OD-029 | Active response calibration data and result semantics | Active Security Scan |
+| OD-030 | OpenAI Responses versus Chat Completions target priority | OpenAI adapter |
 
-Önerilen sıralama: kalan OD-002, 007, 022, 024 ve 025 kararlarını ilgili işler sırasında çöz;
-ardından güvenli input → normalize document → security/quality finding → versioned JSON report
-dikey dilimini koru.
+## Current delivery sequence
+
+1. Complete RS-062 usability and canonical-language migration.
+2. Resolve OD-003 and OD-007 for SQLite scan history and migrations.
+3. Implement application services, API, and the durable local job worker.
+4. Resolve OD-010, OD-012, OD-021, and OD-024 before the production OpenWebUI connector.
+5. Resolve OD-019 before dashboard acceptance and browser QA.
+
+Preserve the vertical slice: safe input → normalized document → security/quality finding →
+versioned report → optional persistence/application delivery. Later adapters must not add provider
+conditionals or database/UI dependencies to Core.

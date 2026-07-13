@@ -1,25 +1,30 @@
 # GitHub-ready issue drafts
 
-These drafts are ordered by ID, not permission to implement every item concurrently. Milestones and dependencies govern sequencing. Copy each into GitHub only after confirming its Open Decisions and repository placement.
+Drafts are ordered by ID; this is not permission to implement them concurrently. Milestones and
+dependencies control sequencing. Copy a draft to GitHub only after confirming its open decisions
+and repository placement.
 
 | Range | Milestone |
 |---|---|
 | RS-001–002 | M0 foundation |
-| RS-003–019, RS-027 | M1 Community scanner |
-| RS-020–026 | M2 semantic/BYOM |
-| RS-028–029 | M3 integration/API |
-| RS-030–037 | M4 ücretsiz self-hosted dashboard |
-| RS-038–039 | M5 dokümantasyon sitesi |
-| RS-040–041 | Kaldırıldı: ödeme ve ücretli dağıtım yok |
-| RS-042–045 | Cross-cutting delivery/readiness |
-| RS-046–055 | Active Security Scan ve target adapters |
+| RS-003–019, RS-027 | M1 community scanner |
+| RS-020–026 | M2 semantic analysis and BYOM |
+| RS-028–029 | M3 integration and API |
+| RS-030–037 | M4 free self-hosted dashboard |
+| RS-038–039 | M5 documentation site |
+| RS-040–041 | Removed: no payment or paid distribution |
+| RS-042–045 | Cross-cutting delivery and readiness |
+| RS-046–055 | Active Security Scan and target adapters |
 | RS-056 | Multi-platform source compatibility |
-| RS-057–060 | Generic target, active runner ve static security orchestration |
+| RS-057–060 | Generic target, active runner, and static security orchestration |
 | RS-061 | Guided onboarding and consent-based source discovery |
+| RS-062 | Reporting usability and canonical project language |
 
-RS-040 ve RS-041 ücretlendirme/kapalı dağıtım işleri olduğu için ürünün tamamen ücretsiz olma kararıyla silinmiştir. Kalan her issue kendi kabul ve doğrulama şartlarını içerir; “done” ayrıca secret içermemeyi, doğru durum belgesini ve güvenlik/gizlilik incelemesini gerektirir.
+RS-040 and RS-041 were removed after the decision to keep the complete product free and open
+source. Each remaining issue contains its own acceptance and verification conditions. “Done” also
+requires no committed secrets, an accurate status document, and security/privacy review.
 
-## Zorunlu uygulama sırası
+## Required implementation direction
 
 1. [RS-004 Core domain models](RS-004-core-models.md)
 2. [RS-059 Static SourceConnector contract](RS-059-static-source-connector-contract.md)
@@ -34,4 +39,5 @@ RS-040 ve RS-041 ücretlendirme/kapalı dağıtım işleri olduğu için ürün�
 11. [RS-028 OpenWebUI connector](RS-028-openwebui-connector.md)
 12. [RS-054/056 Additional platform adapters](RS-056-multi-platform-source-connectors.md)
 
-Bu sıra dependency yönüdür; her aşamanın acceptance kriterleri tamamlanmadan sonraki adapter’a geçilmez.
+This list describes dependency direction. An adapter may not advance until the acceptance criteria
+for its prerequisites are satisfied.

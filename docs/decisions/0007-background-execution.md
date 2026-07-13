@@ -1,17 +1,20 @@
-# ADR-0007: SQLite-backed tek worker ve APScheduler
+# ADR-0007: SQLite-backed single worker and APScheduler
 
 - Status: Accepted
 - Date: 2026-07-12
 
-## Karar
+## Decision
 
-FastAPI in-process task yerine SQLite `Job` tablosunu claim/lease eden tek worker kullanılacak. APScheduler yalnızca due schedule’lardan idempotent job üretecek. RQ, Celery ve Dramatiq ilk sürümde kullanılmayacak.
+Use one worker that claims/leases records from a SQLite `Job` table instead of FastAPI in-process
+tasks. APScheduler only creates idempotent jobs for due schedules. RQ, Celery, and Dramatiq are not
+used in the first release.
 
-## Gerekçe
+## Rationale
 
-Uzun tarama, restart recovery, progress, cancellation ve status için durable job gerekir; ek Redis/RabbitMQ servisi tek makine hedefinde gereksizdir.
+Long scans require restart recovery, progress, cancellation, and durable status. An additional
+Redis/RabbitMQ service is unnecessary for the initial single-machine target.
 
-## Sonuçlar
+## Consequences
 
-Tek aktif worker ve bounded concurrency sınırı vardır. Birden çok worker ihtiyacı ölçülürse PostgreSQL/queue kararı yeniden açılır. Worker henüz uygulanmamıştır.
-
+Concurrency is bounded to one active writer/worker. If measured demand requires multiple workers,
+the PostgreSQL/queue decision will be reopened. The worker is not implemented yet.

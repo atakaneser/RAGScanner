@@ -1,44 +1,24 @@
 # Generic REST Target Adapter
 
-İlk concrete `TargetAdapter`, kullanıcı tarafından yapılandırılan JSON tabanlı REST hedeflerini
-provider varsayımı olmadan test eder. Yalnız yetkili active black-box transport sağlar;
-vulnerability değerlendirmez ve scan orchestration yapmaz.
+The first concrete `TargetAdapter` transports authorized black-box tests to configured JSON REST
+targets without provider assumptions. It neither evaluates vulnerabilities nor orchestrates scans.
 
-## Yapılandırma ve mapping
+Configuration covers base URL/path/method, non-secret headers, secret-header references, bounded
+JSON request templates, restricted dotted response mappings, timeout/delay/request limits, TLS,
+allowed host/port, redirects, maximum response bytes, and optional health path. Secrets are opaque
+references; no production resolver backend is included yet.
 
-Config; base URL, endpoint path, method, non-secret header, secret-header reference, JSON request
-template, dotted response mapping, timeout/delay/request limiti, TLS, allowed host/port, redirect,
-response byte limiti ve opsiyonel health path içerir. Secret değerleri yalnız `env:`, `keychain:`,
-`secret-manager:`, `vault:` veya `file-secret:` referansıdır. Gerçek secret backend henüz yoktur.
+Allowed request placeholders are `PAYLOAD`, `SESSION_ID`, `CANARY_TOKEN`, `TEST_CASE_ID`, and
+`PAYLOAD_ID`. Rendering is literal replacement only—no Jinja, Python, shell, environment expansion,
+expression, or recursion. Response text is required; citation, source, tool/function, model, finish
+reason, and session fields are optional bounded mappings.
 
-```json
-{"messages": [{"role": "user", "content": "{{PAYLOAD}}"}], "session": "{{SESSION_ID}}"}
-```
+Only HTTP/HTTPS are accepted. URL credentials/fragments are rejected; host/port require an allowlist;
+loopback, link-local, multicast, unspecified, and metadata addresses are blocked. Private addresses
+require both allowlisting and explicit self-hosted opt-in. All DNS answers are validated immediately
+before transport. Redirects default off and every destination is revalidated; cross-host credential
+redirects are blocked. Streaming stops at the byte limit. No automatic retry occurs.
 
-Yalnız `PAYLOAD`, `SESSION_ID`, `CANARY_TOKEN`, `TEST_CASE_ID` ve `PAYLOAD_ID` kullanılabilir.
-Renderer literal replacement yapar; Jinja, Python, shell, environment expansion, expression ve
-recursive template çalıştırmaz. Response mapping `answer`, `response.text` veya
-`choices.0.message.content` biçiminde restricted dotted path kullanır. Response text zorunlu;
-citation, source, tool/function, model, finish reason ve session alanları opsiyoneldir.
-
-## SSRF ve transport güvenliği
-
-- Yalnız HTTP/HTTPS; TLS verification varsayılan açıktır.
-- URL credential ve fragment reddedilir; host/port açık allowlist gerektirir.
-- Loopback, link-local, multicast, unspecified ve bilinen metadata IP'leri daima bloklanır.
-- Private IP varsayılan blokludur; self-hosted hedef hem allowed host hem explicit opt-in ister.
-- DNS sonuçlarının tamamı isteğin hemen öncesinde doğrulanır.
-- Redirect varsayılan kapalıdır. Açıldığında her destination yeniden doğrulanır, sayı sınırlıdır
-  ve credential sızıntısını önlemek için cross-host redirect bloklanır.
-- Response stream edilir ve byte sınırı aşılırsa fail-closed hata üretilir.
-- Otomatik retry yoktur; total timeout, cancellation ve budget uygulanır.
-- User-Agent `RAGScanner/<version>` biçimindedir; payload veya secret loglanmaz.
-
-DNS kontrolü ile HTTP client çözümlemesi arasında teorik TOCTOU/DNS-rebinding penceresi kalır.
-Production hardening aşamasında validated-IP pinning değerlendirilmelidir. Private opt-in bu
-riski tamamen ortadan kaldırmaz.
-
-Health path yoksa yalnız config/destination kontrol edilir ve istek gitmez. Path açıkça
-yapılandırılırsa payload içermeyen GET yapılır; her endpoint GET destekler varsayımı yoktur.
-Active hazırlama/gönderme geçerli ve süresi dolmamış authorization ister. Safe mode varsayılandır;
-unsafe payload ve destructive mod bloklanır. Adaptör vulnerability değerlendirmez.
+The DNS validation/transport-resolution gap leaves a theoretical rebinding window. Validated-IP
+pinning remains future hardening. A missing health path performs validation without a request. Active
+invocation requires current authorization and safe-mode policy; the adapter never classifies risk.

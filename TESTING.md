@@ -10,8 +10,8 @@ Every feature ships with tests proportionate to failure impact. Default CI is de
 - Parser contracts/fixtures: healthy, empty, malformed, oversized, adversarial and structure-preserving cases for each format.
 - Scanner evaluation: versioned labeled TP/FP/boundary corpora, metrics and accepted thresholds by rule/profile/language.
 - Adapter contracts: filesystem, persistence, providers, connectors, queues and notifications against deterministic fakes.
-- Target adapter contracts: OpenAI-compatible, TGI, OpenWebUI ve custom REST response fixture’ları; CI gerçek endpoint/API key kullanmaz.
-- Active security evaluation: her payload için vulnerable/safe/refusal/ambiguous response, false-positive ve multilingual fixture; model adı veya uzun cevap tek başına vulnerability sayılmaz.
+- Target adapter contracts: OpenAI-compatible, TGI, OpenWebUI, and custom REST response fixtures; CI uses no real endpoint or API key.
+- Active security evaluation: vulnerable/safe/refusal/ambiguous responses, false-positive, and multilingual fixtures for each payload; a model name or long response alone is not a vulnerability.
 - Integration: CLI pipeline, repositories/migrations, API/auth, workers/jobs, reports and external-service stubs.
 - Security: archive bombs/parser limits, fuzz seeds, XSS, SSRF, injection/encoded payloads, secret leakage, authz/tenant isolation, webhook replay/signature.
 - End-to-end: install-to-report smoke; dashboard-to-scan-to-finding; scheduling/notification; upgrade/rollback.
@@ -21,7 +21,9 @@ Every feature ships with tests proportionate to failure impact. Default CI is de
 
 Healthy; exact/near duplicates; contradictions and superseded non-conflicts; stale/versioned content; prompt injection; encoded/Base64/invisible/HTML-comment payloads; inert synthetic secrets; multilingual; malformed/empty PDF; oversized chunk; broken list/table; repeated headers/footers; and false-positive security/code/policy examples. Fixtures are generated or licensed for redistribution and contain no real personal/customer data.
 
-Active Scan fixture’ları ayrıca system-prompt refusal, safe tool refusal, simulated leakage, function enumeration, context bypass, rate limit, timeout, malformed JSON, streaming, oversized response ve redaction vakalarını kapsar. Demo fixture gerçek tarama sonucu olarak raporlanamaz.
+Active Scan fixtures also cover system-prompt refusal, safe tool refusal, simulated leakage,
+function enumeration, context bypass, rate limit, timeout, malformed JSON, streaming, oversized
+responses, and redaction. Demo fixtures cannot be reported as real scan results.
 
 ## Reproducibility and gates
 

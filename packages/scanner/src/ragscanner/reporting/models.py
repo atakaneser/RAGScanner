@@ -16,8 +16,8 @@ from ragscanner.quality import DuplicateGroup
 from ragscanner.quality.models import ChunkQualityStatistics
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.0.0"
-REPORTER_VERSION = "1.0.0"
+REPORT_SCHEMA_VERSION = "1.1.0"
+REPORTER_VERSION = "1.1.0"
 
 
 class ReportFilter(BaseModel):
@@ -79,6 +79,7 @@ class ReportInput(BaseModel):
     knowledge_base_mode: str = "collection"
     source_count: int = Field(default=0, ge=0)
     assessment_coverage: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    ingestion_issues: list[dict[str, Any]] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_scan_identity(self) -> "ReportInput":
@@ -141,6 +142,15 @@ class ReportProcessingSummary(BaseModel):
     errors: int = 0
 
 
+class ReportIngestionIssue(BaseModel):
+    path: str
+    stage: str
+    code: str
+    message: str
+    remediation: str | None = None
+    fatal: bool = False
+
+
 class ReportDocument(BaseModel):
     schema_version: str = REPORT_SCHEMA_VERSION
     reporter_version: str = REPORTER_VERSION
@@ -169,3 +179,4 @@ class ReportDocument(BaseModel):
     knowledge_base_mode: str
     source_count: int
     assessment_coverage: dict[str, dict[str, Any]]
+    ingestion_issues: list[ReportIngestionIssue]

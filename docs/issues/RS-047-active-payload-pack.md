@@ -1,13 +1,13 @@
 # RS-047: Versioned active security payload pack
 
-**Objective:** Prompt injection, leakage, function abuse ve context manipulation için sürümlü, çok dilli payload şeması oluşturmak.  
-**Rationale:** Active testler tekrar üretilebilir ve risk profiline göre seçilebilir olmalıdır.  
-**Dependencies:** RS-004, RS-046; OD-026.  
-**Scope:** Payload ID/version/category, risk/non-destructive flag, prerequisites, expected signals, exclusions, references ve TR/EN fixture’lar.  
-**Out of scope:** Payload gönderme, destructive tool çağrısı, fake vulnerability sonucu.  
-**Implementation guidance:** YAML/JSON schema; varsayılan yalnız safe profile; custom pack validation.  
-**Security considerations:** Payload hiçbir zaman local command olarak çalıştırılmaz; destructive içerik ikinci onay olmadan seçilmez.  
-**Acceptance criteria:** Pack validation ve uniqueness; her payload’ın safe/refusal fixture’ı; version provenance.  
-**Tests:** Schema, duplicate ID, malformed pack, multilingual boundary ve safe-profile selection.  
-**Documentation changes:** Payload contribution and safety guide.  
-**Completion checklist:** [x] Schema [x] Safe profile [x] TR/EN corpus [x] Malformed tests [x] Docs updated
+**Objective:** Define a versioned multilingual payload schema for prompt injection, leakage, function abuse, and context manipulation.
+**Rationale:** Active tests must be reproducible and selectable by risk profile.
+**Dependencies:** RS-004, RS-046; OD-026.
+**Scope:** Payload ID/version/category, risk and non-destructive flags, prerequisites, expected signals, exclusions, references, and multilingual fixtures.
+**Out of scope:** Payload transport, destructive tool calls, and fake vulnerability results.
+**Implementation guidance:** JSON schema; safe profile only by default; validate custom packs.
+**Security:** Payloads are never executed as local commands; destructive content requires separate design and approval.
+**Acceptance:** Pack validity and uniqueness; safe/refusal fixture per payload; version provenance.
+**Tests:** Schema, duplicate ID, malformed pack, multilingual boundary, and safe-profile selection.
+**Documentation:** Payload contribution and safety guide.
+**Checklist:** [x] Schema [x] Safe profile [x] Multilingual corpus [x] Malformed tests [x] Docs updated

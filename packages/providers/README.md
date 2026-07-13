@@ -1,4 +1,5 @@
 # Model providers
 
-Gelecekte RAGScanner’ın opsiyonel analizinde kullanacağı chat ve embedding provider adapter’ları burada yer alacaktır. Taranan target ve document source yapılandırmalarından bağımsızdır. Henüz provider veya network kodu yoktur.
-
+Optional chat and embedding provider adapters for RAGScanner's own advanced analysis will live here.
+They remain independent from scanned targets and document-source configurations. No production
+provider or model-network code is implemented yet.
