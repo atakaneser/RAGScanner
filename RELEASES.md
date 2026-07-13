@@ -1,17 +1,23 @@
 # Release strategy
 
-Henüz yayınlanmış sürüm yoktur. Hazırlanan ilk aday PEP 440 `0.1.0a1`, public release başlığı
-`v0.1.0-alpha.1` olacaktır. Apache-2.0 lisansı, canonical repository ve GitHub Security Advisory
-bildirim kanalı onaylanmıştır; reviewed clean commit ve release doğrulamaları tamamlanmadan tag veya
-package publish yapılmaz. İlk sürümden itibaren public API/report/SDK sözleşmeleri Semantic
-Versioning, changelog ve açık release notes ile yönetilir. Rule pack, report schema, fingerprint,
-scoring policy ve connector compatibility ayrıca sürümlenir.
+No version has been published. The first prepared PEP 440 candidate is `0.1.0a1`; its intended
+public release title is `v0.1.0-alpha.1`. Apache-2.0 licensing, the canonical repository, and the
+GitHub Security Advisory channel are approved. No tag or package will be published until clean-commit
+review and release verification are complete.
 
-## Dağıtım
+Public API, report, and SDK contracts will follow Semantic Versioning, a changelog, and public
+release notes. Rule packs, report schemas, fingerprints, scoring policies, and connector
+compatibility are versioned independently where appropriate.
 
-- Public Python package, açık container image ve dokümantasyon protected `main` üzerinden yayınlanır.
-- Dashboard/API/worker’lar aynı açık repository ve uyumluluk setinde kalır.
-- Core → CLI/API/worker/dashboard contract testleri → public artifact sırası izlenir.
-- Güvenlik düzeltmeleri gerektiğinde yayından önce koordineli özel disclosure uygulanabilir; düzeltilen kod yine herkese açık yayınlanır.
+## Distribution
 
-Yayın öncesi test, package install, schema compatibility, SBOM/provenance, supported-platform matrisi, upgrade/rollback ve bilinen sınırlamalar gözden geçirilir. Yayın yalnızca açık kullanıcı onayıyla yapılır.
+- Public Python packages, open container images, and documentation will be released from protected
+  `main`.
+- Dashboard, API, and workers remain in the same open repository and compatibility set.
+- Delivery proceeds from Core to contract tests to public artifacts.
+- Security fixes may use coordinated private disclosure before release; the corrected source will
+  still be published openly.
+
+Pre-release review covers tests, installation, schema compatibility, SBOM/provenance,
+supported-platform matrix, upgrade/rollback, and known limitations. Publishing always requires
+explicit user approval.

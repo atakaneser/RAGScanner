@@ -160,10 +160,36 @@ def test_terminal_empty_missing_scores_no_ansi_and_failed_scan() -> None:
     source = report_input(findings=[])
     source.scores = None
     source.scan.status = ScanStatus.FAILED
-    output = TerminalReporter().render(ReportBuilder().build(source))
+    output = TerminalReporter().render(ReportBuilder().build(source), verbose=True)
     assert "Not assessed" in output
     assert "Status: failed" in output
     assert "\x1b[" not in output
+
+
+def test_terminal_default_is_concise_and_verbose_keeps_technical_details() -> None:
+    source = report_input()
+    source.ingestion_issues = [
+        {
+            "path": "/private/customer/broken.pdf",
+            "stage": "parsing",
+            "code": "pdf_malformed",
+            "message": "The PDF structure is malformed.",
+            "remediation": "Export or download the PDF again.",
+            "fatal": False,
+        }
+    ]
+    report = ReportBuilder().build(source)
+
+    concise = TerminalReporter().render(report)
+    verbose = TerminalReporter().render(report, verbose=True)
+
+    assert "RAGScanner scan: COMPLETED WITH WARNINGS" in concise
+    assert "broken.pdf: The PDF structure is malformed." in concise
+    assert "/private/customer" not in concise
+    assert "Scores (product-defined" not in concise
+    assert "Scores (product-defined" in verbose
+    assert "Why it matters:" in verbose
+    assert "What to do:" in verbose
 
 
 def test_terminal_verbose_order_filters_and_evidence_truncation() -> None:
@@ -264,6 +290,42 @@ def test_html_standalone_csp_accessibility_print_mobile_and_multilingual() -> No
     assert "cdn" not in output.casefold()
     assert "<script" not in output.casefold()
     assert "Türkçe" in output and "English" in output
+
+
+def test_html_leads_with_coverage_and_ingestion_remediation() -> None:
+    source = report_input()
+    source.ingestion_issues = [
+        {
+            "path": "C:/Users/example/knowledge base/broken.pdf",
+            "stage": "parsing",
+            "code": "pdf_malformed",
+            "message": "The PDF structure is malformed.",
+            "remediation": "Export or download the PDF again.",
+            "fatal": False,
+        }
+    ]
+    source.assessment_coverage = {
+        "static_security": {"status": "assessed", "reason": "Rules completed."},
+        "freshness": {"status": "not_assessed", "reason": "Not implemented."},
+    }
+
+    output = HtmlReporter().render(ReportBuilder().build(source))
+
+    assert output.index("Executive summary") < output.index("Scores")
+    assert "1 of 2 assessment areas completed" in output
+    assert "not a security guarantee" in output
+    assert "broken.pdf" in output
+    assert "C:/Users/example" not in output
+    assert "Export or download the PDF again." in output
+    assert "Technical details" in output
+
+
+def test_html_does_not_claim_success_when_legacy_input_has_skipped_files() -> None:
+    output = HtmlReporter().render(ReportBuilder().build(report_input()))
+
+    assert "1 file(s) were skipped" in output
+    assert "did not record per-file details" in output
+    assert "All discovered files completed ingestion" not in output
 
 
 def test_report_boundary_redaction_absolute_path_and_original_not_mutated() -> None:

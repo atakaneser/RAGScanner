@@ -1,284 +1,160 @@
-# Mimari
+# Architecture
 
-## Nihai öneri
+## Selected shape
 
-İlk desteklenen mimari **Option A: Python modüler monolith** olacaktır:
+RAGScanner uses a Python modular monolith:
 
-- Python 3.12+
-- Framework’ten bağımsız scanner core
-- Typer CLI
-- FastAPI HTTP API
-- Jinja2 + HTMX/az miktarda vanilla TypeScript ile server-rendered dashboard
-- SQLite + WAL
-- Aynı kod tabanını kullanan basit database-backed worker
-- Worker içinde APScheduler ile schedule enqueue etme
-- Tek public monorepo
-- Yerel süreçler veya Docker Compose ile tek makine/VPS kurulumu
+- Python 3.12+, framework-independent scanner Core, and Typer CLI
+- FastAPI application API (planned)
+- Jinja2 + HTMX with minimal vanilla TypeScript for the dashboard (planned)
+- SQLite in WAL mode with versioned migrations (planned)
+- One database-backed worker with APScheduler enqueueing due schedules (planned)
+- One public monorepo, runnable locally or through a small Docker Compose topology (planned)
 
-Bu karar microservice değildir. API ve worker ayrı process olarak çalışabilir ancak aynı Python paketi, aynı SQLite veritabanı ve aynı artifact dizinini paylaşır. İlk sürümde Redis, RabbitMQ, Celery, Kubernetes, PostgreSQL, Next.js, organization veya auth zorunluluğu yoktur.
+API and worker may be separate processes while sharing the same Python distribution, SQLite
+database, and artifact directory. Redis, RabbitMQ, Celery, Kubernetes, PostgreSQL, Next.js,
+organization models, and built-in auth are not first-release requirements.
 
-## Option A ve Option B karşılaştırması
-
-| Ölçüt | Option A: Python + Jinja/HTMX | Option B: Python API + Next.js |
-|---|---|---|
-| Geliştirme hızı | Tek dil/backend contract, daha hızlı | İki toolchain ve API client ek işi |
-| Bakım | Tek dependency graph ve release | Python/Node güvenlik ve sürüm bakımı |
-| Deployment | API/web tek image; worker aynı image | En az web + API + worker image |
-| UI kalitesi | Veri yoğun dashboard için yeterli | Karmaşık etkileşimlerde daha güçlü |
-| Type sharing | Pydantic modeller doğrudan template/view model üretir | OpenAPI’den TS üretimi ve uyumluluk testi gerekir |
-| Docker karmaşıklığı | Düşük | Orta |
-| Kaynak kullanımı | Düşük; Node runtime yok | Daha yüksek RAM/disk/build maliyeti |
-| Gelecekte genişleme | HTMX sınırına kadar yeterli; API zaten mevcut | Büyük frontend ekibi/çok etkileşimli UI için daha iyi |
-
-RAGScanner’ın ilk dashboard’u scan listesi, finding filtreleri, progress, karşılaştırma, schedule ve configuration ekranlarından oluşur. Bu ihtiyaçlar SPA gerektirmez. UI karmaşıklığı somut olarak arttığında Next.js ayrı bir ADR ile yeniden değerlendirilebilir.
-
-## Repository yapısı
+## Repository boundaries
 
 ```text
-ragscanner/
-├── apps/
-│   ├── api/                 # FastAPI composition root ve HTTP routes
-│   ├── web/                 # Jinja templates, HTMX, static assets
-│   └── worker/              # job claim, scheduler ve scan runner
-├── packages/
-│   ├── scanner/             # domain, orchestration, parser/scanner portları
-│   ├── connectors/          # filesystem, OpenWebUI, gelecekte diğerleri
-│   ├── targets/             # aktif test için RAG/chat endpoint adapter’ları
-│   ├── providers/           # opsiyonel analiz modeli adapter’ları
-│   ├── security_rules/      # ücretsiz versioned rules ve metadata
-│   └── shared/              # config, DB adapter, logging, common schemas
-├── docs/
-├── examples/                # yalnızca sentetik knowledge base’ler
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── security/
-│   └── fixtures/
-└── deployments/
-    └── compose/
+apps/api       FastAPI composition and routes
+apps/web       Jinja templates, HTMX, and static assets
+apps/worker    job claiming, scheduling, and scan execution
+packages/scanner        domain, orchestration, and ports
+packages/connectors     filesystem, OpenWebUI, and future sources
+packages/targets        active-test transports
+packages/providers      optional analysis-model adapters
+packages/security_rules versioned open rule content
+packages/shared         configuration, storage adapters, and common schemas
 ```
 
-Başlangıçta tek Python distribution tercih edilir. Dizinler dependency sınırıdır; ayrı PyPI paketleri ancak gerçek bağımsız sürüm ihtiyacı doğarsa oluşturulur.
-
-## Dependency sınırları
+The initial distribution may include several boundaries in one package. Directories express
+dependency direction; separate packages require a real independent-release need.
 
 ```text
-CLI / FastAPI / Web / Worker
-             |
-     application services
-             |
-scanner domain + ports + rule contracts
-       ^              ^
-connectors/parsers   storage/model/report adapters
+CLI / API / Web / Worker
+          |
+ application services
+          |
+ scanner domain + ports
+    ^               ^
+connectors/parsers  storage/model/report adapters
 ```
 
-- `scanner` FastAPI, Typer, Jinja, SQLite, OpenWebUI SDK veya model vendor import etmez.
-- `security_rules`, scanner rule contract’ına bağlıdır; UI veya storage bilmez.
-- `connectors`, neutral document/chunk/source modelleri üretir.
-- `targets`, neutral active-test request/response sözleşmesini uygular; scanner rule’larını bilmez.
-- `providers`, yalnız opsiyonel analiz modelini sunar; taranan hedef ile otomatik eşleştirilmez.
-- `shared` domain business rule içermez; çapraz bağımlılık çöplüğüne dönüşmez.
-- `apps/*` yalnızca composition ve delivery yapar.
-- Dashboard core fonksiyon çağırmaz; application service kullanır.
+- Scanner Core imports no FastAPI, Typer, Jinja, SQLite, OpenWebUI, model-vendor, or MCP code.
+- Rules depend on scanner rule contracts, not UI/storage.
+- Connectors produce neutral source/document/chunk models.
+- Targets transport active-test requests and do not evaluate vulnerabilities.
+- Providers supply only optional scanner analysis models.
+- `apps/*` composes services; the dashboard calls application services, never Core directly.
+- `shared` contains no domain business rules.
 
-Framework-bağımsız core domain kontratları `ragscanner.domain` altında uygulanmıştır. Static, active ve shared modeller ile saf fingerprint/redaksiyon helper’ları network, filesystem, database veya delivery framework import etmez.
+## Storage
 
-## Veri depolama: SQLite seçimi
+SQLite is selected for the first single-user/single-machine release. It stores knowledge bases,
+non-secret connector configuration, schedules, scans, artifact references, documents, chunks,
+findings, occurrences, status history, score snapshots, rule versions, and jobs. Raw content and
+large artifacts remain in a content-addressed local directory.
 
-İlk sürüm için SQLite seçilir:
+Use WAL, busy timeout, short transactions, bounded retries, one active writer/worker, and batched
+writes. Storage ports and SQLAlchemy/Alembic migrations keep a future PostgreSQL migration possible,
+but PostgreSQL compatibility is not an initial test burden. Reconsider it only after measured write
+contention, multiple workers, remote multi-user operation, or high-volume API deployment.
 
-- tek kullanıcı/tek makine hedefiyle uyumludur,
-- ek database servisi ve yönetimi gerektirmez,
-- scan history, finding, occurrence, document, chunk, schedule, connector config ve score snapshot hacmini karşılar,
-- backup ve taşınabilirliği basittir.
+Secret values never enter domain models or SQLite as plain text; only environment/file/keychain-like
+references are stored.
 
-WAL, busy timeout, kısa transaction, tek aktif writer/worker ve batch write kullanılır. Büyük raw document/artifact blob’ları DB’ye konmaz; content-addressed yerel artifact dizininde tutulur. DB yalnızca metadata/reference taşır.
+## Durable jobs
 
-PostgreSQL şu kanıtlardan biri oluşursa yeniden değerlendirilir: birden fazla eşzamanlı worker gereksinimi, sürekli write contention, uzaktan birden çok kullanıcı, yüksek hacimli API deployment veya ölçülen SQLite limitleri. Storage portları ve SQLAlchemy/Alembic migration’ları bu geçişi mümkün kılar; ancak PostgreSQL uyumluluğu ilk sürümde test yükü değildir.
+FastAPI in-process tasks are not durable enough for long scans. A `Job` table records queued work.
+One worker atomically claims a lease, writes heartbeat/progress, checks cancellation, and finalizes
+status. Expired leases may be reclaimed. APScheduler only creates idempotent jobs for due schedule
+occurrences. Scan effects use job/idempotency keys to prevent duplicate findings.
 
-### Basit veri modeli
+## Adapter contracts
 
-- `KnowledgeBase`
-- `Connector` ve secret olmayan config; secret değer ayrı environment/file reference
-- `ScanSchedule`
-- `Scan`
-- `ScanArtifact`
-- `Document`
-- `Chunk`
-- `Finding`
-- `FindingOccurrence`
-- `FindingStatusHistory`
-- `ScoreSnapshot`
-- `RulePack` ve `RuleVersion`
-- `Job`
+- `SourceConnector`: descriptor/capabilities, health, paginated item/content reads, change detection,
+  and typed source errors.
+- `TargetAdapter`: authorized capability/health, request preparation/invocation, sessions, budgets,
+  cancellation, and typed transport errors.
+- `ModelProvider`: optional chat/embedding analysis with structured-output and locality/privacy
+  metadata.
 
-`User`, `Organization`, `Membership`, `Subscription`, `Entitlement` ve payment modelleri yoktur.
+The same platform may implement multiple adapters, but configuration, credential references,
+consent, and provenance remain separate. Unknown retrieval capability yields `llm` or
+`unknown_retrieval`, and RAG-specific checks remain `not_assessed`.
 
-## Background job kararı
+## Current static flow
 
-| Seçenek | Değerlendirme |
-|---|---|
-| FastAPI in-process task | Process restart’ında kayıp; uzun scan/cancel için uygun değil |
-| Yalnız APScheduler | Schedule üretir fakat dayanıklı job execution sağlamaz |
-| RQ | Redis servisi ekler; ilk tek makine sürümü için gereksiz |
-| Celery | Güçlü fakat broker/result backend ve yüksek operasyon yükü getirir |
-| Dramatiq | Celery’den hafif ama yine broker gerekir |
-| Database-backed worker | Mevcut SQLite ile durable, görünür ve yeterince basit |
+```text
+explicit local root
+  -> root-confined discovery and bounded reads
+  -> typed TXT/Markdown/PDF/DOCX parsing
+  -> versioned normalization and source mapping
+  -> structure/paragraph/token-window chunking
+  -> static security + exact/near duplicate + chunk-quality analysis
+  -> assessed-only scores
+  -> terminal / JSON / standalone escaped HTML
+```
 
-Seçim: `Job` tablosunu kullanan tek worker. Worker transaction içinde queued job’ı lease/claim eder, progress ve heartbeat yazar, cancel flag’i kontrol eder. APScheduler yalnızca due schedule’lardan idempotent job üretir ve worker process içinde çalışır. Scan effect’leri job ID/idempotency key ile tekrar güvenli olmalıdır.
+File-stage failures are isolated. Original content remains available for audit while normalized
+content carries explicit provenance. Parsers do not render, execute, fetch, or perform OCR.
+Reporting is framework-independent, applies final-boundary redaction, and performs no network access.
 
-## Yerel geliştirme topolojisi
+## Planned OpenWebUI flow
+
+After explicit configuration and consent, an OpenWebUI SourceConnector will validate endpoint and
+capability/version, synchronize a selected knowledge base through bounded pagination, and produce
+neutral source models for the same scanner pipeline. Core will not know OpenWebUI API types.
+
+The existing guided CLI checks only fixed loopback health candidates after consent. It does not read
+content and is not the production connector.
+
+## Active-security flow
+
+```text
+target-owner authorization
+  -> safe versioned test selection
+  -> TargetAdapter invocation under rate/timeout/request budget
+  -> bounded and redacted observation
+  -> deterministic evaluation and optional explicitly configured evaluator
+  -> classified finding + coverage + transport status
+```
+
+Results distinguish `confirmed`, `probable`, `ambiguous`, and `not_detected`. Transport failure is
+not a vulnerability. Destructive payloads are never default; safe tool tests use canary/no-op actions.
+
+## Local topology
 
 ```text
 browser -> FastAPI/Jinja :8000
-CLI -----------|          |
-               |       SQLite (WAL)
-worker + APScheduler -----|
-               |
-      local artifact/model cache
+CLI ----------|          |
+              |       SQLite (WAL)
+worker + scheduler ------|
+              |
+        local artifacts
 ```
 
-API ve worker ayrı terminal process’i olabilir. CLI doğrudan scanner application service’i çalıştırabilir veya `--server` modu ileride API’ye istek atabilir. İlk CLI için doğrudan yerel çalışma tercih edilir.
+The default bind is `127.0.0.1`. Any external exposure requires VPN/private network or
+reverse-proxy authentication. OpenWebUI and user models remain external and optional.
 
-## Docker Compose topolojisi
+## Security boundaries
 
-```text
-browser
-  |
-ragscanner-app (FastAPI + Jinja)
-  |            \
-  |             shared data volume: SQLite + artifacts
-  |            /
-ragscanner-worker (aynı image, farklı command; APScheduler dahil)
-```
+- Filesystem roots, remote endpoints, parsers, decoded payloads, optional models, reports, and the
+  browser are separate trust boundaries.
+- File/page/object/decode/regex/response limits are mandatory.
+- Suspicious commands and URLs are treated as text; they are never executed or fetched by default.
+- Source/model content is escaped, redacted, and bounded before reports or templates.
+- Remote document/model use is off by default and requires visible endpoint, consent, and provenance.
+- Active tests require authorization and strict safe-mode controls.
 
-Yalnız iki service zorunludur ve aynı image kullanılır. Reverse proxy opsiyoneldir. Dashboard localhost dışına publish ediliyorsa VPN/private network veya reverse-proxy auth zorunlu olarak belgelenir. OpenWebUI ve kullanıcı LLM’i dış servislerdir; Compose’a zorunlu eklenmez.
+## Failure behavior
 
-## Veri akışları
-
-### Yerel klasör taraması
-
-CLI veya dashboard scan request oluşturur → filesystem connector root sınırlarıyla dosyaları enumerate eder → parser izolasyon/limitlerle document üretir → normalize/chunk → security ve health rules → finding/occurrence/score → SQLite ve rapor artifact.
-
-Uygulanmış ingestion bölümü root-confined TXT/Markdown discovery, bounded raw content ve saf
-TXT/Markdown/PDF/DOCX → `Document` parsing'dir. PDF parser page-offset map; DOCX parser
-ordered structure block ve offset metadata'sı üretir. OCR yoktur. DOCX ZIP/XML preflight ve
-bounded in-memory extraction uygular; active/embedded content çalıştırılmaz veya çıkarılmaz,
-external relationship izlenmez.
-Parser sonrası framework-bağımsız normalizer original content'i koruyarak versioned normalized
-text, hash, structured annotation ve bounded source-mapping segmentleri üretir. Unicode/whitespace
-ve PDF repair aşamaları explicit config/provenance taşır; boilerplate kaldırılmaz. Framework-bağımsız
-chunker normalization segmentlerini tüketir; structure, paragraph veya token-window stratejisiyle
-stable `Chunk` üretir ve forced split/overlap/mapping provenance'ını taşır. Scanner/persistence
-yoktur. Connector port arkasında parser, normalizer ve chunker transporttan bağımsızdır.
-
-Framework-bağımsız quality katmanı aynı immutable çıktıları tüketir. `ExactDuplicateScanner`
-normalized SHA-256 ile belge/chunk grupları; `NearDuplicateScanner` bounded lexical shingle candidate
-index ve Jaccard/containment ile review-required gruplar; `ChunkQualityScanner` boyut, yapı, yoğunluk,
-overlap, mapping ve extraction sinyalleri üretir. Servisler storage/model bilmez, content mutate veya
-otomatik delete etmez. Quality score ürün tanımlı heuristic'tir; retrieval başarısı kanıtı değildir.
-
-İlk static security scanner bu pipeline'ın `Document`, normalized result, `Chunk`, parser warning,
-annotation ve metadata çıktılarını framework-bağımsız biçimde tüketir. Versioned JSON rule pack →
-restricted matcher → context/FP adjustment → bounded/redacted evidence → stable `Finding` akışıdır.
-File loading ve CLI composition dış sınırdadır; core network, storage, model veya UI bilmez.
-
-Uygulanan `StaticScanPipeline`; filesystem discovery/read, explicit parser registry,
-normalization/chunking, static security, exact/near duplicate, chunk quality, assessed-only scoring
-ve report-ready aggregate'i tek framework-bağımsız orchestration akışında birleştirir. Dosya stage
-hataları izole; collection scanner hataları bağımsız; event sink provider-neutral'dır. CLI yalnız
-composition, local TOML override, exit policy ve atomic report write sağlar.
-
-### OpenWebUI taraması
-
-Kullanıcı connector endpoint ve secret reference yapılandırır → connector capability/version kontrol eder → seçili knowledge base’i sayfalı ve idempotent senkronize eder → neutral document/chunk modelleri → aynı scanner pipeline. Core OpenWebUI bilmez.
-
-### Scheduled scan
-
-APScheduler due schedule’ı bulur → benzersiz schedule occurrence key ile `Job` ekler → worker claim eder → config snapshot ile scan başlatır → heartbeat/progress → completion/failure ve sonraki run bilgisi.
-
-### Security scan
-
-Parser raw ve normalize görünümü korur → deterministic rules → bounded decode/hidden text/secret/URL/command heuristics → adaylar detection class ve confidence ile finding’e dönüşür → opsiyonel LLM-assisted doğrulama ayrı aşama → redakte evidence ve remediation raporu.
-
-### Active security scan
-
-Kullanıcı yetkili target ve test policy seçer → payload pack capability/risk filtresinden geçer → `TargetAdapter` rate limit/timeout/budget ile isteği gönderir → ham cevap bounded/redacted artifact olur → deterministic response analyzer önce çalışır → belirsiz sonuç opsiyonel evaluator’a gider → finding payload/target/analyzer sürümü ve request correlation ile kaydedilir. Target adapter hiçbir zaman source connector veya model provider olarak örtük kullanılmaz.
-
-Response evaluation artık transport'tan ayrı saf katmandır: deterministic indicator, bounded
-heuristic, control comparison ve explicit merge precedence uygular. Opsiyonel LLM evaluator yalnız
-porttur. Ayrıntılar [`docs/response-evaluation-engine.md`](docs/response-evaluation-engine.md)
-içindedir.
-
-Active runner bu portları concurrency=1 ile in-memory orkestre eder: deterministic selection →
-opsiyonel tek control → attack invocation → evaluation → execution/finding → terminal scan.
-Event sink provider-neutral, persistence dışarıdadır. Ayrıntılar
-[`docs/active-scan-runner.md`](docs/active-scan-runner.md) içindedir.
-
-İlk active test library JSON ve semver kullanır. Core loader yalnız supplied text/bytes ayrıştırır;
-onaylı yerel dosyaları okumak ayrı ince adaptördür. Test case tanımları executable logic içermez,
-unknown placeholder veya destructive içerik fail-closed reddedilir. Ayrıntılar
-[`docs/active-security-test-library.md`](docs/active-security-test-library.md) içindedir.
-
-## Adapter sözleşmeleri ve uyumluluk seviyeleri
-
-- `SourceConnector`: Document, chunk, metadata veya knowledge-base içeriği okur. İlk vendor-neutral async port; descriptor/capability, sayfalı item/content okuma, değişiklik algılama, sağlık ve typed hata sözleşmelerini sağlar. Filesystem, OpenWebUI, Qdrant ve Chroma gelecekteki örneklerdir. Aktif saldırı isteği göndermez ve analiz modeli sağlamaz. Ayrıntılı kontrat: [`docs/source-connector-contract.md`](docs/source-connector-contract.md).
-- `TargetAdapter`: Hedef sahibinin açıkça yetkilendirdiği çalışan RAG/LLM uygulamasına black-box güvenlik test isteği hazırlar ve taşır. Vendor-neutral async port; capability, health, prepare/invoke, bütçe, cancellation ve opsiyonel session/model-discovery sözleşmelerini sağlar. Generic REST, OpenAI-compatible chat, OpenWebUI chat ve Hugging Face inference endpoint gelecekteki örneklerdir. Document kaynağı değildir ve vulnerability değerlendirmez. Ayrıntılar: [`docs/target-adapter-contract.md`](docs/target-adapter-contract.md).
-- `ModelProvider`: RAGScanner’ın kendi opsiyonel gelişmiş analizinde kullanacağı chat veya embedding modelini sağlar. Structured-output ve locality/privacy metadata taşır. Ollama, OpenAI-compatible model ve OpenWebUI model endpoint örnektir. Taranan target değildir ve retrieval varlığını kanıtlamaz.
-
-Bu roller aynı platform tarafından sağlansa bile ayrı configuration, credential reference, consent ve provenance kullanır. Credential değeri domain modeline veya rapora yazılmaz; yalnız güvenli secret reference tutulur.
-
-Bir LLM endpoint’i RAG sistemi olmak zorunda değildir. OpenAI veya Hugging Face kullanılması retrieval yapıldığını kanıtlamaz. Bir target yalnız test edilen uygulamanın gerçekten document/vector/index retrieval yaptığı doğrulandığında `rag` target olarak etiketlenir; aksi halde `llm` veya `unknown_retrieval` target’tır. Retrieval capability bilinmiyorsa RAG-specific testler `not_assessed` olur.
-
-Framework-bağımsız reporting katmanı `Scan`, `Finding`, execution, score ve scanner aggregate'lerini
-salt okunur tüketir. Son-sınır redaksiyon ve deterministic view-model ardından terminal, versioned
-JSON veya standalone escaped HTML adapter'ına gider. Reporting database, FastAPI/Jinja, connector,
-target veya model provider import etmez; HTML external asset/network kullanmaz.
-
-Response evaluation sonucu tam olarak şu durumlardan biridir:
-
-- `confirmed`: Kontrollü canary, structured tool event veya tekrar üretilebilir güçlü kanıt var.
-- `probable`: Birden fazla açıklanabilir sinyal var fakat doğrudan doğrulama yok.
-- `ambiguous`: Kanıt hem güvenli hem riskli açıklamayla uyumlu.
-- `not_detected`: Test koşullarında risk sinyali görülmedi; güvenlik garantisi değildir.
-
-Uyumluluk üç seviyede yayınlanır:
-
-- **Tier 1:** CI’da contract fixture ve resmi supported-version matrix.
-- **Tier 2:** Generic protocol üzerinden beklenen uyumluluk; community doğrulaması gerekir.
-- **Experimental:** API kararsız veya yalnız manuel fixture ile doğrulanmış.
-
-İlk concrete `TargetAdapter` generic REST olacaktır; bunun üstüne OpenAI-compatible protokol adapter’ı gelir. Platform adapter’ları yalnız auth, endpoint discovery, payload/response mapping ve capability farklılıklarını taşır. Core’da `if provider == ...` dalları bulunmaz.
-
-Generic REST adaptörü async `httpx` kullanır. Declarative template/dotted mapping, secret resolver
-portu, enjekte edilebilir DNS doğrulaması, manuel redirect ve bounded streaming concrete
-`ragscanner.targets` sınırındadır; core domain HTTP bağımlılığı almaz. Ayrıntılar
-[`docs/generic-rest-target-adapter.md`](docs/generic-rest-target-adapter.md) içindedir.
-
-### BYOM analizi
-
-Deterministik analiz adayları daraltır → redactor secret/PII temizler → açıkça seçilmiş provider/model/endpoint’e minimum excerpt gönderilir → strict schema validation → sonuç `llm_assisted` olarak kaydedilir → provider/model/privacy provenance rapora eklenir. Hata durumunda deterministik bulgular korunur ve LLM check “failed/skipped” görünür.
-
-## Güvenlik sınırları
-
-- Filesystem root, OpenWebUI endpoint, parser subprocess, decoded payload, remote model, HTML report ve browser ayrı trust boundary’dir.
-- Dosya boyutu/sayısı, PDF/DOCX object/page, decode depth/output, regex zamanı ve model response boyutu sınırlıdır.
-- Şüpheli komut/payload hiçbir zaman çalıştırılmaz; URL varsayılan olarak fetch edilmez.
-- Secret’lar DB’de plaintext tutulmaz; environment/file reference kullanılır ve log/UI’dan redakte edilir.
-- HTML/Markdown/model output escape edilir; source HTML doğrudan render edilmez.
-- Remote model varsayılan kapalıdır; endpoint görünür, explicit consent zorunlu ve audit/provenance kaydı vardır.
-- Active Scan varsayılan `safe` profildir ve hedef sahibinin açık yetki beyanı olmadan çalışmaz. Destructive veya side-effect-capable payload hiçbir zaman varsayılan etkin değildir.
-- Tool-use testleri yalnız canary/no-op/non-destructive action kullanır. Gerçek email, dosya, shell, database veya external API mutation’ı safe profilde yasaktır.
-- Target response rapora doğrudan HTML olarak yazılmaz; secret/PII redaksiyonu ve boyut sınırı uygulanır.
-- Local dashboard auth içermez; default bind `127.0.0.1` olur. Dış erişim korumasız desteklenmez.
-
-## Hata davranışı
-
-- Bir dosya parse edilemezse bütün scan çökmez; dosya `skipped/failed` nedeni ile raporlanır.
-- Parser timeout/crash worker’ı kalıcı olarak bozmaz; job partial coverage ile devam edebilir.
-- DB lock için bounded retry/busy timeout uygulanır; süre aşılırsa job güvenli şekilde failed olur.
-- Worker restart sonrası lease süresi dolan job yeniden alınır; idempotent adımlar duplicate finding üretmez.
-- Cancel isteği cooperative checkpoint’lerde uygulanır; scan `cancelled`, tamamlanan coverage korunur.
-- OpenWebUI/model erişilemezse retry policy sonrası ilgili check/connector failed olur; eski veriler yeni scan gibi sunulmaz.
-- Rule/model çıktısı schema dışıysa reddedilir; güvenlik açığı olarak işaretlenmez.
-- Partial scan skorları coverage ile gösterilir ve eksik kategori “healthy” sayılmaz.
+- One parse failure does not abort a collection; coverage and remediation remain visible.
+- Parser/resource failures do not permanently damage the worker.
+- Database lock retries are bounded; exhaustion fails the job safely.
+- Worker restart can reclaim an expired lease without duplicating idempotent effects.
+- Cancellation preserves completed coverage at cooperative checkpoints.
+- Unavailable connectors/models become failed checks; stale data is never presented as a new scan.
+- Invalid rule/model output is rejected rather than converted into a vulnerability.

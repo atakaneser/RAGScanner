@@ -1,36 +1,24 @@
 # DOCX parser
 
-İlk DOCX parser `SourceContent` içindeki `.docx`/DOCX MIME verisini tamamen bellek içinde,
-render etmeden işler. `python-docx` 1.2 kullanır ve body için paragraph/table sırasını koruyan
-`iter_inner_content()` akışını temel alır. Paragraph, heading, list item, table cell, section/page
-break, header ve footer ayrı, sıralı bloklardır; her blok birleşik metindeki başlangıç/bitiş
-offset'ini taşır. Core properties sınırlı ve secret-maskeli metadata olarak alınır. Başlık seçimi
-core title → H1 → ilk görünür body paragraph → dosya adı sırasındadır.
+The DOCX parser processes `.docx`/DOCX MIME content from `SourceContent` entirely in memory without
+rendering. It uses python-docx and preserves ordered paragraphs, tables, headings, list items,
+section/page breaks, headers, and footers as blocks with combined-text offsets. Core properties are
+bounded and secret-masked. Title precedence is core title → H1 → first visible body paragraph →
+filename.
 
-## Güvenlik modeli
+## Security model
 
-- ZIP açılmadan önce file size; ardından entry count, toplam decompressed byte, XML part ve
-  compression-ratio limitleri uygulanır. Unsafe path ve encrypted entry fail-closed reddedilir.
-- XML güvenli `defusedxml` incelemesinden geçer. Dış ilişki/template/image ve hyperlink hedefleri
-  yalnız bounded metadata olarak kaydedilir; hiçbir hedef fetch edilmez.
-- Macro, OLE/embedded object, comments, tracked changes ve hidden text warning üretir. Macro/OLE
-  çalıştırılmaz; embedded object çıkarılmaz. Deleted ve hidden run görünür metne alınmaz.
-- Parser subprocess, shell, network, render, OCR, chunking veya scanner çağırmaz. Timeout işlem
-  sınırlarında cooperative'dir; process-level hard kill değildir.
-- Block separator metinde geçerse collision oluşmaması için deterministik biçimde escape edilir.
+- Preflight limits file size, ZIP entries, decompressed bytes, XML parts, and compression ratio.
+- Unsafe paths and encrypted entries fail closed; XML is inspected with `defusedxml`.
+- External relationships, templates, images, and links are bounded metadata only and never fetched.
+- Macros, OLE/embedded objects, comments, tracked changes, and hidden text produce warnings; nothing
+  is executed or extracted.
+- No subprocess, shell, network, rendering, OCR, chunking, or scanner call occurs.
 
-## Destek ve sınırlamalar
+Legacy DOC, DOCM, OLE/encrypted, and malformed packages produce typed errors. Common heading/list
+styles, table coordinates, merge signals, and repeated header rows are preserved where available.
+Nested tables, visual page order, fields, drawings, text boxes, notes, comments, and pixel-perfect
+layout are not guaranteed.
 
-`.doc`, `.docm`, OLE/encrypted ve malformed paketler typed parser error ile reddedilir. Standart ve
-yerelleştirilmiş heading style'ları, outline level, doğrudan Word numbering ve yaygın list style'ları
-algılanır. Table cell koordinatları, merged sinyali ve repeated header row tutulur; nested table
-recursive çıkarılmaz ve warning üretir. Header/footer body akışından sonra section/region kimliğiyle
-verilir; bu nedenle Word'ün sayfa bazlı görsel sırası yeniden oluşturulmaz. Fields, drawings,
-text-box, footnote/endnote, comment body ve pixel-perfect layout fidelity garanti edilmez.
-
-Parser güvenlik taraması değildir. Üretilen görünür metin ve yapı metadata'sı sonraki milestone'larda
-normalization, chunking ve static RAG Security Scan tarafından tüketilecektir.
-
-Referanslar: [python-docx Document API](https://python-docx.readthedocs.io/en/latest/api/document.html),
-[tables](https://python-docx.readthedocs.io/en/latest/user/tables.html),
-[sections](https://python-docx.readthedocs.io/en/stable/api/section.html).
+The parser is not a security scanner. Its visible text and structure feed later normalization,
+chunking, and static security stages.

@@ -1,18 +1,13 @@
 # Quickstart
 
-```bash
-uv sync
-uv run ragscanner scan ./examples/sample-kb
-```
-
-Standalone HTML raporu:
+Installed users:
 
 ```bash
-uv run ragscanner scan ./examples/sample-kb \
-  --format html \
-  --output ragscanner-report.html
+ragscanner scan ./examples/sample-kb
+ragscanner scan ./examples/sample-kb --format html --output ragscanner-report.html
 ```
 
-Komut TXT, Markdown, PDF ve DOCX'i bounded olarak işler; static security, exact/near duplicate ve
-chunk-quality analizlerini tamamen offline çalıştırır. URL fetch, telemetry veya external AI yoktur.
-Örnek bilgi tabanı tamamen sentetiktir.
+Contributors may use `uv run ragscanner ...` from the repository root. The command processes TXT,
+Markdown, PDF, and DOCX under explicit limits, then runs offline static security, exact/near
+duplicate, and chunk-quality analysis. It performs no URL fetch, telemetry, or external AI call.
+The sample knowledge base is entirely synthetic and intentionally multilingual.

@@ -52,6 +52,31 @@ def test_recursive_non_recursive_supported_and_hidden_discovery(tmp_path: Path) 
     assert [item.path for item in flat] == ["document.pdf", "root.txt"]
 
 
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "Türkçe bilgi (2026).txt",
+        "Deutsche Äußerung.md",
+        "مستند عربي.txt",
+        "Документ.txt",
+        "知识库 📘.md",
+        "Cafe\u0301 guide.txt",
+    ],
+)
+def test_unicode_and_shell_sensitive_filenames_are_discovered_and_read(
+    tmp_path: Path, filename: str
+) -> None:
+    path = tmp_path / filename
+    path.write_text("Synthetic multilingual path fixture.", encoding="utf-8")
+
+    source = connector(tmp_path)
+    items = asyncio.run(all_items(source))
+
+    assert len(items) == 1
+    content = asyncio.run(source.get_content(items[0].id, 1_024))
+    assert content.content_bytes == b"Synthetic multilingual path fixture."
+
+
 def test_include_exclude_ordering_and_pagination(tmp_path: Path) -> None:
     for name in ["z.txt", "a.md", "b.txt", "skip.txt"]:
         (tmp_path / name).write_text(name)

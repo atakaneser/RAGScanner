@@ -3,19 +3,22 @@
 - Status: Accepted
 - Date: 2026-07-12
 
-## Bağlam
+## Context
 
-Platformlar farklı auth, payload, streaming ve response şemalarına sahiptir; core’un vendor koşulları içermemesi gerekir.
+Platforms differ in authentication, payload, streaming, and response schemas; Core must not contain
+vendor conditions.
 
-## Karar
+## Decision
 
-Target contract capability discovery, healthcheck, authorized `send_test`, cancellation, timeout, rate limit, request/token budget, correlation/session, bounded response ve structured tool/citation observations içerir. Credential yalnız opaque secret reference’tır.
+The target contract includes capability discovery, health checks, authorized invocation,
+cancellation, timeout, rate limits, budgets, sessions/correlation, bounded responses, and structured
+tool/citation observations. Credentials are opaque secret references.
 
-Evaluation sonucu `confirmed`, `probable`, `ambiguous` veya `not_detected` olur. Transport error, timeout veya malformed response vulnerability değildir; failed/skipped test olarak kaydedilir.
+Evaluation results are `confirmed`, `probable`, `ambiguous`, or `not_detected`. Transport errors,
+timeouts, and malformed responses are failed/skipped tests, not vulnerabilities. The first concrete
+adapter is Generic REST with declarative mapping and no custom-code execution.
 
-İlk concrete adapter generic REST’tir. Adapter request/response mapping’i config/schema ile yapar ve custom code çalıştırmaz.
+## Consequences
 
-## Sonuçlar
-
-Platform adapter’ları aynı fake/contract suite’ini kullanır. Generic esneklik SSRF ve şema riskini artırdığı için allowed host ve bounded parsing zorunludur.
-
+Every platform adapter uses the same fake/contract suite. Generic flexibility requires strict
+allowed-host policy and bounded parsing.

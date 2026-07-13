@@ -1,45 +1,31 @@
 # Duplicate detection
 
-RAGScanner iki tamamen offline ve deterministik duplicate görünümü sağlar. Servisler original belge
-ve chunk içeriğini değiştirmez, hiçbir içeriği silmez ve ağ/model/embedding kullanmaz.
+RAGScanner provides two deterministic offline duplicate views. Neither service changes or deletes
+documents/chunks or uses network, models, or embeddings.
 
-## Exact duplicate
+## Exact duplicates
 
-`ExactDuplicateScanner`, normalizer çıktısındaki belge metni ile chunk'ların normalized içeriğinin
-SHA-256 özetini ayrı kapsamlar halinde gruplar. Boş içerik duplicate sayılmaz. Aynı belgedeki tekrar
-eden chunk'lar, belgeler arası aynı chunk'lar ve aynı normalized belge ayrı kategorilerdir.
+`ExactDuplicateScanner` groups normalized document and chunk content by SHA-256 in separate scopes.
+Empty content is not a duplicate. Repeated chunks within a document, identical chunks across
+documents, and identical normalized documents are distinct categories. Each group has a stable
+canonical reporting reference—not an automatic keep/delete decision—and bounded redacted evidence
+plus estimated redundant characters/tokens.
 
-Her grup kaynak yolu ve item ID ile kararlı biçimde sıralanmış tek bir canonical temsilci içerir.
-Canonical burada yalnız raporlama referansıdır; otomatik saklama/silme kararı değildir. Gruplar
-tahmini redundant karakter/token miktarını ve bounded, HTML-escaped, secret-masked kanıtı taşır.
-Normalizasyon öncesi byte eşitliği bu ilk sürümde ayrıca raporlanmaz.
+## Near duplicates
 
-## Near duplicate
+`NearDuplicateScanner` creates fixed-size Unicode token shingles and evaluates Jaccard/containment
+within bounded candidate buckets. Defaults are 0.82 similarity, five-token shingles, and 120 minimum
+characters. Exact matches remain owned by the exact scanner.
 
-`NearDuplicateScanner`, Unicode token'larından sabit boyutlu shingles üretir ve bounded candidate
-bucket'ları içinde Jaccard/containment benzerliği değerlendirir. Varsayılan eşik `0.82`, shingle
-boyutu `5` ve minimum karşılaştırma uzunluğu `120` karakterdir. Exact eşleşmeler bu sonuçtan çıkar;
-onların sahibi exact scanner'dır.
+Boilerplate/page-number annotations may be removed from the comparison signature but never from
+source content. Because lexical similarity does not prove semantic equivalence, findings are
+`probable` and require review. Multilingual text is supported without stemming or semantic analysis.
 
-Boilerplate/page-number annotation'ları yalnız karşılaştırma imzasından çıkarılabilir; original veya
-normalized içerikten silinmez. Kısa içerik, boilerplate baskınlığı ve lexical benzerliğin semantik
-eşdeğerliği kanıtlamaması nedeniyle near-duplicate bulguları `probable` ve manual-review niteliğindedir.
-Türkçe dahil çok dilli metin desteklenir fakat dilsel stemming veya anlam analizi yapılmaz.
-
-## Sınırlar ve determinism
-
-Belge, chunk, grup, finding, shingle, bucket, candidate comparison, evidence ve cooperative çalışma
-süresi sınırları typed warning üretir. Sınır nedeniyle değerlendirilmemiş item kimlikleri sonuçta
-görünür. Aynı input, config ve scanner sürümü; aynı sıralama, grup/fingerprint, istatistik ve warning
-üretir.
-
-CLI örneği:
+Document, chunk, group, finding, shingle, bucket, comparison, evidence, and runtime limits produce
+typed warnings and visible skipped IDs. Identical input, configuration, and scanner version produce
+identical ordering, groups, fingerprints, statistics, and warnings.
 
 ```bash
-uv run ragscanner quality scan ./knowledge --format json
-uv run ragscanner quality scan ./knowledge --similarity-threshold 0.9 --fail-on medium
+ragscanner quality scan ./knowledge --format json
+ragscanner quality scan ./knowledge --similarity-threshold 0.9 --fail-on medium
 ```
-
-`--no-exact-duplicates`, `--no-near-duplicates` ve `--no-chunk-quality` tek tek analizleri kapatır.
-En az bir analiz açık kalmalıdır.
-

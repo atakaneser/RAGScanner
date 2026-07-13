@@ -1,9 +1,10 @@
 # JSON report
 
-JSON rapor `schema_version=1.0.0` ve ayrı `reporter_version` taşır. UTF-8, stable key/item ordering
-ve timezone-aware ISO 8601 datetime kullanır. Unavailable score alanları explicit `null` kalır.
+The JSON report currently uses `schema_version=1.1.0` and an independent `reporter_version`. It is
+UTF-8, uses stable key/item ordering, and emits timezone-aware ISO 8601 datetimes. Unavailable score
+fields remain explicit `null` values. Schema 1.1 adds bounded per-file ingestion issues without
+changing the major contract.
 
-Şema: [`ragscanner-report-v1.schema.json`](../schemas/report/ragscanner-report-v1.schema.json).
-Major kırılmada yeni schema version gerekir. Maksimum byte boyutu aşılırsa invalid/truncated JSON
-yazmak yerine açık hata oluşur.
-
+Schema: [`ragscanner-report-v1.schema.json`](../schemas/report/ragscanner-report-v1.schema.json).
+A breaking change requires a new major schema version. If the configured byte limit is exceeded,
+the reporter fails explicitly instead of writing invalid or truncated JSON.

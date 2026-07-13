@@ -1,7 +1,9 @@
 import json
+import subprocess
 from pathlib import Path
 
 import httpx
+import pytest
 from ragscanner.cli import app
 from ragscanner.onboarding import discover_local_sources, discover_openwebui_services
 from typer.testing import CliRunner
@@ -23,6 +25,70 @@ def test_doctor_is_local_and_offline() -> None:
     assert "no network request performed" in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("command", "expected_arguments", "success_message"),
+    [
+        ("update", ["/usr/bin/uv", "tool", "upgrade", "ragscanner"], "update completed"),
+        (
+            "repair",
+            ["/usr/bin/uv", "tool", "upgrade", "ragscanner", "--reinstall"],
+            "repair completed",
+        ),
+        (
+            "uninstall",
+            ["/usr/bin/uv", "tool", "uninstall", "ragscanner"],
+            "uninstall completed",
+        ),
+    ],
+)
+def test_maintenance_commands_use_uv_without_shell(
+    monkeypatch, command: str, expected_arguments: list[str], success_message: str
+) -> None:  # type: ignore[no-untyped-def]
+    calls: list[tuple[list[str], bool]] = []
+
+    def run(arguments: list[str], *, check: bool) -> subprocess.CompletedProcess[str]:
+        calls.append((arguments, check))
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "/usr/bin/uv")
+    monkeypatch.setattr("ragscanner.cli.subprocess.run", run)
+    arguments = [command, "--yes"] if command == "uninstall" else [command]
+
+    result = runner.invoke(app, arguments)
+
+    assert result.exit_code == 0
+    assert calls == [(expected_arguments, False)]
+    assert success_message in result.stdout
+
+
+def test_uninstall_can_be_cancelled_without_external_change(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "ragscanner.cli.subprocess.run",
+        lambda *args, **kwargs: pytest.fail("subprocess must not run"),
+    )
+
+    result = runner.invoke(app, ["uninstall"], input="n\n")
+
+    assert result.exit_code == 0
+    assert "Uninstall cancelled" in result.stdout
+
+
+def test_maintenance_command_reports_missing_uv_and_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: None)
+    missing = runner.invoke(app, ["update"])
+    assert missing.exit_code == 1
+    assert "uv was not found" in missing.stderr
+
+    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "/usr/bin/uv")
+    monkeypatch.setattr(
+        "ragscanner.cli.subprocess.run",
+        lambda arguments, check: subprocess.CompletedProcess(arguments, 7),
+    )
+    failed = runner.invoke(app, ["repair"])
+    assert failed.exit_code == 7
+    assert "failed with exit code 7" in failed.stderr
+
+
 def test_bare_command_opens_english_onboarding_and_can_exit() -> None:
     result = runner.invoke(app, input="4\n")
     assert result.exit_code == 0
@@ -36,8 +102,31 @@ def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, input=f"1\n{source}\nn\n")
     assert result.exit_code == 0
-    assert "RAGScanner report" in result.stdout
+    assert "RAGScanner scan:" in result.stdout
     assert "bilgi tabanı.txt" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "Manual (2026).txt",
+        "Kılavuz 📘.txt",
+        "指南.txt",
+        "Cafe\u0301.txt",
+    ],
+)
+def test_scan_accepts_quoted_unicode_and_shell_sensitive_paths(
+    tmp_path: Path, filename: str
+) -> None:
+    source = tmp_path / filename
+    source.write_text("Synthetic local scan content.", encoding="utf-8")
+
+    result = runner.invoke(app, ["scan", str(source), "--format", "json", "--quiet"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["processing"]["files_discovered"] == 1
+    assert payload["processing"]["files_scanned"] == 1
 
 
 def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -191,11 +280,11 @@ def test_report_cli_terminal_json_html_and_filters(tmp_path) -> None:  # type: i
     fixture = Path(__file__).resolve().parents[2] / "examples/reports/sample-report-input.json"
     terminal = runner.invoke(app, ["report", str(fixture), "--severity", "high"])
     assert terminal.exit_code == 0
-    assert "RAGScanner report" in terminal.stdout
+    assert "RAGScanner scan:" in terminal.stdout
     assert "Filters active: yes" in terminal.stdout
     json_result = runner.invoke(app, ["report", str(fixture), "--format", "json"])
     assert json_result.exit_code == 0
-    assert json.loads(json_result.stdout)["schema_version"] == "1.0.0"
+    assert json.loads(json_result.stdout)["schema_version"] == "1.1.0"
     target = tmp_path / "report.html"
     html_result = runner.invoke(
         app, ["report", str(fixture), "--format", "html", "--output", str(target)]

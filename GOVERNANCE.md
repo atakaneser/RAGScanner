@@ -1,8 +1,12 @@
 # Governance
 
-RAGScanner tek, ücretsiz ve açık kaynak bir projedir. Proje yönü public issue ve pull request’lerde tartışılır; güvenlik açıklamaları `SECURITY.md` sürecini izler.
+RAGScanner is one free and open-source project. Product direction is discussed through public
+issues and pull requests; security disclosures follow `SECURITY.md`.
 
-Maintainer’lar roadmap, release, security response ve merge kararlarından sorumludur. Önemli mimari kararlar ADR ile kaydedilir. Katkılar teknik doğruluk, testler, güvenlik/gizlilik etkisi, geriye uyumluluk ve proje kapsamına göre değerlendirilir; ücretli özellik veya kapalı modül oluşturamaz.
+Maintainers are responsible for roadmap, release, security response, and merge decisions. Durable
+architectural choices are recorded as ADRs. Contributions are evaluated for technical accuracy,
+tests, security/privacy impact, backward compatibility, and project scope. They may not introduce a
+paid feature boundary or closed module.
 
-İlk maintainer listesi, karar/itiraz süreci ve role geçişi repository yayınından önce açıkça eklenecektir.
-
+The initial maintainer list, objection process, and role-transition policy will be documented before
+the first public release.

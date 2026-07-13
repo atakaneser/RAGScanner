@@ -12,6 +12,7 @@ from ragscanner.reporting.models import (
     ReportDuplicateGroup,
     ReportFilter,
     ReportFinding,
+    ReportIngestionIssue,
     ReportInput,
     ReportLimits,
     ReportProcessingSummary,
@@ -232,6 +233,22 @@ class ReportBuilder:
             knowledge_base_mode=_safe_string(source.knowledge_base_mode, 128),
             source_count=source.source_count,
             assessment_coverage=_safe_value(source.assessment_coverage, self.limits),
+            ingestion_issues=[self._ingestion_issue(item) for item in source.ingestion_issues],
+        )
+
+    def _ingestion_issue(self, item: dict[str, Any]) -> ReportIngestionIssue:
+        raw_path = str(item.get("path") or "unknown")
+        path = raw_path if self.show_absolute_paths else Path(raw_path).name
+        remediation = item.get("remediation")
+        return ReportIngestionIssue(
+            path=_safe_string(path, 1_024),
+            stage=_safe_string(str(item.get("stage") or "unknown"), 128),
+            code=_safe_string(str(item.get("code") or "unknown"), 256),
+            message=_safe_string(str(item.get("message") or "No details recorded."), 2_048),
+            remediation=(
+                _safe_string(str(remediation), 2_048) if remediation is not None else None
+            ),
+            fatal=bool(item.get("fatal", False)),
         )
 
     def _matches(self, finding: Any) -> bool:

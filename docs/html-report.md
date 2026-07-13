@@ -1,16 +1,22 @@
 # Standalone HTML report
 
-HTML reporter embedded CSS içeren tek dosya üretir; external asset/font/CDN, analytics, network ve
-JavaScript yoktur. Native keyboard-accessible `details/summary`, semantic landmarks, responsive
-viewport, color-independent label ve print stylesheet kullanır.
+The HTML reporter creates one self-contained file with embedded CSS. It uses no external assets,
+fonts, CDN, analytics, network requests, or JavaScript. Native keyboard-accessible
+`details`/`summary`, semantic landmarks, a responsive viewport, color-independent labels, and a
+print stylesheet are included.
 
-Tüm dynamic değerler escape edilir. Source HTML/Markdown/SVG render edilmez, URL clickable yapılmaz,
-PDF/DOCX gömülmez. CSP `default-src`, `script-src` ve `connect-src` değerlerini `none` yapar.
+The first view shows scan outcome, discovered/processed/skipped counts, assessment coverage, and a
+file-ingestion remediation table. Technical identifiers and configuration are kept in a collapsed
+technical-details section. Product-defined scores are scoped to assessed checks and are never
+presented as a security guarantee.
+
+Every dynamic value is escaped. Source HTML, Markdown, and SVG are never rendered; URLs are not made
+clickable; PDF and DOCX files are not embedded. The CSP sets `default-src`, `script-src`, and
+`connect-src` to `none`.
 
 ```bash
-uv run ragscanner report examples/reports/sample-report-input.json \
+ragscanner report examples/reports/sample-report-input.json \
   --format html --output examples/reports/sample-report.html
 ```
 
-Fixture tamamen sentetiktir.
-
+The bundled fixture is entirely synthetic.

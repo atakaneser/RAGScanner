@@ -1,9 +1,13 @@
-# Dokümantasyon sitesi
+# Documentation website
 
-Zorunlu ilk ürün yüzeyi yerel CLI ve raporlardır. Ayrı bir pazarlama/ödeme sitesi öncelik değildir.
+The required first product surfaces are the local CLI and reports. A separate marketing or payment
+website is not a priority.
 
-İleride `ragscanner.com`; ücretsiz ürün tanıtımı, kurulum dokümantasyonu, OpenWebUI/BYOM/güvenlik kılavuzları, örnek raporlar, sürüm notları, gizlilik ve güvenlik iletişim sayfalarını yayınlayabilir. `/pricing`, checkout, billing, subscription, signup ve müşteri portalı yoktur.
+A future `ragscanner.com` may publish free product documentation, installation guidance,
+OpenWebUI/BYOM/security guides, example reports, release notes, privacy information, and security
+contact details. It will not include pricing, checkout, billing, subscriptions, signup, or a
+customer portal.
 
-Self-hosted dashboard planlanmıştır fakat henüz uygulanmamıştır. `apps/web/` yalnız gelecekteki composition boundary için ayrılmıştır. Demo sonuç veya çalışıyormuş gibi görünen placeholder entegrasyon üretilmez.
-
-Dokümantasyon portalında ürün ana sayfası, installation/quickstart, Security Scan, OpenWebUI, BYOM, Docker, configuration, reports ve troubleshooting bulunacaktır. Ana CTA “Get RAGScanner”, ikincil CTA “View on GitHub” olacaktır. Pricing, checkout, signup ve billing sayfaları yoktur.
+The self-hosted dashboard is planned but not implemented. No demo result or placeholder integration
+may be presented as operational. Planned documentation areas include installation/quickstart,
+Security Scan, OpenWebUI, BYOM, Docker, configuration, reports, and troubleshooting.

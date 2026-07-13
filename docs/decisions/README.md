@@ -2,7 +2,7 @@
 
 ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rejected. Changing an Accepted decision requires a new ADR that links to the old record.
 
-- [ADR-0001 Tek açık repository](0001-repository-strategy.md)
+- [ADR-0001 Single public repository](0001-repository-strategy.md)
 - [ADR-0002 Application stack](0002-application-stack.md)
 - [ADR-0003 Core ports and adapters](0003-core-ports-and-adapters.md)
 - [ADR-0004 Local-first provider and privacy model](0004-local-first-provider-privacy.md)
@@ -17,3 +17,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0014 Generic target contract](0014-generic-target-contract.md)
 - [ADR-0015 OpenAI-compatible target](0015-openai-compatible-target.md)
 - [ADR-0016 Guided onboarding and consent-based source discovery](0016-guided-onboarding-and-source-discovery.md)
+- [ADR-0017 English canonical project language and localized READMEs](0017-project-language-and-localized-readmes.md)

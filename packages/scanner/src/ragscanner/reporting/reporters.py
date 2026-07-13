@@ -18,13 +18,57 @@ def _display(value: Any) -> str:
 class TerminalReporter:
     def render(self, report: ReportDocument, *, verbose: bool = False) -> str:
         scan = report.scan
+        status = str(scan["status"]).replace("_", " ").upper()
         lines = [
-            f"RAGScanner report — {scan['id']}",
-            f"Type: {scan['type']}  Status: {scan['status']}",
-            f"Knowledge base mode: {report.knowledge_base_mode} ({report.source_count} source(s))",
-            f"Source: {_display(scan.get('source_name'))}  Target: {_display(scan.get('target_name'))}",
-            "Scores (product-defined):",
+            f"RAGScanner scan: {status}",
+            (
+                f"Files: {report.processing.files_discovered} discovered · "
+                f"{report.processing.files_scanned} processed · "
+                f"{report.processing.files_skipped} skipped"
+            ),
+            f"Findings: {len(report.findings)}",
         ]
+        critical_or_high = report.severity_summary["critical"] + report.severity_summary["high"]
+        if critical_or_high:
+            lines.append(
+                "Security: "
+                f"{report.severity_summary['critical']} critical and "
+                f"{report.severity_summary['high']} high-severity finding(s)"
+            )
+        else:
+            lines.append("Security: no critical or high findings in the assessed checks")
+        if report.ingestion_issues:
+            lines.append("Ingestion issues:")
+            lines.extend(
+                f"  - {item.path}: {item.message}"
+                + (f" Next: {item.remediation}" if item.remediation else "")
+                for item in report.ingestion_issues
+            )
+        if report.filters_active:
+            lines.append("Filters active: yes")
+        if not verbose:
+            if report.warnings or report.skipped_checks or report.errors:
+                lines.append(
+                    "Run again with --verbose for scores, coverage, and technical details."
+                )
+            return "\n".join(lines) + "\n"
+
+        lines.extend(
+            [
+                "",
+                f"Report ID: {scan['id']}",
+                f"Type: {scan['type']}  Status: {scan['status']}",
+                (
+                    "Knowledge base mode: "
+                    f"{report.knowledge_base_mode} ({report.source_count} source(s))"
+                ),
+                (
+                    f"Source: {_display(scan.get('source_name'))}  "
+                    f"Target: {_display(scan.get('target_name'))}"
+                ),
+                "Scores (product-defined and limited to assessed checks):",
+            ]
+        )
         labels = {
             "overall": "Overall RAG Health",
             "security": "Security",
@@ -45,8 +89,6 @@ class TerminalReporter:
                 for name in ("critical", "high", "medium", "low", "info")
             )
         )
-        if report.filters_active:
-            lines.append("Filters active: yes")
         if report.truncation_notices:
             lines.extend(f"LIMIT: {item}" for item in report.truncation_notices)
         lines.append(f"Findings: {len(report.findings)}")
@@ -58,16 +100,15 @@ class TerminalReporter:
                 f"[{finding.severity.value.upper()}] [{classification}] "
                 f"{finding.rule_id}: {finding.title} ({finding.confidence:.2f})"
             )
-            if verbose:
-                location = finding.source or finding.target_id or "unknown"
-                lines.extend(
-                    [
-                        f"  Location: {location}",
-                        f"  Evidence: {finding.evidence}",
-                        f"  Impact: {finding.impact}",
-                        f"  Recommendation: {finding.recommendation}",
-                    ]
-                )
+            location = finding.source or finding.target_id or "unknown"
+            lines.extend(
+                [
+                    f"  Location: {location}",
+                    f"  Evidence: {finding.evidence}",
+                    f"  Why it matters: {finding.impact}",
+                    f"  What to do: {finding.recommendation}",
+                ]
+            )
         if report.duplicate_groups:
             lines.append(
                 f"Duplicate groups: {len(report.duplicate_groups)} (token savings are estimates)"
@@ -132,13 +173,42 @@ class HtmlReporter:
         def messages(values: list[str]) -> str:
             return "".join(f"<li>{esc(item)}</li>" for item in values) or "<li>None</li>"
 
+        status = str(report.scan["status"])
+        status_label = status.replace("_", " ").title()
+        ingestion_rows = "".join(
+            "<tr>"
+            f"<td>{esc(item.path)}</td><td>{esc(item.stage)}</td>"
+            f"<td>{esc(item.message)}</td><td>{esc(item.remediation)}</td></tr>"
+            for item in report.ingestion_issues
+        )
+        if not ingestion_rows:
+            if report.processing.files_skipped:
+                ingestion_rows = (
+                    '<tr><td colspan="4">'
+                    f"{report.processing.files_skipped} file(s) were skipped, but this report "
+                    "input did not record per-file details.</td></tr>"
+                )
+            else:
+                ingestion_rows = (
+                    '<tr><td colspan="4">All discovered files completed ingestion.</td></tr>'
+                )
+        assessed = sum(
+            value.get("status") == "assessed" for value in report.assessment_coverage.values()
+        )
+        coverage_total = len(report.assessment_coverage)
+        coverage_notice = (
+            f"{assessed} of {coverage_total} assessment areas completed. "
+            "Scores describe assessed checks only and are not a security guarantee."
+        )
+
         html_value = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <title>RAGScanner report {esc(report.scan["id"])}</title><style>
-:root{{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}}header,main,footer{{max-width:1180px;margin:auto;padding:1.25rem}}header{{background:#17202a;color:#fff;max-width:none}}header>div{{max-width:1140px;margin:auto}}h1,h2,h3{{line-height:1.2}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}}.card,section{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}}.card{{margin:0}}table{{width:100%;border-collapse:collapse}}th,td{{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}}.badge{{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}}.critical{{color:var(--critical)}}.high{{color:var(--high)}}.medium{{color:var(--medium)}}.low{{color:var(--low)}}.info{{color:var(--info)}}code,pre{{white-space:pre-wrap;overflow-wrap:anywhere}}summary{{cursor:pointer;font-weight:700}}.muted{{color:var(--muted)}}@media(max-width:650px){{table{{display:block;overflow-x:auto}}header,main,footer{{padding:.8rem}}}}@media print{{body{{background:#fff}}header{{color:#000;background:#fff;border-bottom:2px solid #000}}section,.card{{break-inside:avoid;box-shadow:none}}details{{display:block}}details>*{{display:block}}}}
+:root{{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968;--accent:#176b5b}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}}header,main,footer{{max-width:1180px;margin:auto;padding:1.25rem}}header{{background:#17202a;color:#fff;max-width:none}}header>div{{max-width:1140px;margin:auto}}h1,h2,h3{{line-height:1.2}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}}.card,section{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}}.card{{margin:0}}.summary{{border-left:5px solid var(--accent)}}.metric{{font-size:1.6rem;font-weight:750;margin:.25rem 0}}.notice{{background:#eef7f5;border:1px solid #b8d9d2;border-radius:6px;padding:.75rem}}table{{width:100%;border-collapse:collapse}}th,td{{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}}.badge{{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}}.critical{{color:var(--critical)}}.high{{color:var(--high)}}.medium{{color:var(--medium)}}.low{{color:var(--low)}}.info{{color:var(--info)}}code,pre{{white-space:pre-wrap;overflow-wrap:anywhere}}summary{{cursor:pointer;font-weight:700}}.muted{{color:var(--muted)}}@media(max-width:650px){{table{{display:block;overflow-x:auto}}header,main,footer{{padding:.8rem}}}}@media print{{body{{background:#fff}}header{{color:#000;background:#fff;border-bottom:2px solid #000}}section,.card{{break-inside:avoid;box-shadow:none}}details{{display:block}}details>*{{display:block}}}}
 </style></head><body><header role="banner"><div><h1>RAGScanner report</h1><p>{esc(report.scan["id"])} · {esc(report.scan["type"])} · {esc(report.scan["status"])}</p></div></header>
-<main id="main-content"><section aria-labelledby="identity"><h2 id="identity">Scan identity</h2><dl><dt>Source</dt><dd>{esc(report.scan.get("source_name"))}</dd><dt>Target</dt><dd>{esc(report.scan.get("target_name"))}</dd><dt>Generated</dt><dd>{esc(report.generated_at.isoformat())}</dd><dt>Privacy</dt><dd>{esc(report.scan.get("privacy_mode"))}</dd><dt>Safety</dt><dd>{esc(report.scan.get("safety_mode"))}</dd></dl></section>
+<main id="main-content"><section class="summary" aria-labelledby="summary"><h2 id="summary">Executive summary</h2><p class="metric">{esc(status_label)}</p><div class="grid"><div><strong>Discovered</strong><p class="metric">{report.processing.files_discovered}</p></div><div><strong>Processed</strong><p class="metric">{report.processing.files_scanned}</p></div><div><strong>Skipped</strong><p class="metric">{report.processing.files_skipped}</p></div><div><strong>Findings</strong><p class="metric">{len(report.findings)}</p></div></div><p class="notice">{esc(coverage_notice)}</p></section>
+<section aria-labelledby="ingestion"><h2 id="ingestion">File ingestion</h2><p>Files that could not be processed are listed separately from security and quality findings.</p><table><thead><tr><th>File</th><th>Stage</th><th>What happened</th><th>What to do</th></tr></thead><tbody>{ingestion_rows}</tbody></table></section>
 <section aria-labelledby="scores"><h2 id="scores">Scores</h2><p class="muted">Product-defined scores. Missing values are Not assessed, never zero.</p><div class="grid">{score_cards}</div></section>
 <section aria-labelledby="severity"><h2 id="severity">Severity distribution</h2><div class="grid">{"".join(f'<div class="card {esc(k)}"><strong>{esc(k.title())}</strong><p>{v}</p></div>' for k, v in report.severity_summary.items())}</div></section>
 <section aria-labelledby="statistics"><h2 id="statistics">Scan statistics</h2><pre>{esc(json.dumps(report.processing.model_dump(), ensure_ascii=False, sort_keys=True, indent=2))}</pre></section>
@@ -148,7 +218,7 @@ class HtmlReporter:
 <section aria-labelledby="chunks"><h2 id="chunks">Chunk-quality analysis</h2><pre>{esc(json.dumps(report.chunk_quality, ensure_ascii=False, sort_keys=True, indent=2) if report.chunk_quality else "Not assessed")}</pre></section>
 <section aria-labelledby="active"><h2 id="active">Active security summary</h2><pre>{esc(json.dumps(report.active_security, ensure_ascii=False, sort_keys=True, indent=2) if report.active_security else "Not assessed")}</pre></section>
 <section aria-labelledby="warnings"><h2 id="warnings">Warnings and skipped checks</h2><h3>Warnings</h3><ul>{messages(report.warnings)}</ul><h3>Skipped checks</h3><ul>{messages(report.skipped_checks)}</ul><h3>Errors</h3><ul>{messages(report.errors)}</ul><h3>Limits</h3><ul>{messages(report.truncation_notices)}</ul></section>
-<section aria-labelledby="configuration"><h2 id="configuration">Configuration summary</h2><pre>{esc(json.dumps(report.configuration, ensure_ascii=False, sort_keys=True, indent=2))}</pre></section>
+<details><summary>Technical details</summary><section aria-labelledby="identity"><h2 id="identity">Scan identity</h2><dl><dt>Source</dt><dd>{esc(report.scan.get("source_name"))}</dd><dt>Target</dt><dd>{esc(report.scan.get("target_name"))}</dd><dt>Generated</dt><dd>{esc(report.generated_at.isoformat())}</dd><dt>Privacy</dt><dd>{esc(report.scan.get("privacy_mode"))}</dd><dt>Safety</dt><dd>{esc(report.scan.get("safety_mode"))}</dd></dl></section><section aria-labelledby="configuration"><h2 id="configuration">Configuration summary</h2><pre>{esc(json.dumps(report.configuration, ensure_ascii=False, sort_keys=True, indent=2))}</pre></section></details>
 <section aria-labelledby="methodology"><h2 id="methodology">Methodology and limitations</h2><h3>Methodology</h3><ul>{messages(report.methodology)}</ul><h3>Limitations</h3><ul>{messages(report.limitations)}</ul></section>
 <section aria-labelledby="coverage"><h2 id="coverage">Assessment coverage</h2><p>Knowledge base mode: <strong>{esc(report.knowledge_base_mode)}</strong> · Sources: {report.source_count}</p><pre>{esc(json.dumps(report.assessment_coverage, ensure_ascii=False, sort_keys=True, indent=2))}</pre></section>
 <section aria-labelledby="metadata"><h2 id="metadata">Report metadata</h2><p>Schema {esc(report.schema_version)} · Reporter {esc(report.reporter_version)}</p><p>Filters active: {esc(report.filters_active)}</p></section></main>

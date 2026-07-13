@@ -56,12 +56,17 @@ The bare command opens an English onboarding flow. It asks which source you use,
 nearby local sources, and can start a scan. OpenWebUI discovery checks fixed loopback health
 endpoints only after explicit consent; it does not retrieve OpenWebUI content yet.
 
-Upgrade or uninstall:
+Maintain or remove the installation with one RAGScanner command:
 
 ```powershell
-uv tool upgrade ragscanner
-uv tool uninstall ragscanner
+ragscanner update
+ragscanner repair
+ragscanner uninstall
 ```
+
+`uninstall` asks for confirmation. Automation may use `ragscanner uninstall --yes`. These commands
+delegate to the official `uv tool` environment without a shell; `repair` performs a full reinstall
+while retaining the original installation source and settings.
 
 After a PyPI release, installation will use `uv tool install ragscanner`. No PyPI package or release
 tag has been published yet.

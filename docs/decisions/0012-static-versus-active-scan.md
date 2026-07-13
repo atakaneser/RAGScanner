@@ -1,19 +1,23 @@
-# ADR-0012: Static scan ve active black-box scan ayrımı
+# ADR-0012: Separate static and active black-box scans
 
 - Status: Accepted
 - Date: 2026-07-12
 
-## Bağlam
+## Context
 
-Belge içindeki zararlı talimatı bulmak ile çalışan uygulamanın o talimata nasıl cevap verdiğini sınamak farklı veri, izin ve kanıt modelleridir.
+Finding malicious instructions in documents and observing a running application's response require
+different data, authorization, and evidence models.
 
-## Karar
+## Decision
 
-`static` mode yalnız SourceConnector’dan gelen document/chunk/metadata üzerinde analiz yapar. `active` mode yalnız TargetAdapter üzerinden yetkili endpoint’e test gönderir. Scan provenance hangi modların çalıştığını ayrı gösterir; bir mod diğerinin coverage’ını doldurmaz.
+`static` mode analyzes only SourceConnector documents/chunks/metadata. `active` mode sends authorized
+tests only through TargetAdapter. Provenance records coverage for each mode separately; one mode
+never fills the other's coverage.
 
-Bir endpoint yalnız retrieval yaptığı capability/fixture ile doğrulandığında RAG target’tır. OpenAI/Hugging Face/LLM kullanımı tek başına RAG kanıtı değildir.
+An endpoint is a RAG target only when retrieval is verified through capabilities or fixtures. Using
+OpenAI, Hugging Face, or another LLM does not prove RAG behavior.
 
-## Sonuçlar
+## Consequences
 
-Static sonuç source location’a, active sonuç test case/request/response evidence’a bağlanır. Ortak Finding sözleşmesi kullanılabilir fakat occurrence evidence ve coverage mode-specific kalır.
-
+Static findings link to source locations; active findings link to test/request/response evidence.
+They share a Finding contract while occurrences and coverage remain mode-specific.

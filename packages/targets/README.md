@@ -1,4 +1,6 @@
 # Target adapters
 
-Gelecekte çalışan RAG/chat uygulamalarına yetkili active security test istekleri gönderen adapter’lar burada yer alacaktır. İlk hedef generic OpenAI-compatible protokoldür. Henüz target veya network kodu yoktur.
-
+Authorized active-security adapters for running RAG/chat applications belong at this boundary. The
+current Python package includes a provider-neutral Generic REST target adapter and active-runner core
+contracts. Platform-specific OpenAI-compatible, OpenWebUI, and Hugging Face adapters are still
+planned and must remain separate from source connectors and model providers.

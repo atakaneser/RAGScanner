@@ -1,17 +1,19 @@
-# Yapılandırma
+# Configuration
 
-Unified scan yalnız yerel TOML kabul eder. Arbitrary code, dynamic import, environment interpolation
-veya secret alanı yoktur. Bilinmeyen alanlar reddedilir. Precedence:
+Unified scans accept local TOML only. There is no arbitrary code, dynamic import, environment
+interpolation, or secret field. Unknown fields are rejected.
 
 ```text
-defaults < TOML config < explicit CLI options
+defaults < TOML configuration < explicit CLI options
 ```
+
+Configuration groups cover discovery/file limits, static security selection, chunking, duplicate
+and quality analysis, parser/normalization limits, and report format/path/overwrite policy. See
+`ragscanner scan --help` for CLI overrides.
 
 ```toml
 [scan]
 recursive = true
-include = ["**/*.pdf", "**/*.docx", "**/*.md", "**/*.txt"]
-exclude = ["**/archive/**"]
 max_file_size_mb = 25
 max_files = 10000
 
@@ -27,21 +29,6 @@ max_tokens = 800
 min_tokens = 50
 overlap_tokens = 50
 
-[duplicates]
-exact = true
-near = true
-similarity_threshold = 0.88
-
-[quality]
-enabled = true
-
-[limits]
-pdf_max_pages = 1000
-pdf_max_characters = 5000000
-docx_max_characters = 5000000
-normalized_max_characters = 5000000
-max_chunks_per_document = 10000
-
 [report]
 format = "html"
 output = "ragscanner-report.html"
@@ -51,5 +38,5 @@ overwrite = false
 create_parent_directories = false
 ```
 
-Output overwrite varsayılan kapalıdır. Eksik parent yalnız config açıkça izin verirse oluşturulur.
-Report aynı dizinde temporary file + atomic replace ile yazılır.
+Overwrite is disabled by default. Missing parent directories are created only after explicit
+configuration. Reports use a temporary file and atomic replacement in the destination directory.

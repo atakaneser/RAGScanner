@@ -1,14 +1,13 @@
 # RS-054: Hugging Face TGI target adapter
 
-**Objective:** TGI/OpenAI Messages uyumluluğunu capability fixture ile doğrulamak ve HF-specific farkları adapte etmek.  
-**Rationale:** Yalnız `transformers` import etmek Hugging Face desteği değildir.  
-**Dependencies:** RS-053.  
-**Scope:** TGI version/capability, model/endpoint config, response mapping ve official fixture documentation.  
-**Out of scope:** Model download, arbitrary `trust_remote_code`, HF’yi document source saymak.  
-**Implementation guidance:** Generic adapter’ı yeniden kullan; yalnız kanıtlanmış farkları ekle.  
-**Security considerations:** Token redaction, endpoint privacy, remote-code/model supply chain uyarıları.  
-**Acceptance criteria:** Mock TGI fixtures geçer; supported TGI version/mode açıklanır; fallback sessiz değildir.  
-**Tests:** Chat success, unsupported schema, auth, timeout, streaming ve version capability.  
-**Documentation changes:** Hugging Face target/model distinction.  
-**Completion checklist:** [ ] Official schema fixture [ ] Version matrix [ ] No remote code [ ] Tests [ ] Docs updated
-
+**Objective:** Verify TGI/OpenAI Messages compatibility with capability fixtures and adapt proven TGI differences.
+**Rationale:** Importing `transformers` alone is not Hugging Face support.
+**Dependencies:** RS-053.
+**Scope:** TGI version/capability, model/endpoint configuration, response mapping, and official fixture documentation.
+**Out of scope:** Model downloads, arbitrary `trust_remote_code`, and treating Hugging Face as a document source.
+**Implementation guidance:** Reuse the generic adapter and add only verified differences.
+**Security:** Token redaction, endpoint privacy, and remote-code/model supply-chain warnings.
+**Acceptance:** Mock TGI fixtures pass; supported versions/modes are explicit; fallback is never silent.
+**Tests:** Chat success, unsupported schema, auth, timeout, streaming, and version capability.
+**Documentation:** Hugging Face target/model distinction.
+**Checklist:** [ ] Official schema fixture [ ] Version matrix [ ] No remote code [ ] Tests [ ] Docs updated

@@ -1,4 +1,5 @@
 # OpenWebUI
 
-OpenWebUI connector henüz uygulanmamıştır. Planlanan bağımsız adapter ve güvenlik sınırları için [OPENWEBUI_INTEGRATION.md](../OPENWEBUI_INTEGRATION.md) belgesine bakın.
-
+The production OpenWebUI connector is not implemented. See
+[OPENWEBUI_INTEGRATION.md](../OPENWEBUI_INTEGRATION.md) for the planned independent adapter roles,
+consent boundary, and security controls.

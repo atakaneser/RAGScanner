@@ -1,17 +1,21 @@
-# ADR-0010: İlk sürümde SQLite
+# ADR-0010: SQLite-first storage
 
 - Status: Accepted
 - Date: 2026-07-12
 
-## Karar
+## Decision
 
-Scan history, findings/occurrences, documents/chunks, schedules, connector config, score snapshots ve job metadata SQLite’ta tutulur. WAL, busy timeout, kısa transaction ve migration kullanılır. Raw artifacts dosya sisteminde kalır.
+Store scan history, findings/occurrences, documents/chunks, schedules, connector configuration,
+score snapshots, and job metadata in SQLite. Use WAL, busy timeout, short transactions, and versioned
+migrations. Raw artifacts remain in the filesystem.
 
-## Gerekçe
+## Rationale
 
-Tek kullanıcı/tek makine deployment için güvenilir ve operasyon gerektirmeyen en basit çözümdür. PostgreSQL servisi ilk sürüm için kanıtlanmış ihtiyaç değildir.
+SQLite is the simplest reliable, zero-service option for a single-user/single-machine deployment.
+PostgreSQL is not a proven first-release requirement.
 
 ## Migration
 
-Storage portu DB’den bağımsız kalır. Şema migration’ları sürümlenir. Eşzamanlı worker, yoğun write contention veya çok kullanıcılı uzaktan deployment ölçülürse PostgreSQL’e veri taşıma aracı ve yeni ADR hazırlanır.
-
+Storage ports remain database-independent and schema migrations are versioned. If multiple workers,
+write contention, or remote multi-user deployment becomes measured demand, add a data-migration tool
+and a new PostgreSQL ADR.

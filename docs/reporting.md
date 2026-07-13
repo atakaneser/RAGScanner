@@ -1,34 +1,39 @@
 # Reporting engine
 
-RAGScanner mevcut static, active veya combined scan sonuçlarından framework-bağımsız ve tamamen
-offline rapor üretir. Reporting persistence, FastAPI veya dashboard modeli bilmez. `ReportInput`
-mevcut `Scan`, `Finding`, `TestExecution`, score, duplicate group, chunk-quality ve scanner
-istatistiklerini bir araya getirir; `ReportBuilder` bunların redakte edilmiş immutable görünümünü
-oluşturur.
+RAGScanner produces framework-independent, fully offline reports from static, active, or combined
+scan results. Reporting does not depend on persistence, FastAPI, or dashboard models. `ReportInput`
+combines scan, finding, execution, score, duplicate, chunk-quality, ingestion, and scanner data;
+`ReportBuilder` creates a redacted immutable view.
 
-Unified `ragscanner scan` doğrudan bu aggregate'i üretip aynı terminal/JSON/HTML reporter'larını
-kullanır; database veya fake result gerekmez.
+The unified `ragscanner scan` pipeline uses the same terminal, JSON, and HTML reporters without a
+database or fake result. Each report contains the knowledge-base mode, source count, per-assessment
+coverage, and per-file ingestion issues. A `not_assessed` check is never presented as healthy or as
+a zero score, and its reason remains visible.
 
-Her unified report `knowledge_base_mode`, source count ve assessment coverage taşır. `not_assessed`
-kontroller başarılı/zero-score gibi sunulmaz; neden çalışmadıkları terminal, JSON ve HTML'de yazılır.
+The default terminal view is deliberately concise: scan outcome, discovered/processed/skipped file
+counts, high-priority security counts, and ingestion remediation. `--verbose` adds scores, findings,
+coverage, evidence, and technical diagnostics.
 
-Finding sırası deterministiktir: severity, classification, confidence azalan, category, source,
-rule ID ve fingerprint. Severity, confidence ve classification ayrı tutulur. Eksik skor
-`null`/`Not assessed` olur; sıfıra çevrilmez. Skorlar “RAGScanner product-defined”, redundant
-token/character kazancı tahmin olarak etiketlenir.
+HTML begins with an executive summary and file-ingestion table. Scores are explicitly limited to
+assessed checks and never claim a security guarantee. Configuration and scan identifiers live under
+technical details rather than dominating the first view.
 
-Rapor-time filtreleri severity, category, classification, document, target, rule ID, informational
-inclusion ve maksimum finding'i destekler. Filtreler source sonucu mutate etmez ve raporda belirtilir.
-Collection truncation sessiz değildir.
+Finding order is deterministic: severity, classification, confidence, category, source, rule ID,
+and fingerprint. Severity, confidence, and classification remain separate. Missing scores are
+`null`/`Not assessed`; estimated token or character savings are labeled as estimates.
 
-Evidence, metadata, header-benzeri key, credential URL, connection string, bearer/API key, cookie ve
-private key rapor sınırında tekrar maskelenir. Absolute source path varsayılan basename olur.
-Suspicious URL linke çevrilmez. Ağ, subprocess, analytics veya telemetry yoktur.
+Report-time filters support severity, category, classification, document, target, rule ID,
+informational inclusion, and maximum findings. Filters never mutate source results and truncation is
+always reported.
+
+Evidence, metadata, credential-like headers, URLs, connection strings, API keys, cookies, and
+private keys are masked again at the report boundary. Absolute source paths default to basenames.
+Suspicious URLs are not linked. Reporting performs no network, subprocess, analytics, or telemetry.
 
 ```bash
-uv run ragscanner report input.json --format terminal --verbose
-uv run ragscanner report input.json --format json --output report.json
-uv run ragscanner report input.json --format html --output report.html
+ragscanner report input.json --format terminal --verbose
+ragscanner report input.json --format json --output report.json
+ragscanner report input.json --format html --output report.html
 ```
 
-İmzalı/verified report OD-016 çözülene kadar uygulanmamıştır.
+Signed or verified reports remain unresolved under OD-016.

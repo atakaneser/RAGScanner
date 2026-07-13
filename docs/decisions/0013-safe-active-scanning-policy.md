@@ -3,17 +3,22 @@
 - Status: Accepted
 - Date: 2026-07-12
 
-## Bağlam
+## Context
 
-Active testler tool, email, shell, dosya veya database yan etkisi oluşturabilir ve izinsiz kullanım hukuki/operasyonel risk taşır.
+Active tests may create tool, email, shell, file, or database side effects. Unauthorized use also
+creates legal and operational risk.
 
-## Karar
+## Decision
 
-Active Scan açık target-owner authorization gerektirir ve varsayılan `safe` profildir. Destructive/side-effect-capable payload hiçbir zaman default değildir ve safe profile’a dahil edilemez. Tool-use testleri canary, dry-run veya no-op action kullanır.
+Active Scan requires explicit target-owner authorization and defaults to the `safe` profile.
+Destructive or side-effect-capable payloads are never default and cannot enter that profile.
+Tool-use tests use canary, dry-run, or no-op actions.
 
-TargetAdapter; allowed-host/SSRF policy, TLS, timeout, rate limit, request/token budget, cancellation, response-size ve credential-reference alanlarını desteklemek zorundadır. Secret değeri log, report veya artifact’a yazılmaz.
+TargetAdapter must support allowed-host/SSRF policy, TLS, timeout, rate limits, request/token budgets,
+cancellation, response-size limits, and credential references. Secret values never enter logs,
+reports, or artifacts.
 
-## Sonuçlar
+## Consequences
 
-Bazı gerçek tool-abuse açıkları safe profile ile tam kanıtlanamayabilir ve `probable/ambiguous` kalır. Güvenlik ve yetki, coverage’dan önceliklidir.
-
+Some real tool-abuse vulnerabilities may remain probable or ambiguous under safe testing. Safety and
+authorization take priority over coverage.
