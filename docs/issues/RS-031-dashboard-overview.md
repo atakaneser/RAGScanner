@@ -10,4 +10,7 @@
 **Acceptance criteria:** Required fields and partial/stale states accurate; critical risks prioritized; deep links preserve tenant auth; WCAG target met.  
 **Tests:** Unit/component, API authz, E2E empty/populated/error, accessibility, cross-tenant/cache tests.  
 **Documentation changes:** Dashboard user guide and screenshots only from synthetic data.  
+**Current slice:** A browser-tested single-user localhost overview shows latest posture/coverage,
+recent scans, durable jobs, and queue controls. Organization knowledge bases, trends, schedules,
+declared WCAG/browser acceptance, and tenant behavior remain open.
 **Completion checklist:** [ ] UX review [ ] Coverage visible [ ] A11y pass [ ] Tenant tests [ ] Docs updated

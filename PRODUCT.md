@@ -18,10 +18,15 @@ entitlement, license server, private rule feed, or artificial feature restrictio
 ## Usage and analysis modes
 
 - One-time local file/folder scans and offline security/health analysis
-- Local/self-hosted history, comparison, scheduling, and change-triggered scans (planned)
-- OpenWebUI and additional source integration (planned)
+- Opt-in local SQLite history and coverage-aware CLI comparison; scheduling and change-triggered
+  scans remain planned
+- Localhost history/detail/comparison API plus scoped Bearer-authenticated asynchronous scan and job
+  control
+- Durable SQLite static-scan jobs with CLI enqueue/control and a user-facing worker process
+- Consent-gated OpenWebUI knowledge content scans; heterogeneous enterprise, web, repository,
+  object-store, and vector sources remain planned
 - Optional user-controlled models and local embeddings (planned)
-- Terminal, JSON, standalone HTML, and dashboard reports
+- Terminal, JSON, standalone HTML, and a local overview/queue dashboard
 
 `offline` uses deterministic/heuristic checks and optional local embeddings without a chat-model
 call. `balanced` may send only minimum redacted excerpts to an explicitly configured model. `deep`
@@ -55,6 +60,12 @@ One platform may fill multiple roles, but each role has separate configuration, 
 references, consent, and provenance. An LLM endpoint is not necessarily a RAG system. Retrieval must
 be verified before a target is labeled `rag`. OpenWebUI is one integration, not Core.
 
+RAG knowledge is not assumed to be a local file. A source may be a SharePoint site/drive/list, web
+page or sitemap, SaaS knowledge space, Git tree, object-store prefix, vector collection, platform
+knowledge base, chat attachment, or neutral export manifest. Capability discovery determines which
+security/quality checks are assessable; unavailable content or provenance becomes `not_assessed`,
+never healthy by assumption.
+
 ## Health Scan and scores
 
 Health analysis includes exact/near/semantic duplicates, malformed content, chunk quality,
@@ -68,9 +79,11 @@ findings may cap an overall score once the score policy is finalized.
 
 ## Local operation and authentication
 
-The first dashboard targets one user on localhost or a private network. It has no public signup,
-organization, membership, RBAC, SSO, subscription, or entitlement model. Deployments exposed beyond
-localhost must use reverse-proxy authentication, VPN, or another private-network control.
+The first dashboard targets one user on localhost. Its forms use same-origin CSRF protection and
+call local application services; API mutation uses scoped Bearer keys and per-key rate limiting. It
+has no public signup, organization, membership, RBAC, SSO, subscription, or entitlement model.
+Deployments exposed beyond localhost must use reverse-proxy authentication, VPN, or another
+private-network control.
 
 ## Explicitly out of initial scope
 

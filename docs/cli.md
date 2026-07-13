@@ -9,9 +9,12 @@ ragscanner
 ```
 
 The English onboarding flow can start a local file or folder scan. When OpenWebUI is selected,
-fixed loopback health endpoints are checked only after consent. The check does not read document
-content or prove that a responding service is OpenWebUI. The production OpenWebUI content connector
-is not implemented yet, and the CLI states that limitation explicitly.
+available Docker, Podman, nerdctl, and Finch CLIs are inspected only after consent. Only bounded
+running-container names, images, and published-port metadata are read without a shell. Candidate
+loopback health endpoints are then checked without redirects. A separate consent step and an API
+key held only in memory can inventory accessible knowledge bases plus linked and standalone/chat
+file metadata. Discovery itself does not retrieve document content or prove version compatibility.
+The flow then points to the separate consent-gated `jobs enqueue-openwebui` content workflow.
 
 ## Explicit commands
 
@@ -26,6 +29,19 @@ ragscanner uninstall
 ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/one-large.pdf
 ragscanner scan ./knowledge-base --format html --output report.html
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history show HISTORY_ID --verbose
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner history delete HISTORY_ID
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs enqueue-openwebui --help
+ragscanner jobs list
+ragscanner jobs show JOB_ID
+ragscanner jobs cancel JOB_ID
+ragscanner jobs retry JOB_ID
+ragscanner worker
+ragscanner serve
 ragscanner security scan ./knowledge --format json
 ragscanner quality scan ./knowledge --format terminal
 ragscanner report report-input.json --format html --output report.html
@@ -41,9 +57,24 @@ hidden by default.
 
 Unified `scan` supports `--include`, `--exclude`, `--recursive/--no-recursive`, `--max-file-size`,
 `--max-files`, `--category`, `--exclude-rule`, `--include-pii`, `--min-severity`, `--fail-on`,
-`--max-findings`, `--config`, `--security-only`, `--quality-only`, `--quiet`, `--verbose`, and
-`--no-color`. Existing output files are not overwritten. See the [scan pipeline](scan-pipeline.md)
-for exit codes.
+`--max-findings`, `--config`, `--security-only`, `--quality-only`, `--quiet`, `--verbose`,
+`--no-color`, `--save-history`, and `--history-db`. Existing output files are not overwritten.
+History is never persisted unless `--save-history` or `--history-db` is supplied. See the
+[scan pipeline](scan-pipeline.md) for exit codes and [local history](persistence.md) for storage,
+migration, retention, and comparison semantics.
+
+`history list` supports bounded `--limit`/`--offset` pagination and terminal or JSON output.
+`history show` renders a persisted snapshot, `history compare` performs coverage-aware comparison,
+and `history delete` requires confirmation unless `--yes` is supplied. History commands default to
+`.ragscanner/history.sqlite3`; `--database` selects another file.
+
+`jobs enqueue-scan` and `jobs enqueue-openwebui` add durable work; `list`, `show`, `cancel`, and
+`retry` manage it. `ragscanner worker` executes queued scans, while `--once` processes at most one
+job. All default to `.ragscanner/history.sqlite3`; `--database` selects another file.
+
+`ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000`. `--port` changes the
+loopback port and `--history-db` selects another database. History reads are local; API scan/job
+mutation requires `RAGSCANNER_API_KEY`. See the [local API](api.md) and [durable jobs](jobs.md).
 
 ## Path rules
 

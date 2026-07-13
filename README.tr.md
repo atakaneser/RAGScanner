@@ -31,9 +31,15 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Terminal, JSON ve bağımsız HTML raporları | Mevcut |
 | Çevrimdışı statik tarama | Varsayılan davranış |
 | İngilizce yönlendirmeli başlangıç | Yalın `ragscanner` komutuyla mevcut |
+| İzinli container OpenWebUI keşfi ve KB/dosya metadata envanteri | Mevcut |
 | OCR ve anlamsal kopya analizi | Henüz mevcut değil |
-| Kalıcılık, API, dashboard, geçmiş ve scheduler | Henüz mevcut değil |
-| OpenWebUI ve vector store içerik connector’ları | Henüz mevcut değil |
+| İsteğe bağlı SQLite geçmişi ve kapsam duyarlı karşılaştırma | CLI üzerinden mevcut |
+| Localhost geçmiş API’si | `ragscanner serve` ile mevcut |
+| Dayanıklı SQLite statik tarama işleri ve worker | Mevcut |
+| Kapsam yetkili kimlik doğrulamalı asenkron tarama/iş API’si | Loopback üzerinde mevcut |
+| Yerel genel bakış ve kuyruk dashboard’u | `ragscanner serve` ile mevcut |
+| Açık onaylı OpenWebUI bilgi tabanı içerik connector’ı | Mevcut |
+| Scheduler ve vector store içerik connector’ları | Henüz mevcut değil |
 | ModelProvider/BYOM entegrasyonu | Henüz mevcut değil |
 | Aktif endpoint tarama CLI’ı | Mevcut değil; yalnızca core sözleşmeleri var |
 
@@ -53,8 +59,12 @@ ragscanner
 ```
 
 Yalın komut İngilizce bir başlangıç akışı açar. Hangi kaynağı kullandığınızı sorar, sınırlandırılmış
-yakındaki yerel kaynakları önerir ve tarama başlatabilir. OpenWebUI keşfi, yalnızca açık onaydan sonra
-sabit loopback sağlık endpoint’lerini kontrol eder; henüz OpenWebUI içeriğini almaz.
+yakındaki yerel kaynakları önerir ve tarama başlatabilir. OpenWebUI keşfi açık onaydan sonra mevcut
+Docker, Podman, nerdctl veya Finch runtime’larından sınırlı metadata ile yaygın loopback adreslerini
+inceler. Ayrı olarak sağlanan ve yalnız bellekte tutulan API anahtarı, erişilebilir knowledge base’ler
+ile bunlara bağlı veya bağımsız/sohbet dosyalarının metadata envanterini çıkarabilir. Ayrı bir açık
+onaylı iş, seçilen tek bir OpenWebUI bilgi tabanındaki erişilebilir dosyaları alıp statik işlem
+hattını çalıştırabilir.
 
 Kurulumu tek bir RAGScanner komutuyla yönetin veya kaldırın:
 
@@ -91,6 +101,36 @@ Rapor oluşturun:
 ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
+
+Yerel tarama geçmişini yalnızca istendiğinde kaydedin ve karşılaştırın:
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+Dayanıklı taramaları kuyruğa alın ve worker’ı çalıştırın:
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+Açık onaylı OpenWebUI taraması için kimlik bilgisini SQLite dışında tutun:
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` yerel dashboard’u açar. API üzerinden kapsam yetkili Bearer kimlik doğrulamalı
+tarama oluşturma ve iş kontrolünü etkinleştirmek için `RAGSCANNER_API_KEY` ayarlayın. Sunucu yalnızca
+`127.0.0.1` adresine bağlanır.
 
 RAGScanner, mevcut bir çıktı dosyasının üzerine varsayılan olarak yazmaz.
 
@@ -129,7 +169,8 @@ Statik tarama ve yetkilendirilmiş aktif endpoint testi ayrı modlardır.
 - Telemetri, faturalandırma, abonelik, yetkilendirme veya lisans sunucusu yoktur.
 
 Uzak connector’lar ve isteğe bağlı modeller, açıkça yapılandırılıp onaylanana kadar devre dışı
-kalacaktır. OpenWebUI planlanan entegrasyonlardan biridir; ürünün çekirdeği değildir.
+kalır. OpenWebUI içerik erişimi seçilmiş bir bilgi tabanı, harici kimlik bilgisi referansı ve açık
+onay gerektirir; ürünün çekirdeği değil, entegrasyonlardan biridir.
 
 ## Katkıda bulunanlar için kurulum
 
@@ -174,13 +215,12 @@ Ayrıntılı sınırlar ve güncel durum için [ARCHITECTURE.md](ARCHITECTURE.md
 
 Yakın dönem sıralaması şöyledir:
 
-1. PDF/yol dayanıklılığı, kurulum, rapor ve terminal UX
-2. SQLite tarama geçmişi ve kalıcılık
-3. Uygulama API’ı ve tarama karşılaştırması
-4. OpenWebUI kaynak connector’ı
-5. Yerel dashboard ve scheduler
-6. Ek kaynak connector’ları, target adapter’ları ve isteğe bağlı model sağlayıcıları
-7. Paketleme ve dağıtım sağlamlaştırması
+1. Kalan kalıcılık kurtarma ve API ölçeğinde geçmiş/karşılaştırma işleri
+2. Yetenek katmanlı SharePoint, web, SaaS, Git, object store ve vector connector’ları
+3. OpenWebUI uyumluluğu, artımlı değişiklik algılama, kaynak kimliği ve secret sağlayıcıları
+4. Dashboard tarama ayrıntısı, karşılaştırma, connector ayarları ve erişilebilirlik kabulü
+5. Scheduler, saklama ve bildirimler
+6. Paketleme ve dağıtım sağlamlaştırması
 
 Planlanan özellikler hiçbir zaman mevcutmuş gibi sunulmaz. Ayrıntılar için
 [ROADMAP.md](ROADMAP.md) belgesine bakın.

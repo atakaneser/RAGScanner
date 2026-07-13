@@ -32,9 +32,15 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Terminal-, JSON- und eigenständige HTML-Berichte | Verfügbar |
 | Offline ausgeführte statische Scans | Standardverhalten |
 | Englischsprachige geführte Einrichtung | Mit einfachem `ragscanner` verfügbar |
+| Zustimmungsbasierte Container-OpenWebUI-Erkennung und KB-/Dateimetadateninventar | Verfügbar |
 | OCR und semantische Duplikatanalyse | Noch nicht verfügbar |
-| Persistenz, API, Dashboard, Verlauf und Scheduler | Noch nicht verfügbar |
-| OpenWebUI- und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
+| Optionaler SQLite-Verlauf und abdeckungsbewusster Vergleich | Über die CLI verfügbar |
+| Localhost-Verlaufs-API | Mit `ragscanner serve` verfügbar |
+| Dauerhafte SQLite-Static-Scan-Jobs und Worker | Verfügbar |
+| Bereichsgebundene authentifizierte asynchrone Scan-/Job-API | Auf Loopback verfügbar |
+| Lokales Übersichts- und Warteschlangen-Dashboard | Mit `ragscanner serve` verfügbar |
+| Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
+| Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
 | ModelProvider-/BYOM-Integration | Noch nicht verfügbar |
 | CLI für aktive Endpoint-Scans | Nicht verfügbar; nur Core-Verträge |
 
@@ -54,9 +60,12 @@ ragscanner
 ```
 
 Der einfache Befehl öffnet eine englische Einführung. Sie fragt nach der verwendeten Quelle,
-schlägt begrenzte lokale Quellen in der Nähe vor und kann einen Scan starten. Die OpenWebUI-Erkennung
-prüft feste Loopback-Health-Endpoints nur nach ausdrücklicher Zustimmung; OpenWebUI-Inhalte werden
-noch nicht abgerufen.
+schlägt begrenzte lokale Quellen in der Nähe vor und kann einen Scan starten. Nach ausdrücklicher
+Zustimmung prüft die OpenWebUI-Erkennung begrenzte Metadaten verfügbarer Docker-, Podman-, nerdctl-
+oder Finch-Runtimes sowie übliche Loopback-Adressen. Ein separat angegebener, nur im Speicher
+gehaltener API-Schlüssel kann zugängliche Knowledge Bases sowie verknüpfte und eigenständige/Chat-
+Dateimetadaten inventarisieren. Ein separater ausdrücklich genehmigter Job kann zugängliche Dateien
+aus einer ausgewählten OpenWebUI-Wissensbasis abrufen und die statische Pipeline ausführen.
 
 Verwalten oder entfernen Sie die Installation mit einem RAGScanner-Befehl:
 
@@ -93,6 +102,36 @@ Berichte erstellen:
 ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
+
+Lokalen Scanverlauf nur bei Bedarf speichern und vergleichen:
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+Dauerhafte Scans einreihen und den Worker ausführen:
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+Für einen genehmigten OpenWebUI-Scan bleiben Zugangsdaten außerhalb von SQLite:
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` öffnet das lokale Dashboard. Setzen Sie `RAGSCANNER_API_KEY`, um bereichsgebundene
+Bearer-authentifizierte Scan-Erstellung und Job-Steuerung über die API zu aktivieren. Der Server
+bindet ausschließlich an `127.0.0.1`.
 
 RAGScanner überschreibt standardmäßig keine vorhandene Ausgabedatei.
 
@@ -132,7 +171,8 @@ Sicherheitsgarantie. Statisches Scannen und autorisierte aktive Endpoint-Tests s
 - Es gibt keine Telemetrie, Abrechnung, Abonnements, Berechtigungs- oder Lizenzserver.
 
 Entfernte Konnektoren und optionale Modelle bleiben deaktiviert, bis sie ausdrücklich konfiguriert
-und genehmigt werden. OpenWebUI ist eine geplante Integration, nicht der Produktkern.
+und genehmigt werden. OpenWebUI-Inhaltszugriff erfordert eine ausgewählte Wissensbasis, eine externe
+Zugangsdatenreferenz und Zustimmung; er ist eine Integration, nicht der Produktkern.
 
 ## Installation für Mitwirkende
 
@@ -177,13 +217,12 @@ Ausführliche Grenzen und den aktuellen Status finden Sie in [ARCHITECTURE.md](A
 
 Die unmittelbare Reihenfolge lautet:
 
-1. Robustheit für PDF/Pfade sowie Installations-, Berichts- und Terminal-UX
-2. SQLite-Scanverlauf und Persistenz
-3. Anwendungs-API und Scanvergleich
-4. OpenWebUI-Quellenkonnektor
-5. Lokales Dashboard und Scheduler
-6. Weitere Quellenkonnektoren, Target Adapter und optionale Modellanbieter
-7. Härtung von Paketierung und Bereitstellung
+1. Verbleibende Wiederherstellung der Persistenz und Verlauf/Vergleich im API-Maßstab
+2. Fähigkeitsgestufte SharePoint-, Web-, SaaS-, Git-, Objektspeicher- und Vektorkonnektoren
+3. OpenWebUI-Kompatibilität, inkrementelle Änderungserkennung, Quellenidentität und Secret-Anbieter
+4. Dashboard-Scandetails, Vergleich, Konnektoreinstellungen und Barrierefreiheitsabnahme
+5. Scheduler, Aufbewahrung und Benachrichtigungen
+6. Härtung von Paketierung und Bereitstellung
 
 Geplante Funktionen werden niemals als verfügbar dargestellt. Details stehen in
 [ROADMAP.md](ROADMAP.md).

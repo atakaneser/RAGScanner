@@ -31,9 +31,15 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Terminal, JSON, and standalone HTML reports | Available |
 | Offline static scanning | Default behavior |
 | English guided onboarding | Available with bare `ragscanner` |
+| Consent-based container OpenWebUI discovery and KB/file metadata inventory | Available |
 | OCR and semantic duplicate analysis | Not available yet |
-| Persistence, API, dashboard, history, and scheduler | Not available yet |
-| OpenWebUI and vector-store content connectors | Not available yet |
+| Opt-in SQLite history and coverage-aware comparison | Available from the CLI |
+| Localhost history API | Available with `ragscanner serve` |
+| Durable SQLite static-scan jobs and worker | Available |
+| Scoped authenticated asynchronous scan/job API | Available on loopback |
+| Local overview and queue dashboard | Available with `ragscanner serve` |
+| Consent-gated OpenWebUI knowledge content connector | Available |
+| Scheduler and vector-store content connectors | Not available yet |
 | ModelProvider/BYOM integration | Not available yet |
 | Active endpoint scan CLI | Not available; core contracts only |
 
@@ -53,8 +59,11 @@ ragscanner
 ```
 
 The bare command opens an English onboarding flow. It asks which source you use, suggests bounded
-nearby local sources, and can start a scan. OpenWebUI discovery checks fixed loopback health
-endpoints only after explicit consent; it does not retrieve OpenWebUI content yet.
+nearby local sources, and can start a scan. After explicit consent, OpenWebUI discovery inspects
+bounded metadata from available Docker, Podman, nerdctl, or Finch runtimes plus common loopback
+addresses. A separately supplied in-memory API key can inventory accessible knowledge bases plus
+knowledge-linked and standalone/chat files. A separate explicit-consent job can retrieve accessible
+files from one selected OpenWebUI knowledge base and run the static pipeline.
 
 Maintain or remove the installation with one RAGScanner command:
 
@@ -92,6 +101,35 @@ ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
 
+Save and compare local scan history only when requested:
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+Queue durable scans and run the worker:
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+For a consented OpenWebUI scan, keep the credential outside SQLite:
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` opens the local dashboard. Set `RAGSCANNER_API_KEY` to enable scoped Bearer-
+authenticated scan creation and job control through the API. The server binds only to `127.0.0.1`.
+
 RAGScanner does not overwrite an existing output file by default.
 
 ## Multilingual input
@@ -128,8 +166,9 @@ Static scanning and authorized active endpoint testing are separate modes.
 - Absolute source paths are hidden in reports by default.
 - There is no telemetry, billing, subscription, entitlement, or license server.
 
-Remote connectors and optional models will remain disabled until explicitly configured and
-consented to. OpenWebUI is one planned integration, not the product core.
+Remote connectors and optional models remain disabled until explicitly configured and consented
+to. OpenWebUI content access requires a selected knowledge base, external credential reference,
+and explicit consent; it is one integration, not the product core.
 
 ## Installation for contributors
 
@@ -173,13 +212,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [PRODUCT.md](PRODUCT.md), and
 
 The immediate sequence is:
 
-1. PDF/path resilience, installation, report, and terminal UX
-2. SQLite scan history and persistence
-3. Application API and scan comparison
-4. OpenWebUI source connector
-5. Local dashboard and scheduler
-6. Additional source connectors, target adapters, and optional model providers
-7. Packaging and deployment hardening
+1. Remaining persistence recovery and API-scale history/comparison work
+2. Capability-tiered SharePoint, web, SaaS, Git, object-store, and vector connectors
+3. OpenWebUI compatibility, incremental change detection, source identity, and secret providers
+4. Dashboard scan detail, comparison, connector settings, and accessibility acceptance
+5. Scheduler, retention, and notifications
+6. Packaging and deployment hardening
 
 Planned features are never presented as available. See [ROADMAP.md](ROADMAP.md) for details.
 

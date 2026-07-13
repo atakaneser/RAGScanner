@@ -93,9 +93,12 @@ class StaticScanPipeline:
         registry: ParserRegistry | None = None,
         event_sink: StaticScanEventSink | None = None,
         clock: Callable[[], datetime] | None = None,
+        single_source: bool | None = None,
     ) -> None:
         self.config = config
-        self._single_source = config.source_path.is_file()
+        self._single_source = (
+            config.source_path.is_file() if single_source is None else single_source
+        )
         source_root = config.source_path.parent if self._single_source else config.source_path
         include_patterns = (
             [config.source_path.name] if self._single_source else config.include_patterns
@@ -163,6 +166,9 @@ class StaticScanPipeline:
         health: SourceHealth | None = None
         try:
             descriptor = await self._connector.describe()
+            scan.source_type = descriptor.source_type
+            if descriptor.source_type != "filesystem":
+                scan.source_name = descriptor.display_name
             health = await self._connector.health_check()
             await self._emit(
                 StaticScanEventType.SOURCE_HEALTH_CHECKED,
@@ -593,7 +599,11 @@ class StaticScanPipeline:
             started_at=started,
             completed_at=completed,
             cancelled=cancelled,
-            metadata={"offline": True, "network_calls": False, "external_ai": False},
+            metadata={
+                "offline": not bool(descriptor and descriptor.capabilities.remote),
+                "network_calls": bool(descriptor and descriptor.capabilities.remote),
+                "external_ai": False,
+            },
             knowledge_base_mode="single_source" if self._single_source else "collection",
             assessment_coverage=self._assessment_coverage(
                 documents=documents,

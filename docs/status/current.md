@@ -1,6 +1,6 @@
 # Current status
 
-**Milestone:** Milestone 1 — scaffold, core domain, and static source contracts
+**Milestone:** Milestones 1, 5, and 6 — scanner core plus initial local delivery and OpenWebUI source
 
 **Version:** not released as a package or tag (`0.1.0a1` alpha candidate)
 
@@ -13,7 +13,8 @@
 - Network-free `ragscanner doctor` and `ragscanner --version`
 - One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`
 - English guided local scanning from a bare `ragscanner` command, bounded nearby-source discovery,
-  and loopback OpenWebUI health-candidate checks only after explicit consent
+  consent-based Docker/Podman/nerdctl/Finch OpenWebUI endpoint discovery, and separately consented
+  authenticated knowledge-base plus linked/standalone file metadata inventory
 - Canonical English root README plus Turkish, German, French, Simplified Chinese, and Italian
   localized README pages
 - Canonical English project documentation enforced by a regression test, with intentional
@@ -30,6 +31,16 @@
 - Exact and lexical near-duplicate analysis plus deterministic chunk-quality analysis
 - Unified filesystem-to-report static pipeline with isolated file failures and assessed-only scoring
 - Concise terminal summaries and versioned JSON/standalone HTML reports
+- Opt-in local SQLite report history with versioned migrations, execution identities, paginated CLI
+  listing/detail/deletion, and coverage-aware comparison
+- Framework-independent history application services and a versioned localhost API for history,
+  detail, comparison, scoped Bearer-authenticated scan creation, and job control
+- Durable job contracts, SQLite queue migration, atomic lease/heartbeat, bounded retry and
+  cancellation, production static-scan handler, CLI control surface, and worker process
+- Consent-gated, read-only OpenWebUI knowledge-file content connector with bounded pagination,
+  response limits, HTTPS outside loopback, and external `env:` credential resolution
+- Browser-tested local Jinja dashboard for scan posture, recent history, durable jobs, local and
+  OpenWebUI enqueue, cancellation, and retry with same-origin CSRF protection
 - HTML executive summary, assessment-coverage notice, and per-file ingestion remediation table
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage
 - pytest, Ruff, strict mypy, and GitHub Actions
@@ -37,23 +48,26 @@
 ## Not available yet
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
-Health and RAG Rot formulas, production OpenWebUI content integration, model providers,
-persistence, API, dashboard, worker, scheduler, real LLM-assisted evaluation, and Docker deployment
-are not implemented.
+Health and RAG Rot formulas, semantic analysis, broader source connectors, incremental OpenWebUI
+synchronization, model providers, scheduler, configurable retention, dashboard scan detail and
+comparison, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
+implemented.
 
 Domain models do not perform scans and contain no network, filesystem, database, or UI access.
 
 ## Active delivery sequence
 
-1. Implement SQLite scan history and comparison on stable report contracts.
-2. Add application services, a local API, and durable database-backed jobs.
-3. Implement the consent-based OpenWebUI source connector.
-4. Build the localhost dashboard against application services.
+1. Complete persistence concurrency/recovery hardening and history/comparison filter/scale acceptance.
+2. Define capability-tiered SharePoint, web/sitemap, SaaS knowledge, Git, object-store, vector-store,
+   and generic RAG-environment connectors.
+3. Add scheduling, retention, and dashboard scan detail/comparison/settings surfaces.
+4. Resolve OpenWebUI compatibility, change detection, source identity, and broader secret providers.
 
 ## Next scoped issue
 
-Proceed to `RS-014 persistence schema` after RS-062 is reviewed and committed. Later work must not
-be presented as available before its acceptance checks pass.
+Proceed with the remaining `RS-016`, `RS-033`, and `RS-034` scale/recovery acceptance plus the
+RS-056/063 heterogeneous-source capability matrix. Later work must not be presented as available
+before its acceptance checks pass.
 
 ## Alpha release status
 

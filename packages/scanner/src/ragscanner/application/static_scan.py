@@ -1,0 +1,327 @@
+"""Application service for local static scans and durable scan jobs."""
+
+import asyncio
+import os
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from ragscanner.application.jobs import JobCancellationRequested, JobCheckpoint, JobHandler
+from ragscanner.connectors import OpenWebUISourceConfig, OpenWebUISourceConnector
+from ragscanner.domain import SourceConnector
+from ragscanner.history import ScanHistoryRepository
+from ragscanner.jobs import JobKind, JobRecord
+from ragscanner.pipeline import (
+    LocalScanFileConfig,
+    StaticPipelineConfig,
+    StaticPipelineResult,
+    StaticScanEvent,
+    StaticScanEventSink,
+    StaticScanPipeline,
+    load_local_scan_config,
+    run_static_pipeline,
+)
+from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
+from ragscanner.reporting.models import ReportDocument
+
+
+class StaticScanJobPayload(BaseModel):
+    """Bounded scan parameters safe to persist in a job record."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_kind: str = Field(default="local", pattern=r"^(local|openwebui)$")
+    path: str | None = Field(default=None, min_length=1, max_length=4096)
+    config_path: str | None = Field(default=None, min_length=1, max_length=4096)
+    openwebui_base_url: str | None = Field(default=None, max_length=2048)
+    openwebui_knowledge_id: str | None = Field(default=None, max_length=240)
+    credential_ref: str | None = Field(default=None, max_length=500)
+    content_consent: bool = False
+
+    @model_validator(mode="after")
+    def validate_source(self) -> "StaticScanJobPayload":
+        if self.source_kind == "local":
+            if self.path is None:
+                raise ValueError("local scan jobs require path")
+            if any(
+                value is not None
+                for value in (
+                    self.openwebui_base_url,
+                    self.openwebui_knowledge_id,
+                    self.credential_ref,
+                )
+            ):
+                raise ValueError("local scan jobs cannot include OpenWebUI configuration")
+        elif not all((self.openwebui_base_url, self.openwebui_knowledge_id, self.credential_ref)):
+            raise ValueError(
+                "OpenWebUI scan jobs require endpoint, knowledge ID, and credential reference"
+            )
+        if self.source_kind == "openwebui" and not self.content_consent:
+            raise ValueError("OpenWebUI content scans require explicit content consent")
+        return self
+
+
+class _CheckpointEventSink(StaticScanEventSink):
+    def __init__(
+        self,
+        checkpoint: JobCheckpoint,
+        pipeline_provider: Callable[[], StaticScanPipeline],
+    ) -> None:
+        self._checkpoint = checkpoint
+        self._pipeline_provider = pipeline_provider
+        self.cancellation_requested = False
+        self._events = 0
+
+    async def emit(self, _event: StaticScanEvent) -> None:
+        self._events += 1
+        try:
+            self._checkpoint(min(0.9, self._events / 100))
+        except JobCancellationRequested:
+            self.cancellation_requested = True
+            self._pipeline_provider().cancel()
+
+
+class StaticScanApplicationService:
+    """Run a static pipeline and persist its immutable report snapshot."""
+
+    def __init__(self, history_repository: ScanHistoryRepository) -> None:
+        self.history_repository = history_repository
+
+    def run_local(
+        self,
+        source_path: Path,
+        *,
+        config_path: Path | None = None,
+        checkpoint: JobCheckpoint | None = None,
+    ) -> tuple[str, ReportDocument]:
+        resolved_source = source_path.expanduser().resolve(strict=True)
+        resolved_config = config_path.expanduser().resolve(strict=True) if config_path else None
+        config = load_local_scan_config(resolved_config).pipeline_config(resolved_source)
+        if (
+            resolved_source.is_file()
+            and resolved_source.suffix.casefold() not in config.allowed_extensions
+        ):
+            raise ValueError("single-file scan supports only TXT, Markdown, PDF, or DOCX")
+
+        pipeline_holder: dict[str, StaticScanPipeline] = {}
+        sink = (
+            _CheckpointEventSink(checkpoint, lambda: pipeline_holder["pipeline"])
+            if checkpoint is not None
+            else None
+        )
+        pipeline = StaticScanPipeline(config, event_sink=sink)
+        pipeline_holder["pipeline"] = pipeline
+        result = run_static_pipeline(pipeline)
+        report = build_pipeline_report(
+            result,
+            show_absolute_paths=not config.show_relative_paths,
+            maximum_findings=config.maximum_findings,
+        )
+        history_id = self.history_repository.save(report)
+        if sink is not None and sink.cancellation_requested:
+            raise JobCancellationRequested(f"history:{history_id}")
+        return history_id, report
+
+    def run_openwebui(
+        self,
+        *,
+        base_url: str,
+        knowledge_id: str,
+        credential_ref: str,
+        content_consent: bool,
+        checkpoint: JobCheckpoint | None = None,
+    ) -> tuple[str, ReportDocument]:
+        api_key = resolve_secret_reference(credential_ref)
+        connector = OpenWebUISourceConnector(
+            OpenWebUISourceConfig(
+                base_url=base_url,
+                knowledge_id=knowledge_id,
+                credential_ref=credential_ref,
+                content_consent=content_consent,
+            ),
+            api_key=api_key,
+        )
+        config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
+        try:
+            return self._run_connector(config, connector, checkpoint=checkpoint)
+        finally:
+            asyncio.run(connector.aclose())
+
+    def _run_connector(
+        self,
+        config: StaticPipelineConfig,
+        connector: SourceConnector,
+        *,
+        checkpoint: JobCheckpoint | None,
+    ) -> tuple[str, ReportDocument]:
+        pipeline_holder: dict[str, StaticScanPipeline] = {}
+        sink = (
+            _CheckpointEventSink(checkpoint, lambda: pipeline_holder["pipeline"])
+            if checkpoint is not None
+            else None
+        )
+        pipeline = StaticScanPipeline(
+            config,
+            connector=connector,
+            event_sink=sink,
+            single_source=False,
+        )
+        pipeline_holder["pipeline"] = pipeline
+        result = run_static_pipeline(pipeline)
+        report = build_pipeline_report(
+            result,
+            show_absolute_paths=False,
+            maximum_findings=config.maximum_findings,
+        )
+        history_id = self.history_repository.save(report)
+        if sink is not None and sink.cancellation_requested:
+            raise JobCancellationRequested(f"history:{history_id}")
+        return history_id, report
+
+
+class StaticScanJobHandler(JobHandler):
+    """Execute validated local scan jobs through the shared application service."""
+
+    def __init__(self, service: StaticScanApplicationService) -> None:
+        self.service = service
+
+    def execute(self, job: JobRecord, checkpoint: JobCheckpoint) -> str:
+        if job.kind is not JobKind.SCAN:
+            raise ValueError("StaticScanJobHandler only accepts scan jobs")
+        payload = StaticScanJobPayload.model_validate(job.payload)
+        if payload.source_kind == "local" and payload.path is not None:
+            history_id, _report = self.service.run_local(
+                Path(payload.path),
+                config_path=Path(payload.config_path) if payload.config_path else None,
+                checkpoint=checkpoint,
+            )
+        elif (
+            payload.source_kind == "openwebui"
+            and payload.openwebui_base_url is not None
+            and payload.openwebui_knowledge_id is not None
+            and payload.credential_ref is not None
+        ):
+            history_id, _report = self.service.run_openwebui(
+                base_url=payload.openwebui_base_url,
+                knowledge_id=payload.openwebui_knowledge_id,
+                credential_ref=payload.credential_ref,
+                content_consent=payload.content_consent,
+                checkpoint=checkpoint,
+            )
+        else:
+            raise ValueError("Scan job source configuration is incomplete")
+        return f"history:{history_id}"
+
+
+def resolve_secret_reference(reference: str) -> str:
+    if not reference.startswith("env:"):
+        raise ValueError("The worker currently resolves only env: credential references")
+    name = reference.removeprefix("env:")
+    if not name or name not in os.environ or not os.environ[name].strip():
+        raise ValueError("The referenced credential environment variable is unavailable")
+    return os.environ[name]
+
+
+def build_pipeline_report(
+    result: StaticPipelineResult,
+    *,
+    show_absolute_paths: bool = False,
+    maximum_findings: int = 500,
+) -> ReportDocument:
+    return ReportBuilder(
+        filters=ReportFilter(),
+        limits=ReportLimits(maximum_findings=maximum_findings),
+        show_absolute_paths=show_absolute_paths,
+    ).build(pipeline_report_input(result))
+
+
+def pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
+    parser_messages = [
+        warning.message for values in result.parser_warnings.values() for warning in values
+    ]
+    normalization_messages = [
+        warning for values in result.normalization_warnings.values() for warning in values
+    ]
+    chunking_messages = [
+        warning for values in result.chunking_warnings.values() for warning in values
+    ]
+    skipped_checks = [
+        f"{item.stage.value}: {item.relative_path or item.item_id}: {item.reason}"
+        for item in result.skipped_items
+    ]
+    skipped_checks.extend(
+        f"{error.stage.value}: {error.code}" for error in result.errors if not error.fatal
+    )
+    ingestion_issues: list[dict[str, Any]] = []
+    matched_items: set[tuple[str, str]] = set()
+    for error in result.errors:
+        if error.item_id is None and error.relative_path is None:
+            continue
+        path = error.relative_path or error.item_id or "unknown"
+        matched_items.add((error.item_id or "", path))
+        remediation = error.metadata.get("remediation")
+        ingestion_issues.append(
+            {
+                "path": path,
+                "stage": error.stage.value,
+                "code": error.code,
+                "message": error.message,
+                "remediation": remediation if isinstance(remediation, str) else None,
+                "fatal": error.fatal,
+            }
+        )
+    for item in result.skipped_items:
+        path = item.relative_path or item.item_id
+        if (item.item_id, path) in matched_items:
+            continue
+        ingestion_issues.append(
+            {
+                "path": path,
+                "stage": item.stage.value,
+                "code": "item_skipped",
+                "message": item.reason,
+                "remediation": "Review the file and scanner limits, then run the scan again.",
+                "fatal": False,
+            }
+        )
+    return ReportInput(
+        scan=result.scan,
+        findings=result.findings,
+        scores=result.score_summary,
+        duplicate_groups=result.duplicate_groups,
+        chunk_quality_statistics=result.quality_statistics,
+        security_statistics=result.security_statistics,
+        documents_parsed=len(result.documents),
+        rules_evaluated_count=(
+            result.security_statistics.rules_evaluated if result.security_statistics else 0
+        ),
+        rules_skipped_count=(
+            result.security_statistics.rules_skipped if result.security_statistics else 0
+        ),
+        skipped_checks=skipped_checks,
+        warnings=parser_messages + normalization_messages + chunking_messages,
+        errors=[f"{error.stage.value}: {error.message}" for error in result.errors],
+        configuration_summary={
+            "offline": bool(result.metadata.get("offline", True)),
+            "network_calls": bool(result.metadata.get("network_calls", False)),
+            "external_ai": False,
+        },
+        methodology=[
+            "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics"
+        ],
+        limitations=[
+            "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.",
+            "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.",
+        ],
+        generated_at=result.completed_at,
+        metadata={"cancelled": result.cancelled},
+        knowledge_base_mode=result.knowledge_base_mode,
+        source_count=len(result.documents),
+        assessment_coverage={
+            name: value.model_dump(mode="json")
+            for name, value in result.assessment_coverage.items()
+        },
+        ingestion_issues=ingestion_issues,
+    )

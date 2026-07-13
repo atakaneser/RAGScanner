@@ -1,0 +1,101 @@
+"""SQLAlchemy schema owned by the storage adapter, not scanner Core."""
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
+
+metadata = MetaData()
+
+scans = Table(
+    "scans",
+    metadata,
+    Column("id", String(160), primary_key=True),
+    Column("scan_id", String(160), nullable=False),
+    Column("scan_type", String(40), nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("source_name", String(500)),
+    Column("started_at", String(40)),
+    Column("completed_at", String(40)),
+    Column("overall_score", Float),
+    Column("finding_count", Integer, nullable=False),
+    Column("report_schema_version", String(40), nullable=False),
+    Column("report_json", Text, nullable=False),
+    Column("report_sha256", String(64), nullable=False),
+    Column("created_at", String(40), nullable=False),
+    CheckConstraint("length(report_sha256) = 64", name="ck_scans_report_sha256"),
+    UniqueConstraint("report_sha256", name="uq_scans_report_sha256"),
+)
+Index("ix_scans_created_at", scans.c.created_at)
+Index("ix_scans_scan_id", scans.c.scan_id)
+Index("ix_scans_source_created", scans.c.source_name, scans.c.created_at)
+
+findings = Table(
+    "findings",
+    metadata,
+    Column("fingerprint", String(64), primary_key=True),
+    Column("fingerprint_version", String(20), nullable=False),
+    Column("rule_id", String(240), nullable=False),
+    Column("first_observed_at", String(40), nullable=False),
+    CheckConstraint("length(fingerprint) = 64", name="ck_findings_fingerprint"),
+)
+
+finding_occurrences = Table(
+    "finding_occurrences",
+    metadata,
+    Column("history_id", String(160), ForeignKey("scans.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "fingerprint",
+        String(64),
+        ForeignKey("findings.fingerprint", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+    Column("finding_id", String(160), nullable=False),
+    Column("severity", String(20), nullable=False),
+    Column("classification", String(40)),
+    Column("observed_at", String(40), nullable=False),
+)
+Index("ix_occurrences_fingerprint", finding_occurrences.c.fingerprint)
+
+jobs = Table(
+    "jobs",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("kind", String(40), nullable=False),
+    Column("status", String(40), nullable=False),
+    Column("payload_json", Text, nullable=False),
+    Column("idempotency_key", String(160)),
+    Column("attempt_count", Integer, nullable=False, default=0),
+    Column("max_attempts", Integer, nullable=False),
+    Column("created_at", String(40), nullable=False),
+    Column("updated_at", String(40), nullable=False),
+    Column("available_at", String(40), nullable=False),
+    Column("started_at", String(40)),
+    Column("completed_at", String(40)),
+    Column("lease_owner", String(160)),
+    Column("lease_expires_at", String(40)),
+    Column("heartbeat_at", String(40)),
+    Column("progress", Float, nullable=False, default=0),
+    Column("result_ref", String(500)),
+    Column("error_code", String(80)),
+    Column("error_message", String(500)),
+    CheckConstraint("attempt_count >= 0", name="ck_jobs_attempt_count"),
+    CheckConstraint("max_attempts BETWEEN 1 AND 10", name="ck_jobs_max_attempts"),
+    CheckConstraint("progress BETWEEN 0 AND 1", name="ck_jobs_progress"),
+    CheckConstraint(
+        "status IN ('queued', 'running', 'cancel_requested', 'succeeded', 'failed', 'cancelled')",
+        name="ck_jobs_status",
+    ),
+    UniqueConstraint("kind", "idempotency_key", name="uq_jobs_kind_idempotency"),
+)
+Index("ix_jobs_claim", jobs.c.status, jobs.c.available_at, jobs.c.lease_expires_at)
+Index("ix_jobs_created_at", jobs.c.created_at)
