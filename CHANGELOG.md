@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Added English guided local scanning and consent-based OpenWebUI service-candidate discovery to the
+  bare `ragscanner` command.
+- PDF signature, zero-page, and PyMuPDF page-count failures now produce typed categories and
+  remediation; one malformed file does not stop a collection scan.
+- Documented a one-time `uv tool install` flow that does not require cloning the repository.
+- Made the root README canonical English documentation and added Turkish, German, French,
+  Simplified Chinese, and Italian localized README pages.
+
 All notable project changes will be documented here. The project intends to follow Semantic Versioning once releasable artifacts exist and Keep a Changelog structure.
 
 ## [0.1.0-alpha.1] - Unreleased

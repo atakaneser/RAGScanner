@@ -11,6 +11,10 @@ ve açık kaynak governance. **Durum: tamamlandı.**
 
 Python scaffold, CLI, document/finding modelleri, TXT/Markdown/PDF/DOCX, normalization, chunking, persistence ve raporlar. **Durum: ingestion'dan static security/quality/scoring ve terminal/JSON/HTML report'a unified offline scan tamamlandı; OCR ve persistence yok.**
 
+The first usability slice now includes English bare-command onboarding, bounded local source
+discovery, and consent-based OpenWebUI service-candidate checks. The next slices cover PDF/path
+resilience, installation, and report UX.
+
 ## Milestone 2 — RAG Security Scan
 
 Static rule engine yanında active endpoint testing: sürümlü prompt-injection/data-leakage/function-abuse/context-manipulation payload’ları, generic target adapter, deterministic response analyzer, rate limit/timeout/budget, TP/FP fixture ve güvenli security reports. **Durum: İlk deterministic static rule engine/pack/CLI ile TargetAdapter, safe active test library, Generic REST transport, response evaluation, in-memory active runner ve ortak reporting tamamlandı; persistence ve ek adaptörler yok.**

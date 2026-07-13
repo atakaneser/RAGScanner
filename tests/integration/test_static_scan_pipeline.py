@@ -95,7 +95,7 @@ def test_one_file_failure_continues_and_all_failed_is_failed(tmp_path: Path) -> 
     partial = run(tmp_path)
     assert partial.scan.status is ScanStatus.COMPLETED_WITH_WARNINGS
     assert len(partial.documents) == 1
-    assert any(error.code == "parse_failed" for error in partial.errors)
+    assert any(error.code == "pdf_invalid_signature" for error in partial.errors)
     (tmp_path / "ok.txt").unlink()
     failed = run(tmp_path)
     assert failed.scan.status is ScanStatus.FAILED
@@ -328,7 +328,10 @@ def test_single_large_pdf_docx_markdown_limits_fail_safely(tmp_path: Path) -> No
     document.close()
     limited_pdf = run(pdf, pdf=PdfParserConfig(maximum_page_count=1))
     assert limited_pdf.scan.status is ScanStatus.FAILED
-    assert limited_pdf.skipped_items[0].reason == "parse failed"
+    assert limited_pdf.errors[0].code == "pdf_limit_exceeded"
+    assert limited_pdf.errors[0].metadata["category"] == "limit_exceeded"
+    assert limited_pdf.errors[0].metadata["remediation"]
+    assert "page-count limit" in limited_pdf.skipped_items[0].reason
 
     docx = tmp_path / "large.docx"
     write_docx(docx, "Synthetic DOCX content " * 500)

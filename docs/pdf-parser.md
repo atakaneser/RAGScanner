@@ -1,5 +1,12 @@
 # PDF parser
 
+The parser performs typed `%PDF-` signature, readable page-count, and zero-page preflight checks.
+The `invalid_signature`, `malformed`, `zero_pages`, `encrypted`, `limit_exceeded`, and `timeout`
+categories are preserved in pipeline error codes and remediation metadata. Raw PyMuPDF messages
+such as `Invalid number of pages` do not cross the reporting boundary. An image-based PDF with
+valid pages produces `likely_scanned_pdf` and `no_extractable_text` warnings instead of a malformed
+file error; OCR is not performed yet.
+
 İlk PDF parser yalnız text-based PDF extraction için PyMuPDF kullanır. `SourceContent` memory
 buffer olarak açılır; file path, link, attachment veya remote resource PyMuPDF'ye verilmez. OCR,
 rendering ve password denemesi yoktur. PyMuPDF'nin güncel `Document.needs_pass`,

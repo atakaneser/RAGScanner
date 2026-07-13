@@ -155,9 +155,9 @@ def test_multi_page_order_separator_page_numbers_and_offsets() -> None:
 
 
 def test_empty_document_empty_page_and_image_only_detection() -> None:
-    empty = parse(empty_pdf())
-    assert empty.document.content == ""
-    assert "no_extractable_text" in warning_codes(empty)
+    with pytest.raises(PdfParserError) as empty:
+        parse(empty_pdf())
+    assert empty.value.category is PdfParserErrorCategory.ZERO_PAGES
     blank = parse(make_pdf([None]))
     assert {"empty_page", "no_extractable_text"}.issubset(warning_codes(blank))
     image = parse(make_pdf([None], image_pages={0}))
@@ -178,12 +178,35 @@ def test_encrypted_malformed_and_unsupported_input_fail_safely() -> None:
     with pytest.raises(PdfParserError) as encrypted:
         parse(make_pdf(["private"], encrypted=True))
     with pytest.raises(PdfParserError) as malformed:
-        parse(b"%PDF malformed")
+        parse(b"%PDF-1.7\nmalformed")
     with pytest.raises(PdfParserError) as unsupported:
         PdfParser().parse(source(b"plain text", path="plain.txt", mime="text/plain"))
     assert encrypted.value.category is PdfParserErrorCategory.ENCRYPTED
     assert malformed.value.category is PdfParserErrorCategory.MALFORMED
     assert unsupported.value.category is PdfParserErrorCategory.UNSUPPORTED
+
+
+def test_invalid_signature_and_page_count_library_error_are_typed(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(PdfParserError) as signature:
+        parse(b"this is not a PDF")
+    assert signature.value.category is PdfParserErrorCategory.INVALID_SIGNATURE
+
+    class BrokenDocument:
+        needs_pass = False
+
+        @property
+        def page_count(self) -> int:
+            raise RuntimeError("Invalid number of pages")
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(pymupdf, "open", lambda **_kwargs: BrokenDocument())
+    with pytest.raises(PdfParserError) as malformed:
+        parse(b"%PDF-1.7\nsynthetic")
+    assert malformed.value.category is PdfParserErrorCategory.MALFORMED
+    assert "Invalid number of pages" not in str(malformed.value)
+    assert malformed.value.remediation
 
 
 def test_file_page_total_and_per_page_limits() -> None:

@@ -28,7 +28,7 @@ from ragscanner.domain import (
     SourceItem,
 )
 from ragscanner.normalization import DocumentNormalizer, NormalizationResult
-from ragscanner.parsers import ParserResult, ParserWarning
+from ragscanner.parsers import ParserResult, ParserWarning, PdfParserError
 from ragscanner.pipeline.models import (
     AssessmentCoverage,
     AssessmentStatus,
@@ -259,15 +259,33 @@ class StaticScanPipeline:
                 documents.append(parsed.document)
                 await self._emit(StaticScanEventType.PARSING_COMPLETED, scan_id, item.id, relative)
             except Exception as error:  # parser libraries expose distinct safe exception types
+                code = "parse_failed"
+                reason = "parse failed"
+                metadata: dict[str, object] = {}
+                if isinstance(error, PdfParserError):
+                    code = f"pdf_{error.category.value}"
+                    reason = str(error)
+                    metadata = {
+                        "parser": "pdf",
+                        "category": error.category.value,
+                        "remediation": error.remediation,
+                    }
                 errors.append(
-                    self._stage_error(StageName.PARSING, "parse_failed", error, item.id, relative)
+                    self._stage_error(
+                        StageName.PARSING,
+                        code,
+                        error,
+                        item.id,
+                        relative,
+                        metadata=metadata,
+                    )
                 )
                 skipped.append(
                     SkippedItem(
                         item_id=item.id,
                         relative_path=relative,
                         stage=StageName.PARSING,
-                        reason="parse failed",
+                        reason=reason,
                     )
                 )
                 continue
@@ -745,6 +763,7 @@ class StaticScanPipeline:
         item_id: str | None = None,
         relative: str | None = None,
         fatal: bool = False,
+        metadata: dict[str, object] | None = None,
     ) -> StageError:
         safe_message = str(error).replace(str(self.config.source_path), "<source-root>")[:1024]
         return StageError(
@@ -754,6 +773,7 @@ class StaticScanPipeline:
             item_id=item_id,
             relative_path=relative,
             fatal=fatal,
+            metadata=metadata or {},
         )
 
     async def _emit(

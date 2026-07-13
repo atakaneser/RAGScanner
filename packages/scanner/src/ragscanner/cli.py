@@ -21,6 +21,7 @@ from ragscanner.domain import (
 from ragscanner.logging import configure_logging
 from ragscanner.models import ComponentStatus, DoctorReport
 from ragscanner.normalization import DocumentNormalizer
+from ragscanner.onboarding import discover_local_sources, discover_openwebui_services
 from ragscanner.parsers import (
     DOCX_MIME,
     DocumentParser,
@@ -63,7 +64,11 @@ from ragscanner.security import (
 )
 from ragscanner.version import __version__
 
-app = typer.Typer(help="Local-first RAG health and security scanner.")
+app = typer.Typer(
+    help="Local-first RAG health and security scanner.",
+    invoke_without_command=True,
+    no_args_is_help=False,
+)
 security_app = typer.Typer(help="Offline and authorized security scanning commands.")
 quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis commands.")
 app.add_typer(security_app, name="security")
@@ -83,14 +88,106 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
+    output = Path("ragscanner-report.html") if html_report else None
+    if output is not None and output.exists():
+        suffix = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        output = Path(f"ragscanner-report-{suffix}.html")
+    unified_scan(
+        path=path,
+        output_format="html" if html_report else "terminal",
+        output=output,
+        include=None,
+        exclude=None,
+        recursive=None,
+        max_file_size=None,
+        max_files=None,
+        category=None,
+        exclude_rule=None,
+        include_pii=None,
+        min_severity=None,
+        fail_on=None,
+        max_findings=None,
+        config_file=None,
+        security_only=False,
+        quality_only=False,
+        quiet=False,
+        verbose=False,
+        no_color=False,
+    )
+
+
+def _prompt_choice(prompt: str, choices: set[str], *, default: str) -> str:
+    while True:
+        value = str(typer.prompt(prompt, default=default)).strip()
+        if value in choices:
+            return value
+        typer.echo(f"Invalid choice. Enter one of: {', '.join(sorted(choices))}")
+
+
+def _guided_onboarding() -> None:
+    typer.echo("Welcome to RAGScanner.")
+    typer.echo("What would you like to scan?")
+    typer.echo("  1. A local file or folder")
+    typer.echo("  2. An OpenWebUI knowledge base")
+    typer.echo("  3. Another RAG platform or vector store")
+    typer.echo("  4. Exit")
+    choice = _prompt_choice("Your choice", {"1", "2", "3", "4"}, default="1")
+    if choice == "4":
+        typer.echo("No action was taken.")
+        return
+    if choice == "2":
+        typer.echo("RAGScanner requires separate consent before accessing document content.")
+        if typer.confirm("Check common local OpenWebUI addresses?"):
+            service_candidates = discover_openwebui_services()
+            if service_candidates:
+                typer.echo("Possible OpenWebUI services:")
+                for service_candidate in service_candidates:
+                    typer.echo(
+                        f"- {service_candidate.base_url} "
+                        f"({service_candidate.health_path} responded)"
+                    )
+            else:
+                typer.echo("No responsive OpenWebUI candidate was found on loopback.")
+        typer.echo(
+            "The OpenWebUI source connector is not implemented yet; no content was retrieved."
+        )
+        typer.echo("For now, scan a local export with `ragscanner scan <path>`. ")
+        return
+    if choice == "3":
+        typer.echo(
+            "Other connectors are not implemented yet. Each source type will use the same safe "
+            "SourceConnector contract."
+        )
+        return
+
+    local_candidates = discover_local_sources(Path.cwd())
+    default_path = str(local_candidates[0].path) if local_candidates else "."
+    if local_candidates:
+        typer.echo("Nearby source candidates:")
+        for local_candidate in local_candidates[:5]:
+            typer.echo(
+                f"- {local_candidate.path} ({local_candidate.supported_file_count} supported files)"
+            )
+    value = typer.prompt("File or folder to scan", default=default_path)
+    path = Path(value).expanduser()
+    if not path.exists():
+        raise typer.BadParameter(f"path not found: {path}")
+    html_report = typer.confirm("Create a standalone HTML report?", default=True)
+    _run_guided_local_scan(path, html_report=html_report)
+
+
 @app.callback()
 def main(
+    context: typer.Context,
     version: Annotated[
         bool | None,
         typer.Option("--version", callback=version_callback, is_eager=True, help="Show version."),
     ] = None,
 ) -> None:
     """RAGScanner command group."""
+    if context.invoked_subcommand is None and not version:
+        _guided_onboarding()
 
 
 @app.command()

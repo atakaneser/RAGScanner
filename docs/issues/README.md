@@ -15,6 +15,7 @@ These drafts are ordered by ID, not permission to implement every item concurren
 | RS-046–055 | Active Security Scan ve target adapters |
 | RS-056 | Multi-platform source compatibility |
 | RS-057–060 | Generic target, active runner ve static security orchestration |
+| RS-061 | Guided onboarding and consent-based source discovery |
 
 RS-040 ve RS-041 ücretlendirme/kapalı dağıtım işleri olduğu için ürünün tamamen ücretsiz olma kararıyla silinmiştir. Kalan her issue kendi kabul ve doğrulama şartlarını içerir; “done” ayrıca secret içermemeyi, doğru durum belgesini ve güvenlik/gizlilik incelemesini gerektirir.
 

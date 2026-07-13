@@ -16,3 +16,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0013 Safe active-scanning policy](0013-safe-active-scanning-policy.md)
 - [ADR-0014 Generic target contract](0014-generic-target-contract.md)
 - [ADR-0015 OpenAI-compatible target](0015-openai-compatible-target.md)
+- [ADR-0016 Guided onboarding and consent-based source discovery](0016-guided-onboarding-and-source-discovery.md)
