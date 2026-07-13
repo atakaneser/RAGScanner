@@ -3,14 +3,27 @@
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
+import uvicorn
 
+from ragscanner.api import create_app
+from ragscanner.application import (
+    DurableWorker,
+    HistoryApplicationService,
+    HistoryNotFoundError,
+    JobApplicationService,
+    StaticScanApplicationService,
+    StaticScanJobHandler,
+    pipeline_report_input,
+)
 from ragscanner.chunking import DocumentChunker
 from ragscanner.config import get_settings
 from ragscanner.domain import (
@@ -20,10 +33,17 @@ from ragscanner.domain import (
     SourceContent,
     SourceItem,
 )
+from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
 from ragscanner.logging import configure_logging
 from ragscanner.models import ComponentStatus, DoctorReport
 from ragscanner.normalization import DocumentNormalizer
-from ragscanner.onboarding import discover_local_sources, discover_openwebui_services
+from ragscanner.onboarding import (
+    OpenWebUIDiscoveryError,
+    discover_local_sources,
+    discover_openwebui_files,
+    discover_openwebui_knowledge_bases,
+    discover_openwebui_services,
+)
 from ragscanner.parsers import (
     DOCX_MIME,
     DocumentParser,
@@ -64,6 +84,8 @@ from ragscanner.security import (
     StaticScanConfig,
     StaticSecurityScanner,
 )
+from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
+from ragscanner.storage.database import StorageError
 from ragscanner.version import __version__
 
 app = typer.Typer(
@@ -73,8 +95,12 @@ app = typer.Typer(
 )
 security_app = typer.Typer(help="Offline and authorized security scanning commands.")
 quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis commands.")
+history_app = typer.Typer(help="Opt-in local SQLite scan history and comparison commands.")
+jobs_app = typer.Typer(help="Durable local scan job commands.")
 app.add_typer(security_app, name="security")
 app.add_typer(quality_app, name="quality")
+app.add_typer(history_app, name="history")
+app.add_typer(jobs_app, name="jobs")
 
 
 def _static_rule_directory() -> Path:
@@ -133,6 +159,8 @@ def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
         quiet=False,
         verbose=False,
         no_color=False,
+        save_history=False,
+        history_db=None,
     )
 
 
@@ -157,21 +185,62 @@ def _guided_onboarding() -> None:
         return
     if choice == "2":
         typer.echo("RAGScanner requires separate consent before accessing document content.")
-        if typer.confirm("Check common local OpenWebUI addresses?"):
-            service_candidates = discover_openwebui_services()
+        service_candidates = []
+        if typer.confirm("Inspect local container runtimes and common loopback addresses?"):
+            service_candidates = discover_openwebui_services(include_container_runtimes=True)
             if service_candidates:
                 typer.echo("Possible OpenWebUI services:")
                 for service_candidate in service_candidates:
+                    origin = (
+                        f" via {service_candidate.runtime}" if service_candidate.runtime else ""
+                    )
                     typer.echo(
                         f"- {service_candidate.base_url} "
-                        f"({service_candidate.health_path} responded)"
+                        f"({service_candidate.health_path} responded{origin})"
                     )
             else:
                 typer.echo("No responsive OpenWebUI candidate was found on loopback.")
+        if service_candidates and typer.confirm(
+            "List accessible knowledge bases using an OpenWebUI API key?"
+        ):
+            selected = service_candidates[0]
+            if len(service_candidates) > 1:
+                for index, candidate in enumerate(service_candidates, start=1):
+                    typer.echo(f"  {index}. {candidate.base_url}")
+                selected_index = int(
+                    _prompt_choice(
+                        "OpenWebUI service",
+                        {str(index) for index in range(1, len(service_candidates) + 1)},
+                        default="1",
+                    )
+                )
+                selected = service_candidates[selected_index - 1]
+            api_key = typer.prompt("OpenWebUI API key", hide_input=True)
+            try:
+                knowledge_bases = discover_openwebui_knowledge_bases(
+                    selected.base_url, str(api_key)
+                )
+                files = discover_openwebui_files(selected.base_url, str(api_key))
+            except OpenWebUIDiscoveryError as error:
+                typer.echo(f"Knowledge-base discovery failed: {error}", err=True)
+            else:
+                if knowledge_bases:
+                    typer.echo("Accessible OpenWebUI knowledge bases:")
+                    for knowledge_base in knowledge_bases:
+                        typer.echo(f"- {knowledge_base.name} ({knowledge_base.id})")
+                else:
+                    typer.echo("No accessible OpenWebUI knowledge bases were returned.")
+                linked_files = sum(bool(item.knowledge_base_ids) for item in files)
+                standalone_files = len(files) - linked_files
+                typer.echo(
+                    "Accessible OpenWebUI file inventory: "
+                    f"{linked_files} knowledge-linked, {standalone_files} standalone."
+                )
+        typer.echo("Metadata inventory does not retrieve document content.")
         typer.echo(
-            "The OpenWebUI source connector is not implemented yet; no content was retrieved."
+            "To queue a consented content scan, use `ragscanner jobs enqueue-openwebui --help`, "
+            "then run `ragscanner worker`."
         )
-        typer.echo("For now, scan a local export with `ragscanner scan <path>`. ")
         return
     if choice == "3":
         typer.echo(
@@ -257,93 +326,7 @@ def uninstall(
 
 
 def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
-    parser_messages = [
-        warning.message for values in result.parser_warnings.values() for warning in values
-    ]
-    normalization_messages = [
-        warning for values in result.normalization_warnings.values() for warning in values
-    ]
-    chunking_messages = [
-        warning for values in result.chunking_warnings.values() for warning in values
-    ]
-    skipped_checks = [
-        f"{item.stage.value}: {item.relative_path or item.item_id}: {item.reason}"
-        for item in result.skipped_items
-    ]
-    skipped_checks.extend(
-        f"{error.stage.value}: {error.code}" for error in result.errors if not error.fatal
-    )
-    ingestion_issues: list[dict[str, object]] = []
-    matched_items: set[tuple[str, str]] = set()
-    for error in result.errors:
-        if error.item_id is None and error.relative_path is None:
-            continue
-        path = error.relative_path or error.item_id or "unknown"
-        matched_items.add((error.item_id or "", path))
-        remediation = error.metadata.get("remediation")
-        ingestion_issues.append(
-            {
-                "path": path,
-                "stage": error.stage.value,
-                "code": error.code,
-                "message": error.message,
-                "remediation": remediation if isinstance(remediation, str) else None,
-                "fatal": error.fatal,
-            }
-        )
-    for item in result.skipped_items:
-        path = item.relative_path or item.item_id
-        if (item.item_id, path) in matched_items:
-            continue
-        ingestion_issues.append(
-            {
-                "path": path,
-                "stage": item.stage.value,
-                "code": "item_skipped",
-                "message": item.reason,
-                "remediation": "Review the file and scanner limits, then run the scan again.",
-                "fatal": False,
-            }
-        )
-    return ReportInput(
-        scan=result.scan,
-        findings=result.findings,
-        scores=result.score_summary,
-        duplicate_groups=result.duplicate_groups,
-        chunk_quality_statistics=result.quality_statistics,
-        security_statistics=result.security_statistics,
-        documents_parsed=len(result.documents),
-        rules_evaluated_count=result.security_statistics.rules_evaluated
-        if result.security_statistics
-        else 0,
-        rules_skipped_count=result.security_statistics.rules_skipped
-        if result.security_statistics
-        else 0,
-        skipped_checks=skipped_checks,
-        warnings=parser_messages + normalization_messages + chunking_messages,
-        errors=[f"{error.stage.value}: {error.message}" for error in result.errors],
-        configuration_summary={
-            "offline": True,
-            "network_calls": False,
-            "external_ai": False,
-        },
-        methodology=[
-            "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics"
-        ],
-        limitations=[
-            "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.",
-            "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.",
-        ],
-        generated_at=result.completed_at,
-        metadata={"cancelled": result.cancelled},
-        knowledge_base_mode=result.knowledge_base_mode,
-        source_count=len(result.documents),
-        assessment_coverage={
-            name: value.model_dump(mode="json")
-            for name, value in result.assessment_coverage.items()
-        },
-        ingestion_issues=ingestion_issues,
-    )
+    return pipeline_report_input(result)
 
 
 def _atomic_write(path: Path, value: str, config: StaticPipelineConfig) -> None:
@@ -393,6 +376,8 @@ def unified_scan(
     quiet: Annotated[bool, typer.Option("--quiet")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
     no_color: Annotated[bool, typer.Option("--no-color")] = False,
+    save_history: Annotated[bool, typer.Option("--save-history")] = False,
+    history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
 ) -> None:
     """Run the complete local static scan pipeline and render a report."""
     del no_color  # Output is deliberately ANSI-free in the first implementation.
@@ -478,6 +463,20 @@ def unified_scan(
         limits=limits,
         show_absolute_paths=not config.show_relative_paths,
     ).build(_pipeline_report_input(result))
+    if save_history or history_db is not None:
+        database_path = history_db or (get_settings().data_dir / "history.sqlite3")
+        repository: SQLiteScanHistoryRepository | None = None
+        try:
+            repository = SQLiteScanHistoryRepository(database_path)
+            history_id = repository.save(report)
+        except (OSError, StorageError, ValueError) as error:
+            typer.echo(f"local history save failed: {error}", err=True)
+            raise typer.Exit(code=1) from error
+        finally:
+            if repository is not None:
+                repository.close()
+        if not quiet:
+            typer.echo(f"Scan saved to local history: {history_id}", err=True)
     if config.output_format is OutputFormat.JSON:
         rendered = JsonReporter().render(report, limits=limits)
     elif config.output_format is OutputFormat.HTML:
@@ -509,6 +508,361 @@ def unified_scan(
         }
         if any(rank[item.severity] >= rank[config.fail_on_severity] for item in result.findings):
             raise typer.Exit(code=3)
+
+
+def _history_database(database: Path | None) -> Path:
+    return database or (get_settings().data_dir / "history.sqlite3")
+
+
+def _job_service(database: Path | None) -> tuple[SQLiteJobRepository, JobApplicationService]:
+    repository = SQLiteJobRepository(_history_database(database))
+    return repository, JobApplicationService(repository)
+
+
+@jobs_app.command("enqueue-scan")
+def jobs_enqueue_scan(
+    path: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    config_file: Annotated[
+        Path | None, typer.Option("--config", exists=True, dir_okay=False)
+    ] = None,
+    idempotency_key: Annotated[str | None, typer.Option("--idempotency-key")] = None,
+    max_attempts: Annotated[int, typer.Option("--max-attempts", min=1, max=10)] = 3,
+) -> None:
+    """Queue a local static scan without starting an in-process task."""
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        job = service.enqueue_local_scan(
+            path,
+            config_path=config_file,
+            idempotency_key=idempotency_key,
+            max_attempts=max_attempts,
+        )
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot enqueue scan job: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(f"Queued scan job: {job.id}")
+
+
+@jobs_app.command("list")
+def jobs_list(
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=200)] = 50,
+    offset: Annotated[int, typer.Option("--offset", min=0)] = 0,
+    output_format: Annotated[str, typer.Option("--format")] = "terminal",
+) -> None:
+    """List durable jobs without exposing source content."""
+    if output_format not in {"terminal", "json"}:
+        raise typer.BadParameter("format must be terminal or json")
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        page = service.list(limit=limit, offset=offset)
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot read jobs: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    if output_format == "json":
+        typer.echo(page.model_dump_json())
+        return
+    typer.echo(f"Durable jobs: {page.total} record(s)")
+    for job in page.items:
+        typer.echo(
+            f"- {job.id} | {job.kind.value} | {job.status.value} | "
+            f"attempts={job.attempt_count}/{job.max_attempts} | progress={job.progress:.0%}"
+        )
+
+
+@jobs_app.command("enqueue-openwebui")
+def jobs_enqueue_openwebui(
+    base_url: Annotated[str, typer.Option("--base-url")],
+    knowledge_id: Annotated[str, typer.Option("--knowledge-id")],
+    credential_ref: Annotated[str, typer.Option("--credential-ref")],
+    consent_content: Annotated[bool, typer.Option("--consent-content")] = False,
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    idempotency_key: Annotated[str | None, typer.Option("--idempotency-key")] = None,
+    max_attempts: Annotated[int, typer.Option("--max-attempts", min=1, max=10)] = 3,
+) -> None:
+    """Queue a consented OpenWebUI knowledge-base content scan."""
+    if not consent_content:
+        raise typer.BadParameter("OpenWebUI scans require --consent-content")
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        job = service.enqueue_openwebui_scan(
+            base_url=base_url,
+            knowledge_id=knowledge_id,
+            credential_ref=credential_ref,
+            content_consent=True,
+            idempotency_key=idempotency_key,
+            max_attempts=max_attempts,
+        )
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot enqueue OpenWebUI scan job: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(f"Queued OpenWebUI scan job: {job.id}")
+
+
+@jobs_app.command("show")
+def jobs_show(
+    job_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+) -> None:
+    """Show one durable job as stable JSON."""
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        job = service.get(job_id)
+    except JobNotFoundError:
+        typer.echo(f"Job was not found: {job_id}", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot read job: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(job.model_dump_json())
+
+
+@jobs_app.command("cancel")
+def jobs_cancel(
+    job_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+) -> None:
+    """Request immediate or cooperative cancellation for one job."""
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        job = service.cancel(job_id)
+    except JobNotFoundError:
+        typer.echo(f"Job was not found: {job_id}", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot cancel job: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(f"Job status: {job.status.value}")
+
+
+@jobs_app.command("retry")
+def jobs_retry(
+    job_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+) -> None:
+    """Requeue one failed or cancelled job with a fresh attempt budget."""
+    repository: SQLiteJobRepository | None = None
+    try:
+        repository, service = _job_service(database)
+        job = service.retry(job_id)
+    except JobNotFoundError:
+        typer.echo(f"Job was not found: {job_id}", err=True)
+        raise typer.Exit(code=1) from None
+    except JobStateError as error:
+        raise typer.BadParameter(str(error)) from error
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot retry job: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(f"Job requeued: {job.id}")
+
+
+@app.command("worker")
+def worker_command(
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    once: Annotated[bool, typer.Option("--once")] = False,
+    poll_interval: Annotated[float, typer.Option("--poll-interval", min=0.1, max=60)] = 1,
+    lease_seconds: Annotated[int, typer.Option("--lease-seconds", min=5, max=3600)] = 30,
+    worker_id: Annotated[str | None, typer.Option("--worker-id")] = None,
+) -> None:
+    """Run the durable local scan worker."""
+    from datetime import timedelta
+
+    selected_database = _history_database(database)
+    job_repository: SQLiteJobRepository | None = None
+    history_repository: SQLiteScanHistoryRepository | None = None
+    try:
+        job_repository = SQLiteJobRepository(selected_database)
+        history_repository = SQLiteScanHistoryRepository(selected_database)
+        handler = StaticScanJobHandler(StaticScanApplicationService(history_repository))
+        worker = DurableWorker(
+            job_repository,
+            {JobKind.SCAN: handler},
+            worker_id=worker_id or f"{socket.gethostname()}:{os.getpid()}",
+            lease_duration=timedelta(seconds=lease_seconds),
+        )
+        typer.echo(f"Worker started with database {selected_database}.", err=True)
+        while True:
+            job = worker.run_once()
+            if job is not None:
+                typer.echo(f"Job {job.id}: {job.status.value}", err=True)
+            if once:
+                break
+            if job is None:
+                time.sleep(poll_interval)
+    except KeyboardInterrupt:
+        typer.echo("Worker stopped.", err=True)
+    except (OSError, StorageError, ValueError) as error:
+        typer.echo(f"Worker failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    finally:
+        if history_repository is not None:
+            history_repository.close()
+        if job_repository is not None:
+            job_repository.close()
+
+
+@app.command("serve")
+def serve_api(
+    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
+    history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
+) -> None:
+    """Serve the local dashboard and authenticated job API on loopback only."""
+    database = _history_database(history_db)
+    typer.echo(
+        f"Starting the local dashboard and API at http://127.0.0.1:{port} "
+        f"with history/job database {database}.",
+        err=True,
+    )
+    uvicorn.run(
+        create_app(database),
+        host="127.0.0.1",
+        port=port,
+        access_log=False,
+        server_header=False,
+    )
+
+
+@history_app.command("list")
+def history_list(
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=200)] = 50,
+    offset: Annotated[int, typer.Option("--offset", min=0)] = 0,
+    output_format: Annotated[str, typer.Option("--format")] = "terminal",
+) -> None:
+    """List paginated local scan history without reading report evidence."""
+    if output_format not in {"terminal", "json"}:
+        raise typer.BadParameter("format must be terminal or json")
+    repository: SQLiteScanHistoryRepository | None = None
+    try:
+        repository = SQLiteScanHistoryRepository(_history_database(database))
+        page = HistoryApplicationService(repository).list(limit=limit, offset=offset)
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot read local history: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    if output_format == "json":
+        typer.echo(page.model_dump_json())
+        return
+    typer.echo(f"Local scan history: {page.total} record(s)")
+    for item in page.items:
+        score = f"{item.overall_score:.2f}" if item.overall_score is not None else "not assessed"
+        typer.echo(
+            f"- {item.history_id} | scan={item.scan_id} | {item.status} | "
+            f"{item.source_name or 'unknown source'} | "
+            f"findings={item.finding_count} | overall={score}"
+        )
+
+
+@history_app.command("show")
+def history_show(
+    scan_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    output_format: Annotated[str, typer.Option("--format")] = "terminal",
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Render one persisted report snapshot."""
+    if output_format not in {"terminal", "json"}:
+        raise typer.BadParameter("format must be terminal or json")
+    repository: SQLiteScanHistoryRepository | None = None
+    try:
+        repository = SQLiteScanHistoryRepository(_history_database(database))
+        report = HistoryApplicationService(repository).get(scan_id)
+    except HistoryNotFoundError:
+        typer.echo(f"Scan was not found in local history: {scan_id}", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot read local history: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    if output_format == "json":
+        typer.echo(report.model_dump_json())
+    else:
+        typer.echo(TerminalReporter().render(report, verbose=verbose), nl=False)
+
+
+@history_app.command("compare")
+def history_compare(
+    baseline_scan_id: Annotated[str, typer.Argument()],
+    candidate_scan_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    output_format: Annotated[str, typer.Option("--format")] = "terminal",
+) -> None:
+    """Compare two persisted scans with coverage-aware finding semantics."""
+    if output_format not in {"terminal", "json"}:
+        raise typer.BadParameter("format must be terminal or json")
+    repository: SQLiteScanHistoryRepository | None = None
+    try:
+        repository = SQLiteScanHistoryRepository(_history_database(database))
+        comparison = HistoryApplicationService(repository).compare(
+            baseline_scan_id, candidate_scan_id
+        )
+    except HistoryNotFoundError as error:
+        typer.echo(f"Scan was not found in local history: {', '.join(error.history_ids)}", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot read local history: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    if output_format == "json":
+        typer.echo(comparison.model_dump_json())
+        return
+    typer.echo(
+        f"Scan comparison: {baseline_scan_id} -> {candidate_scan_id}\n"
+        f"Compatible: {'yes' if comparison.compatible else 'no'}\n"
+        f"New: {len(comparison.new_findings)} | "
+        f"Resolved: {len(comparison.resolved_findings)} | "
+        f"Not observed: {len(comparison.not_observed_findings)} | "
+        f"Recurring: {len(comparison.recurring_findings)} | "
+        f"Severity changes: {len(comparison.severity_changes)}"
+    )
+    for warning in comparison.warnings:
+        typer.echo(f"WARNING: {warning}")
+
+
+@history_app.command("delete")
+def history_delete(
+    scan_id: Annotated[str, typer.Argument()],
+    database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
+    yes: Annotated[bool, typer.Option("--yes")] = False,
+) -> None:
+    """Delete one local history record after confirmation."""
+    if not yes and not typer.confirm(f"Delete local scan history record {scan_id}?"):
+        typer.echo("History deletion cancelled.")
+        return
+    repository: SQLiteScanHistoryRepository | None = None
+    try:
+        repository = SQLiteScanHistoryRepository(_history_database(database))
+        HistoryApplicationService(repository).delete(scan_id)
+    except HistoryNotFoundError:
+        typer.echo(f"Scan was not found in local history: {scan_id}", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, StorageError, ValueError) as error:
+        raise typer.BadParameter(f"cannot update local history: {error}") from error
+    finally:
+        if repository is not None:
+            repository.close()
+    typer.echo(f"Deleted local scan history record: {scan_id}")
 
 
 @app.command("report")

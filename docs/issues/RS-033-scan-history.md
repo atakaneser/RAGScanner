@@ -10,4 +10,5 @@
 **Acceptance criteria:** All specified fields shown; running/partial/failed states unambiguous; timestamps/time zones correct; artifacts authorized.  
 **Tests:** State transitions, pagination/filter, time zones, authz/artifact links, XSS/redaction, E2E.  
 **Documentation changes:** Scan history/reporting/troubleshooting.  
-**Completion checklist:** [ ] Provenance complete [ ] Partial states [ ] Artifact auth [ ] Time tests [ ] Docs updated
+**Completion checklist:** [x] Local CLI pagination/detail [x] Immutable execution identity
+[ ] API filters [ ] Running/partial states [ ] Artifact auth [ ] Time-zone matrix [x] Initial docs

@@ -32,11 +32,14 @@ automated gates pass.
 - Unified CLI exposes static/offline scan only.
 - Scores are partial and product-defined; retrieval, answer reliability, freshness and RAG Rot may
   be `not assessed`.
-- No OCR, persistence, dashboard, scheduler, OpenWebUI, embeddings or model calls.
+- No OCR, dashboard, scheduler, OpenWebUI content connector, embeddings, or model calls. Local
+  persistence is opt-in and limited to report history/comparison.
+- The packaged API is read-only and loopback-only; authenticated scan/job control is not available.
 - Native parser calls have cooperative rather than process-level timeout preemption.
 - Lexical/heuristic detectors can produce false positives and false negatives.
 
-There is no previous public release or persistence migration. The current report schema is `1.1.0`.
+There is no previous public release. The initial packaged persistence revision is
+`0001_scan_history`; the current report schema is `1.1.0`.
 
 ## Local performance smoke record
 

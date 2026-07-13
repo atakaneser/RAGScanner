@@ -30,9 +30,15 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 终端、JSON 和独立 HTML 报告 | 可用 |
 | 离线静态扫描 | 默认行为 |
 | 英文引导式上手流程 | 使用裸 `ragscanner` 命令可用 |
+| 经同意的容器 OpenWebUI 发现和知识库/文件元数据清单 | 可用 |
 | OCR 和语义重复分析 | 尚不可用 |
-| 持久化、API、仪表板、历史记录和调度器 | 尚不可用 |
-| OpenWebUI 和向量存储内容连接器 | 尚不可用 |
+| 可选 SQLite 历史记录和覆盖范围感知比较 | 可通过 CLI 使用 |
+| localhost 历史记录 API | 可通过 `ragscanner serve` 使用 |
+| 持久 SQLite 静态扫描作业和 worker | 可用 |
+| 具有作用域身份验证的异步扫描/作业 API | 可在回环地址使用 |
+| 本地概览和队列仪表板 | 可通过 `ragscanner serve` 使用 |
+| 经明确同意的 OpenWebUI 知识内容连接器 | 可用 |
+| 调度器和向量存储内容连接器 | 尚不可用 |
 | ModelProvider/BYOM 集成 | 尚不可用 |
 | 主动端点扫描 CLI | 不可用；仅有核心契约 |
 
@@ -52,7 +58,10 @@ ragscanner
 ```
 
 裸命令会打开英文引导流程。它会询问您使用的源，建议范围受限的附近本地源，并可启动扫描。
-OpenWebUI 发现功能仅在明确同意后检查固定的回环健康端点；目前尚不获取 OpenWebUI 内容。
+明确同意后，OpenWebUI 发现功能会检查可用 Docker、Podman、nerdctl 或 Finch 运行时的有限
+元数据以及常见回环地址。单独提供且仅保存在内存中的 API 密钥可清点有权访问的知识库，以及
+关联或独立/聊天文件的元数据。另一个需要明确同意的作业可从选定的 OpenWebUI 知识库获取
+可访问文件，并运行静态流水线。
 
 使用一个 RAGScanner 命令维护或移除安装：
 
@@ -87,6 +96,35 @@ ragscanner scan ./knowledge-base/manual.pdf
 ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
+
+仅在明确请求时保存和比较本地扫描历史记录：
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+将持久扫描加入队列并运行 worker：
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+对于经同意的 OpenWebUI 扫描，请将凭据保留在 SQLite 之外：
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` 会打开本地仪表板。设置 `RAGSCANNER_API_KEY` 可通过 API 启用具有作用域的
+Bearer 身份验证扫描创建和作业控制。服务器仅绑定到 `127.0.0.1`。
 
 默认情况下，RAGScanner 不会覆盖现有输出文件。
 
@@ -124,8 +162,8 @@ Unicode 原生，可包含土耳其语、德语、法语、中文、意大利语
 - 默认在报告中隐藏绝对源路径。
 - 不存在遥测、计费、订阅、授权或许可证服务器。
 
-远程连接器和可选模型在明确配置并同意之前将保持禁用。OpenWebUI 是计划中的一个集成，并非
-产品核心。
+远程连接器和可选模型在明确配置并同意之前保持禁用。OpenWebUI 内容访问需要选定知识库、
+外部凭据引用和明确同意；它只是一个集成，而不是产品核心。
 
 ## 贡献者安装
 
@@ -168,13 +206,12 @@ uv build
 
 近期顺序如下：
 
-1. PDF/路径韧性，以及安装、报告和终端用户体验
-2. SQLite 扫描历史和持久化
-3. 应用 API 和扫描比较
-4. OpenWebUI 源连接器
-5. 本地仪表板和调度器
-6. 其他源连接器、目标适配器和可选模型提供者
-7. 打包和部署加固
+1. 剩余的持久化恢复和 API 规模历史记录/比较工作
+2. 按能力分级的 SharePoint、Web、SaaS、Git、对象存储和向量连接器
+3. OpenWebUI 兼容性、增量变更检测、源身份和密钥提供程序
+4. 仪表板扫描详情、比较、连接器设置和无障碍验收
+5. 调度器、保留策略和通知
+6. 打包和部署加固
 
 计划中的功能绝不会被描述为已经可用。详情请参阅 [ROADMAP.md](ROADMAP.md)。
 

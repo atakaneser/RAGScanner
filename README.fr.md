@@ -32,9 +32,15 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | Rapports terminal, JSON et HTML autonomes | Disponible |
 | Analyse statique hors ligne | Comportement par défaut |
 | Démarrage guidé en anglais | Disponible avec `ragscanner` seul |
+| Découverte OpenWebUI en conteneur et inventaire des métadonnées KB/fichiers | Disponible |
 | OCR et analyse sémantique des doublons | Pas encore disponible |
-| Persistance, API, dashboard, historique et scheduler | Pas encore disponible |
-| Connecteurs de contenu OpenWebUI et vector store | Pas encore disponible |
+| Historique SQLite facultatif et comparaison tenant compte de la couverture | Disponible via la CLI |
+| API localhost d’historique | Disponible avec `ragscanner serve` |
+| Jobs d’analyse statique SQLite durables et worker | Disponible |
+| API asynchrone authentifiée avec scopes pour analyses/jobs | Disponible sur loopback |
+| Dashboard local d’aperçu et de file d’attente | Disponible avec `ragscanner serve` |
+| Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
+| Scheduler et connecteurs de contenu vector store | Pas encore disponible |
 | Intégration ModelProvider/BYOM | Pas encore disponible |
 | CLI d’analyse active d’endpoint | Indisponible ; contrats core uniquement |
 
@@ -54,9 +60,13 @@ ragscanner
 ```
 
 La commande seule ouvre un parcours d’accueil en anglais. Il demande la source utilisée, suggère des
-sources locales proches et limitées, et peut lancer une analyse. La découverte OpenWebUI vérifie
-uniquement des endpoints de santé loopback fixes après consentement explicite ; elle ne récupère pas
-encore le contenu OpenWebUI.
+sources locales proches et limitées, et peut lancer une analyse. Après consentement explicite, la
+découverte OpenWebUI inspecte des métadonnées limitées des runtimes Docker, Podman, nerdctl ou Finch
+disponibles ainsi que les adresses loopback courantes. Une clé API fournie séparément et conservée
+uniquement en mémoire peut inventorier les bases de connaissances accessibles ainsi que les
+métadonnées des fichiers liés ou autonomes/de chat. Un job séparé avec consentement explicite peut
+récupérer les fichiers accessibles d’une base de connaissances OpenWebUI sélectionnée et exécuter
+le pipeline statique.
 
 Entretenez ou supprimez l’installation avec une seule commande RAGScanner :
 
@@ -95,6 +105,36 @@ ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
 
+Enregistrez et comparez l’historique local uniquement sur demande :
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+Mettez les analyses durables en file d’attente et lancez le worker :
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+Pour une analyse OpenWebUI consentie, conservez l’identifiant hors de SQLite :
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` ouvre le dashboard local. Définissez `RAGSCANNER_API_KEY` pour activer la création
+d’analyses et le contrôle des jobs via l’API avec authentification Bearer et scopes. Le serveur
+écoute uniquement sur `127.0.0.1`.
+
 Par défaut, RAGScanner n’écrase pas un fichier de sortie existant.
 
 ## Entrées multilingues
@@ -132,8 +172,9 @@ sécurité. L’analyse statique et les tests actifs autorisés d’endpoint son
 - Les chemins source absolus sont masqués par défaut dans les rapports.
 - Il n’existe aucune télémétrie, facturation, souscription, habilitation ou serveur de licence.
 
-Les connecteurs distants et modèles optionnels resteront désactivés tant qu’ils ne seront pas
-explicitement configurés et acceptés. OpenWebUI est une intégration prévue, pas le cœur du produit.
+Les connecteurs distants et modèles optionnels restent désactivés tant qu’ils ne sont pas
+explicitement configurés et acceptés. L’accès au contenu OpenWebUI exige une base sélectionnée, une
+référence externe d’identifiant et un consentement explicite ; c’est une intégration, pas le cœur.
 
 ## Installation pour les contributeurs
 
@@ -178,13 +219,12 @@ Consultez [ARCHITECTURE.md](ARCHITECTURE.md), [PRODUCT.md](PRODUCT.md) et
 
 La séquence immédiate est :
 
-1. Résilience PDF/chemins et UX d’installation, de rapport et du terminal
-2. Historique des analyses SQLite et persistance
-3. API applicative et comparaison des analyses
-4. Connecteur de source OpenWebUI
-5. Dashboard local et scheduler
-6. Autres connecteurs de sources, target adapters et fournisseurs de modèles optionnels
-7. Renforcement du packaging et du déploiement
+1. Travaux restants de récupération de persistance et d’historique/comparaison à l’échelle API
+2. Connecteurs SharePoint, web, SaaS, Git, object store et vector store par niveau de capacité
+3. Compatibilité OpenWebUI, détection incrémentale, identité des sources et fournisseurs de secrets
+4. Détails/comparaison des analyses, paramètres de connecteurs et validation d’accessibilité du dashboard
+5. Scheduler, rétention et notifications
+6. Renforcement du packaging et du déploiement
 
 Les fonctionnalités prévues ne sont jamais présentées comme disponibles. Consultez
 [ROADMAP.md](ROADMAP.md) pour plus de détails.

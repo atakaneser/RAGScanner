@@ -1,6 +1,7 @@
 # RAGScanner documentation
 
-RAGScanner is in product-foundation stage; these documents describe intended behavior, not an available release.
+RAGScanner is an unreleased technical alpha. Each page distinguishes implemented behavior from
+planned work.
 
 - [Quickstart](quickstart.md)
 - [Development](development.md)
@@ -21,6 +22,10 @@ RAGScanner is in product-foundation stage; these documents describe intended beh
 - [JSON report](json-report.md)
 - [Standalone HTML report](html-report.md)
 - [CLI reference](cli.md)
+- [Local scan history and comparison](persistence.md)
+- [Local application API](api.md)
+- [Durable jobs](jobs.md)
+- [Local dashboard](dashboard.md)
 - [Unified static scan pipeline](scan-pipeline.md)
 - [Static RAG security scanner](static-security-scanner.md)
 - [TargetAdapter contract](target-adapter-contract.md)

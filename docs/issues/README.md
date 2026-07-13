@@ -19,6 +19,7 @@ and repository placement.
 | RS-057–060 | Generic target, active runner, and static security orchestration |
 | RS-061 | Guided onboarding and consent-based source discovery |
 | RS-062 | Reporting usability and canonical project language |
+| RS-063 | Heterogeneous RAG source and environment inventory |
 
 RS-040 and RS-041 were removed after the decision to keep the complete product free and open
 source. Each remaining issue contains its own acceptance and verification conditions. “Done” also
@@ -36,8 +37,11 @@ requires no committed secrets, an accurate status document, and security/privacy
 8. [RS-058 Active Security Scan runner](RS-058-active-security-scan-runner.md)
 9. [RS-060 Static document Security Scan](RS-060-static-document-security-scanner.md)
 10. [RS-018/019/055 Reports](RS-018-terminal-json-reports.md)
-11. [RS-028 OpenWebUI connector](RS-028-openwebui-connector.md)
-12. [RS-054/056 Additional platform adapters](RS-056-multi-platform-source-connectors.md)
+11. [RS-016/033/034 Persistence, history, and comparison](RS-016-persistence.md)
+12. [RS-029 Application API](RS-029-application-api.md)
+13. [RS-028 OpenWebUI connector](RS-028-openwebui-connector.md)
+14. [RS-054/056 Additional platform adapters](RS-056-multi-platform-source-connectors.md)
+15. [RS-063 Heterogeneous source inventory](RS-063-heterogeneous-rag-source-inventory.md)
 
 This list describes dependency direction. An adapter may not advance until the acceptance criteria
 for its prerequisites are satisfied.

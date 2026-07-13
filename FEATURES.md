@@ -1,6 +1,8 @@
 # Feature catalog
 
-Status legend: **Foundation** means documented only; every planned capability is free and is not implemented yet.
+All capabilities are free. Current implementation status is documented in
+[`docs/status/current.md`](docs/status/current.md); milestone labels below are planning groupings,
+not availability claims.
 
 | Area | Planned capability | Edition / milestone |
 |---|---|---|
@@ -12,13 +14,13 @@ Status legend: **Foundation** means documented only; every planned capability is
 | Reports | Terminal, JSON, basic escaped HTML | M1 |
 | Models | Local embeddings, semantic duplicates, BYOM, balanced analysis | M2 |
 | Models | Contradiction candidates and optional verification | M2 |
-| Integration | OpenWebUI discovery, synchronization, manual scans | M3 |
+| Integration | OpenWebUI discovery and manual knowledge-content scans; synchronization planned | M3 |
 | Targets | Generic OpenAI-compatible, OpenAI, Hugging Face TGI, OpenWebUI, custom REST | M2–M6 |
 | Sources | OpenAI vector stores, Qdrant, Chroma, Weaviate, Pinecone, Milvus, pgvector | M6+ |
-| API | Authenticated scan and result contracts | M3 |
+| API | Local history plus authenticated asynchronous scan/job contracts | M3 |
 | Operations | History, comparisons, schedules, trends, notifications | M4 |
 | Workflow | Acknowledge, resolve, suppress, false-positive with audit trail | M4 |
-| Web | Free local/self-hosted dashboard and documentation | M4–M5 |
+| Web | Initial free local dashboard; detail/settings/schedules planned | M4–M5 |
 | Protocol | Basic MCP adapter | Future |
 
 Detailed detector coverage remains subject to source capabilities. Static filesystem scans cannot prove retrieval relevance, tenancy, or unused content without queries, labels, configuration, or telemetry.

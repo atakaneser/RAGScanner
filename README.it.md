@@ -31,9 +31,15 @@ telemetria, non segue link e non esegue mai i comandi rilevati.
 | Report da terminale, JSON e HTML autonomi | Disponibile |
 | Scansione statica offline | Comportamento predefinito |
 | Onboarding guidato in inglese | Disponibile con il solo `ragscanner` |
+| Scoperta OpenWebUI in container e inventario metadata KB/file | Disponibile |
 | OCR e analisi semantica dei duplicati | Non ancora disponibile |
-| Persistenza, API, dashboard, cronologia e scheduler | Non ancora disponibile |
-| Connettori di contenuti OpenWebUI e vector store | Non ancora disponibile |
+| Cronologia SQLite facoltativa e confronto basato sulla copertura | Disponibile dalla CLI |
+| API localhost di cronologia | Disponibile con `ragscanner serve` |
+| Job durevoli SQLite di scansione statica e worker | Disponibile |
+| API asincrona autenticata con scope per scansioni/job | Disponibile su loopback |
+| Dashboard locale di panoramica e coda | Disponibile con `ragscanner serve` |
+| Connettore di contenuti knowledge OpenWebUI con consenso | Disponibile |
+| Scheduler e connettori di contenuti vector store | Non ancora disponibile |
 | Integrazione ModelProvider/BYOM | Non ancora disponibile |
 | CLI per scansioni attive degli endpoint | Non disponibile; solo contratti core |
 
@@ -53,8 +59,12 @@ ragscanner
 ```
 
 Il comando senza argomenti apre un onboarding in inglese. Chiede quale fonte usi, suggerisce fonti
-locali vicine e limitate e può avviare una scansione. La scoperta OpenWebUI controlla endpoint di
-salute loopback fissi solo dopo consenso esplicito; non recupera ancora contenuti OpenWebUI.
+locali vicine e limitate e può avviare una scansione. Dopo consenso esplicito, la scoperta OpenWebUI
+ispeziona metadata limitati dei runtime Docker, Podman, nerdctl o Finch disponibili e gli indirizzi
+loopback comuni. Una chiave API fornita separatamente e mantenuta solo in memoria può elencare i
+metadata delle knowledge base accessibili e dei file collegati o autonomi/di chat. Un job separato
+con consenso esplicito può recuperare i file accessibili da una knowledge base OpenWebUI selezionata
+ed eseguire la pipeline statica.
 
 Gestisci o rimuovi l’installazione con un singolo comando RAGScanner:
 
@@ -92,6 +102,36 @@ ragscanner scan ./knowledge-base --format json --output report.json
 ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
 ```
 
+Salva e confronta la cronologia locale solo quando richiesto:
+
+```bash
+ragscanner scan ./knowledge-base --save-history
+ragscanner history list
+ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner serve
+```
+
+Accoda scansioni durevoli ed esegui il worker:
+
+```bash
+ragscanner jobs enqueue-scan ./knowledge-base
+ragscanner jobs list
+ragscanner worker
+```
+
+Per una scansione OpenWebUI autorizzata, conserva la credenziale fuori da SQLite:
+
+```bash
+export OPENWEBUI_API_KEY="your-local-runtime-secret"
+ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
+  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
+ragscanner worker
+```
+
+`ragscanner serve` apre il dashboard locale. Imposta `RAGSCANNER_API_KEY` per abilitare tramite API
+la creazione di scansioni e il controllo dei job con autenticazione Bearer e scope. Il server si
+lega solo a `127.0.0.1`.
+
 Per impostazione predefinita RAGScanner non sovrascrive un file di output esistente.
 
 ## Input multilingue
@@ -128,8 +168,9 @@ sicurezza. Scansione statica e test attivi autorizzati degli endpoint sono modal
 - I percorsi assoluti delle fonti sono nascosti nei report per impostazione predefinita.
 - Non esistono telemetria, fatturazione, abbonamenti, entitlement o server di licenza.
 
-I connettori remoti e i modelli opzionali resteranno disabilitati finché non saranno configurati e
-autorizzati esplicitamente. OpenWebUI è un’integrazione pianificata, non il core del prodotto.
+I connettori remoti e i modelli opzionali restano disabilitati finché non sono configurati e
+autorizzati esplicitamente. L’accesso ai contenuti OpenWebUI richiede una knowledge base selezionata,
+un riferimento esterno alla credenziale e consenso esplicito; è un’integrazione, non il core.
 
 ## Installazione per i contributori
 
@@ -174,13 +215,12 @@ Consulta [ARCHITECTURE.md](ARCHITECTURE.md), [PRODUCT.md](PRODUCT.md) e
 
 La sequenza immediata è:
 
-1. Resilienza PDF/percorsi e UX di installazione, report e terminale
-2. Cronologia delle scansioni SQLite e persistenza
-3. API applicativa e confronto delle scansioni
-4. Connettore di fonti OpenWebUI
-5. Dashboard locale e scheduler
-6. Altri connettori di fonti, target adapter e fornitori di modelli opzionali
-7. Rafforzamento di packaging e deployment
+1. Lavori rimanenti su recupero della persistenza e cronologia/confronto su scala API
+2. Connettori SharePoint, web, SaaS, Git, object store e vector store per capacità
+3. Compatibilità OpenWebUI, rilevamento incrementale, identità delle fonti e provider di secret
+4. Dettagli/confronto scansioni, impostazioni dei connettori e accettazione accessibilità del dashboard
+5. Scheduler, conservazione e notifiche
+6. Rafforzamento di packaging e deployment
 
 Le funzionalità pianificate non sono mai presentate come disponibili. Consulta
 [ROADMAP.md](ROADMAP.md) per i dettagli.

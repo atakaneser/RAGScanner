@@ -1,8 +1,9 @@
 # Deployment strategy
 
-There is no deployable API, dashboard, worker, Dockerfile, or Compose topology yet. The current
-alpha supports local Python installation and package builds only.
+The Python distribution includes a loopback FastAPI/dashboard process and a separate durable worker
+command. There is no supported Dockerfile, Compose topology, remote bind, or public deployment yet.
 
-The planned topology uses a FastAPI application and worker built from the same open image, bound to
-localhost by default. Deployment files will be added only after those applications exist.
+The planned container topology will run the existing FastAPI application and worker from the same
+open image, bound to localhost by default and sharing SQLite/artifact storage. Deployment files will
+be added only after packaging and recovery acceptance.
 Kubernetes, a private registry, and cloud-only services are not planned requirements.

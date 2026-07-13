@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAGScanner · Overview</title>
+  <link rel="stylesheet" href="/dashboard-assets/dashboard.css">
+  <script defer src="/dashboard-assets/dashboard.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <a class="wordmark" href="/">RAG<span>Scanner</span></a>
+      <nav>
+        <a class="nav-item active" href="#overview">Overview</a>
+        <a class="nav-item" href="#scans">Scans</a>
+        <a class="nav-item" href="#jobs">Jobs</a>
+        <a class="nav-item" href="#sources">Sources</a>
+        <a class="nav-item" href="#settings">Settings</a>
+      </nav>
+      <div class="local-mode"><i></i><span>Local mode</span><small>Technical alpha</small></div>
+    </aside>
+
+    <main class="workspace" id="overview">
+      <header class="topbar">
+        <strong>Overview</strong>
+        <button class="primary" type="button" data-open-drawer>New scan</button>
+      </header>
+      <div class="content">
+        <section class="page-heading">
+          <h1>Overview</h1>
+          <p>Local-first RAG security and health posture.</p>
+        </section>
+
+        <section class="status-band" aria-label="Current scan posture">
+          <div class="status-item risk">
+            <span class="status-label">Risk posture</span>
+            <strong>{{ "Review required" if latest and latest.finding_count else "No detected findings" }}</strong>
+            <small>{{ latest.finding_count if latest else 0 }} finding(s) in the latest scan</small>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Assessment coverage</span>
+            <strong>{{ coverage }}%</strong>
+            <small>Assessed and partially assessed checks</small>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Last scan</span>
+            <strong>{{ latest.status|replace("_", " ")|title if latest else "No scans yet" }}</strong>
+            <small>{{ latest.created_at|display_timestamp if latest else "Queue the first scan to begin" }}</small>
+          </div>
+        </section>
+
+        <section class="data-section" id="scans">
+          <div class="section-heading"><h2>Recent scans</h2><span>{{ scan_total }} total</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Execution ID</th><th>Source</th><th>Risk</th><th>Status</th><th>Findings</th><th>Finished</th></tr></thead>
+              <tbody>
+              {% for scan in scans %}
+                <tr>
+                  <td><code>{{ scan.history_id[:12] }}</code></td>
+                  <td>{{ scan.source_name or "Unknown source" }}</td>
+                  <td>{{ "Review" if scan.finding_count else "Low" }}</td>
+                  <td><span class="state state-{{ scan.status }}">{{ scan.status|replace("_", " ") }}</span></td>
+                  <td>{{ scan.finding_count }}</td>
+                  <td>{{ (scan.completed_at or scan.created_at)|display_timestamp }}</td>
+                </tr>
+              {% else %}
+                <tr><td class="empty" colspan="6">No scan history yet. Queue a scan to create the first report.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="data-section" id="jobs">
+          <div class="section-heading"><h2>Durable jobs</h2><span>{{ job_total }} total</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Job ID</th><th>Source</th><th>Status</th><th>Progress</th><th>Attempts</th><th>Actions</th></tr></thead>
+              <tbody>
+              {% for job in jobs %}
+                <tr>
+                  <td><code>{{ job.id[:12] }}</code></td>
+                  <td>{{ job.payload.get("path") or job.payload.get("openwebui_knowledge_id") or "Configured source" }}</td>
+                  <td><span class="state state-{{ job.status.value }}">{{ job.status.value|replace("_", " ") }}</span></td>
+                  <td><div class="progress"><span style="width: {{ (job.progress * 100)|round|int }}%"></span></div><small>{{ (job.progress * 100)|round|int }}%</small></td>
+                  <td>{{ job.attempt_count }}/{{ job.max_attempts }}</td>
+                  <td class="actions">
+                    {% if job.status.value in ["queued", "running"] %}
+                    <form method="post" action="/dashboard/jobs/{{ job.id }}/cancel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary small" type="submit">Cancel</button></form>
+                    {% elif job.status.value in ["failed", "cancelled"] %}
+                    <form method="post" action="/dashboard/jobs/{{ job.id }}/retry"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary small" type="submit">Retry</button></form>
+                    {% else %}—{% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td class="empty" colspan="6">No durable jobs yet.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="scan-drawer" aria-label="New scan" data-drawer>
+      <div class="drawer-heading"><h2>New scan</h2><button class="icon-button" type="button" aria-label="Close new scan" data-close-drawer>×</button></div>
+      <div class="source-tabs" role="tablist">
+        <button class="source-tab active" type="button" data-source="local">Local files</button>
+        <button class="source-tab" type="button" data-source="openwebui">OpenWebUI</button>
+      </div>
+      <form class="scan-form" method="post" action="/dashboard/scans/local" data-form="local">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="idempotency_key" value="dashboard-local-{{ request_id }}">
+        <label>Local path<input name="path" required placeholder="/data/rag/corpus" autocomplete="off"></label>
+        <p class="field-note">An explicit file or directory readable by the worker.</p>
+        <label class="consent"><input type="checkbox" name="scan_consent" value="true" required> <span>I confirm I have permission to scan this data and understand the scan runs locally.</span></label>
+        <button class="primary full" type="submit">Queue scan</button>
+      </form>
+      <form class="scan-form hidden" method="post" action="/dashboard/scans/openwebui" data-form="openwebui">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="idempotency_key" value="dashboard-openwebui-{{ request_id }}">
+        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000"></label>
+        <label>Knowledge ID<input name="knowledge_id" required placeholder="Knowledge base identifier"></label>
+        <label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label>
+        <p class="field-note">The credential value remains outside the database.</p>
+        <label class="consent"><input type="checkbox" name="content_consent" value="true" required> <span>I explicitly consent to retrieving accessible OpenWebUI document content for this scan.</span></label>
+        <button class="primary full" type="submit">Queue scan</button>
+      </form>
+    </aside>
+  </div>
+</body>
+</html>

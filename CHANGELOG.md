@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added durable static-scan jobs with idempotent enqueue, atomic leases, heartbeat, bounded retry,
+  cooperative cancellation, a production handler, CLI job management, and `ragscanner worker`.
+- Added a versioned localhost FastAPI with history reads and scoped Bearer-authenticated,
+  rate-limited asynchronous local/OpenWebUI scan creation plus job read/cancel/retry routes.
+- Added a browser-tested local Jinja dashboard with scan posture, recent scans, durable jobs,
+  consented local/OpenWebUI enqueue, cancellation, retry, and CSRF protection.
+- Added a consent-gated read-only OpenWebUI knowledge-file content connector with bounded
+  pagination/content, typed errors, HTTPS outside loopback, and external credential references.
+- Added opt-in SQLite scan history with SQLAlchemy/Alembic migrations, restrictive local
+  permissions, pre-migration backups, immutable execution snapshots, CLI list/show/delete commands,
+  and coverage-aware scan comparison.
+- Added consent-based Docker, Podman, nerdctl/containerd, and Finch OpenWebUI endpoint discovery,
+  plus bounded knowledge-base and linked/standalone file metadata inventory with an in-memory API
+  key.
 - Added report schema 1.1 ingestion issues, a concise terminal summary, and an HTML executive
   summary with partial-coverage and per-file remediation guidance.
 - Established English as the canonical project and runtime language while retaining localized

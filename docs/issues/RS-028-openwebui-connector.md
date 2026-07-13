@@ -10,4 +10,8 @@
 **Acceptance criteria:** Supported versions listed; manual end-to-end scan works; partial/deleted/retried sync correct; connector failure cannot cross KB/tenant.  
 **Tests:** Recorded/stub contracts, auth/error/pagination/rate limit, deletion/retry, hostile metadata, credential leakage, optional live matrix.  
 **Documentation changes:** Integration guide, compatibility, privacy/troubleshooting.  
-**Completion checklist:** [ ] Spike accepted [ ] Version matrix [ ] Sync recovery [ ] Security review [ ] Docs updated
+**Current slice:** Manual end-to-end knowledge-file scans, external `env:` credential references,
+explicit content consent, bounded pagination/content, typed upstream errors, and loopback/HTTPS
+endpoint policy are implemented. Incremental sync/deletion, version matrix, and live compatibility
+remain open.
+**Completion checklist:** [x] Initial API spike [ ] Version matrix [ ] Sync recovery [x] Initial security controls [x] Initial docs

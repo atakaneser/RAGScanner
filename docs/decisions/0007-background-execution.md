@@ -17,4 +17,6 @@ Redis/RabbitMQ service is unnecessary for the initial single-machine target.
 ## Consequences
 
 Concurrency is bounded to one active writer/worker. If measured demand requires multiple workers,
-the PostgreSQL/queue decision will be reopened. The worker is not implemented yet.
+the PostgreSQL/queue decision will be reopened. The durable queue and generic worker coordinator are
+implemented together with the production static-scan handler and worker process; the scheduler
+remains pending. Detailed lifecycle semantics are recorded in ADR-0021.

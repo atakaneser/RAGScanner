@@ -10,5 +10,5 @@
 **Acceptance criteria:** Required change groups correct; incompatible/coverage-changed scans warn or refuse; algorithm deterministic and explainable.  
 **Tests:** Golden comparison scenarios, fingerprint versions, missing checks/documents, severity/status changes, authz, scale.  
 **Documentation changes:** Comparison semantics and limitations.  
-**Completion checklist:** [ ] Resolution semantics [ ] Compatibility guard [ ] Golden tests [ ] Tenant tests [ ] Docs updated
-
+**Completion checklist:** [x] Resolution semantics [x] Compatibility guard [x] Initial deterministic
+tests [ ] Document-change comparison [ ] API pagination/scale [ ] Tenant tests [x] Initial docs

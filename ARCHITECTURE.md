@@ -5,15 +5,22 @@
 RAGScanner uses a Python modular monolith:
 
 - Python 3.12+, framework-independent scanner Core, and Typer CLI
-- FastAPI application API (planned)
-- Jinja2 + HTMX with minimal vanilla TypeScript for the dashboard (planned)
-- SQLite in WAL mode with versioned migrations (planned)
-- One database-backed worker with APScheduler enqueueing due schedules (planned)
+- Packaged FastAPI localhost API with public local history reads and scoped Bearer-authenticated
+  asynchronous scan/job control
+- Server-rendered Jinja2 dashboard with minimal vanilla JavaScript and CSRF-protected forms
+- Opt-in SQLite history in WAL mode with packaged versioned migrations
+- Durable SQLite job lifecycle, production static-scan handler, and one-job worker process;
+  APScheduler enqueueing remains planned
 - One public monorepo, runnable locally or through a small Docker Compose topology (planned)
 
 API and worker may be separate processes while sharing the same Python distribution, SQLite
 database, and artifact directory. Redis, RabbitMQ, Celery, Kubernetes, PostgreSQL, Next.js,
 organization models, and built-in auth are not first-release requirements.
+
+The current composition keeps framework-independent use cases in `ragscanner.application`, FastAPI
+delivery in `ragscanner.api`, dashboard delivery in `ragscanner.web`, and SQLite in
+`ragscanner.storage`. `ragscanner serve` binds only to `127.0.0.1`; history reads are local while
+scan creation and job control require a scoped Bearer key. It is not a remote or multi-user API.
 
 ## Repository boundaries
 
@@ -65,12 +72,20 @@ contention, multiple workers, remote multi-user operation, or high-volume API de
 Secret values never enter domain models or SQLite as plain text; only environment/file/keychain-like
 references are stored.
 
+The current storage slices persist redacted report snapshots, normalized finding occurrences, and
+durable job control metadata behind database-independent ports. A separate `history_id` identifies
+an execution snapshot; the deterministic Core `scan.id` remains a configuration identity.
+Persistence is opt-in, retention is explicit, and an older database is backed up before a forward
+migration. Connector, schedule, document/chunk, and artifact-reference tables remain planned.
+
 ## Durable jobs
 
 FastAPI in-process tasks are not durable enough for long scans. A `Job` table records queued work.
 One worker atomically claims a lease, writes heartbeat/progress, checks cancellation, and finalizes
 status. Expired leases may be reclaimed. APScheduler only creates idempotent jobs for due schedule
 occurrences. Scan effects use job/idempotency keys to prevent duplicate findings.
+The table, repository, production static-scan handler, CLI enqueue/control commands, authenticated
+enqueue/control API, and worker entry point are implemented. Scheduling is not available yet.
 
 ## Adapter contracts
 
@@ -84,6 +99,13 @@ occurrences. Scan effects use job/idempotency keys to prevent duplicate findings
 The same platform may implement multiple adapters, but configuration, credential references,
 consent, and provenance remain separate. Unknown retrieval capability yields `llm` or
 `unknown_retrieval`, and RAG-specific checks remain `not_assessed`.
+
+Source implementations are capability-tiered rather than file-centric. They may expose raw
+documents, precomputed chunks, metadata only, change feeds, deletion tombstones, retrieval traces,
+or answer citations. SharePoint/OneDrive, bounded web/sitemap, SaaS knowledge, Git, object-store,
+vector-store, OpenWebUI, and generic manifest/REST adapters map into the same neutral source models.
+Core never imports their SDKs. Remote enumeration and content reads are separate consent boundaries,
+and metadata-only access cannot silently claim content checks.
 
 ## Current static flow
 
@@ -102,14 +124,15 @@ File-stage failures are isolated. Original content remains available for audit w
 content carries explicit provenance. Parsers do not render, execute, fetch, or perform OCR.
 Reporting is framework-independent, applies final-boundary redaction, and performs no network access.
 
-## Planned OpenWebUI flow
+## OpenWebUI content flow
 
-After explicit configuration and consent, an OpenWebUI SourceConnector will validate endpoint and
-capability/version, synchronize a selected knowledge base through bounded pagination, and produce
-neutral source models for the same scanner pipeline. Core will not know OpenWebUI API types.
+After explicit configuration and consent, the OpenWebUI `SourceConnector` validates the endpoint,
+enumerates a selected knowledge base through bounded pagination, retrieves bounded accessible file
+content, and produces neutral source models for the same scanner pipeline. Core does not know
+OpenWebUI API types. The worker resolves only an `env:` credential reference in the first slice.
 
-The existing guided CLI checks only fixed loopback health candidates after consent. It does not read
-content and is not the production connector.
+The guided CLI separately checks consented container-runtime and common loopback health candidates
+and can inventory authenticated KB/file metadata. Content access is a separate explicit-consent job.
 
 ## Active-security flow
 
