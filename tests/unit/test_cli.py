@@ -9,8 +9,10 @@ from ragscanner.onboarding import (
     KnowledgeBaseCandidate,
     OpenWebUIDiscoveryError,
     OpenWebUIFileCandidate,
+    RAGEnvironmentCandidate,
     ServiceCandidate,
     discover_container_openwebui_endpoints,
+    discover_container_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
@@ -100,7 +102,7 @@ def test_maintenance_command_reports_missing_uv_and_failure(monkeypatch) -> None
 
 
 def test_bare_command_opens_english_onboarding_and_can_exit() -> None:
-    result = runner.invoke(app, input="4\n")
+    result = runner.invoke(app, input="5\n")
     assert result.exit_code == 0
     assert "What would you like to scan?" in result.stdout
     assert "No action was taken." in result.stdout
@@ -110,10 +112,42 @@ def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None
     source = tmp_path / "bilgi tabanı.txt"
     source.write_text("Güvenli ve yerel örnek bilgi.", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, input=f"1\n{source}\nn\n")
+    result = runner.invoke(app, input=f"2\n{source}\nn\n")
     assert result.exit_code == 0
     assert "RAGScanner scan:" in result.stdout
     assert "bilgi tabanı.txt" in result.stdout
+
+
+def test_guided_html_report_uses_the_single_configured_data_directory(
+    tmp_path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "knowledge.txt"
+    source.write_text("Safe local knowledge.", encoding="utf-8")
+    data_dir = tmp_path / "application-data"
+    working_directory = tmp_path / "system-directory"
+    working_directory.mkdir()
+    monkeypatch.chdir(working_directory)
+    monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(data_dir))
+
+    result = runner.invoke(app, input=f"2\n{source}\ny\n")
+
+    assert result.exit_code == 0
+    reports = list((data_dir / "reports").glob("ragscanner-report-*.html"))
+    assert len(reports) == 1
+    assert not list(working_directory.glob("ragscanner-report*.html"))
+    assert str(reports[0]) in result.stdout
+
+
+def test_paths_command_reports_locations_without_creating_them(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    data_dir = tmp_path / "central-data"
+    monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(data_dir))
+
+    result = runner.invoke(app, ["paths"])
+
+    assert result.exit_code == 0
+    assert f"Data directory: {data_dir}" in result.stdout
+    assert f"Reports directory: {data_dir / 'reports'}" in result.stdout
+    assert not data_dir.exists()
 
 
 @pytest.mark.parametrize(
@@ -239,10 +273,50 @@ def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # ty
         return []
 
     monkeypatch.setattr("ragscanner.cli.discover_openwebui_services", fail_if_called)
-    result = runner.invoke(app, input="2\nn\n")
+    result = runner.invoke(app, input="3\nn\n")
     assert result.exit_code == 0
     assert called is False
     assert "jobs enqueue-openwebui" in result.stdout
+
+
+def test_automatic_discovery_lists_supported_and_detected_environment_types(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_local_rag_environments",
+        lambda **kwargs: [
+            RAGEnvironmentCandidate(
+                platform="openwebui",
+                base_url="http://127.0.0.1:3000",
+                discovery_status="reachable",
+                runtime="docker",
+                metadata_inventory_supported=True,
+            ),
+            RAGEnvironmentCandidate(
+                platform="qdrant",
+                base_url="http://127.0.0.1:6333",
+                discovery_status="detected",
+                runtime="podman",
+                metadata_inventory_supported=False,
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_openwebui_knowledge_bases",
+        lambda base_url, api_key: [
+            KnowledgeBaseCandidate(id="kb-1", name="Engineering", description="Synthetic")
+        ],
+    )
+    monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", lambda *args, **kwargs: [])
+
+    result = runner.invoke(app, input="1\ny\ny\nsynthetic-api-key\n")
+
+    assert result.exit_code == 0
+    assert "openwebui at http://127.0.0.1:3000" in result.stdout
+    assert "qdrant at http://127.0.0.1:6333" in result.stdout
+    assert "connector not available yet" in result.stdout
+    assert "Engineering (kb-1)" in result.stdout
+    assert "synthetic-api-key" not in result.stdout
 
 
 def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
@@ -267,7 +341,7 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
     )
     monkeypatch.setattr(
         "ragscanner.cli.discover_openwebui_files",
-        lambda base_url, api_key: [
+        lambda base_url, api_key, **kwargs: [
             OpenWebUIFileCandidate(
                 id="file-1",
                 filename="guide.pdf",
@@ -283,7 +357,7 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
         ],
     )
 
-    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\n")
+    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\n")
 
     assert result.exit_code == 0
     assert "http://127.0.0.1:49152" in result.stdout
@@ -292,6 +366,40 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
     assert "1 knowledge-linked, 1 standalone" in result.stdout
     assert "synthetic-api-key" not in result.stdout
     assert "Metadata inventory does not retrieve document content" in result.stdout
+
+
+def test_guided_openwebui_keeps_knowledge_results_when_file_inventory_fails(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_openwebui_services",
+        lambda **kwargs: [
+            ServiceCandidate(
+                base_url="http://127.0.0.1:3000",
+                health_path="/health",
+                discovery_source="container_runtime",
+                runtime="docker",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_openwebui_knowledge_bases",
+        lambda base_url, api_key: [
+            KnowledgeBaseCandidate(id="kb-1", name="Engineering", description="Synthetic")
+        ],
+    )
+
+    def fail_inventory(*args: object, **kwargs: object) -> list[object]:
+        raise OpenWebUIDiscoveryError("OpenWebUI metadata discovery returned HTTP 400.")
+
+    monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", fail_inventory)
+
+    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\n")
+
+    assert result.exit_code == 0
+    assert "Engineering (kb-1)" in result.stdout
+    assert "File metadata inventory failed" in result.stderr
+    assert "Knowledge-base discovery failed" not in result.stderr
 
 
 def test_local_discovery_is_bounded_to_known_immediate_paths(tmp_path) -> None:
@@ -389,6 +497,37 @@ def test_container_discovery_rejects_non_loopback_and_unrelated_ports(monkeypatc
     )
 
     assert discover_container_openwebui_endpoints() == {}
+
+
+def test_container_environment_inventory_classifies_known_vector_platforms(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    records = [
+        {
+            "Names": "qdrant-local",
+            "Image": "qdrant/qdrant:v1.12",
+            "Ports": "0.0.0.0:6333->6333/tcp",
+        },
+        {
+            "Names": "unrelated-web",
+            "Image": "nginx:latest",
+            "Ports": "0.0.0.0:8080->80/tcp",
+        },
+    ]
+    monkeypatch.setattr(
+        "ragscanner.onboarding.shutil.which",
+        lambda name: "/usr/bin/docker" if name == "docker" else None,
+    )
+    monkeypatch.setattr(
+        "ragscanner.onboarding.subprocess.run",
+        lambda arguments, **kwargs: subprocess.CompletedProcess(
+            arguments, 0, stdout="\n".join(json.dumps(item) for item in records), stderr=""
+        ),
+    )
+
+    candidates = discover_container_rag_environments()
+
+    assert [
+        (item.platform, item.base_url, item.metadata_inventory_supported) for item in candidates
+    ] == [("qdrant", "http://127.0.0.1:6333", False)]
 
 
 def test_openwebui_knowledge_discovery_is_bounded_paginated_and_secret_safe(
@@ -502,6 +641,71 @@ def test_openwebui_file_inventory_classifies_knowledge_linked_and_standalone_fil
         ("file-2", ()),
         ("file-1", ("kb-1",)),
     ]
+
+
+def test_openwebui_file_inventory_uses_supported_per_knowledge_base_endpoint(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    requested: list[tuple[str, dict[str, int | bool]]] = []
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+            self.content = json.dumps(payload).encode()
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    def get(self, url: str, *, headers: dict[str, str], params: dict[str, int | bool]) -> Response:
+        requested.append((url, params))
+        if url.endswith("/api/v1/files/"):
+            return Response({"items": [], "total": 0})
+        return Response({"items": [{"id": "file-1", "filename": "guide.pdf"}], "total": 1})
+
+    monkeypatch.setattr(httpx.Client, "get", get)
+
+    files = discover_openwebui_files(
+        "http://127.0.0.1:3000",
+        "synthetic-api-key",
+        knowledge_base_ids=("kb/one",),
+    )
+
+    assert [(item.id, item.knowledge_base_ids) for item in files] == [("file-1", ("kb/one",))]
+    assert requested[1][0].endswith("/api/v1/knowledge/kb%2Fone/files")
+    assert requested[1][1]["include_content"] is False
+
+
+def test_openwebui_file_inventory_recovers_from_unsupported_global_file_endpoint(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    class Response:
+        def __init__(self, status_code: int, payload: dict[str, object]) -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.content = json.dumps(payload).encode()
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    def get(self, url: str, *, headers: dict[str, str], params: dict[str, int | bool]) -> Response:
+        if url.endswith("/api/v1/files/"):
+            return Response(400, {"detail": "Endpoint unavailable in this configuration"})
+        return Response(
+            200,
+            {"items": [{"id": "file-1", "filename": "guide.pdf"}], "total": 1},
+        )
+
+    monkeypatch.setattr(httpx.Client, "get", get)
+
+    files = discover_openwebui_files(
+        "http://127.0.0.1:3000",
+        "synthetic-api-key",
+        knowledge_base_ids=("kb-1",),
+    )
+
+    assert [(item.id, item.knowledge_base_ids) for item in files] == [("file-1", ("kb-1",))]
 
 
 def test_openwebui_file_inventory_keeps_the_combined_result_bounded(monkeypatch) -> None:  # type: ignore[no-untyped-def]

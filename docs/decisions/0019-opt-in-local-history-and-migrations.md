@@ -8,7 +8,7 @@
 Use SQLAlchemy Core behind a database-independent `ScanHistoryRepository` port and packaged Alembic
 migrations for the first SQLite history implementation. Static scans remain non-persistent by
 default. A user opts in with `--save-history` or an explicit `--history-db`; history commands use
-`.ragscanner/history.sqlite3` unless `--database` is supplied.
+the platform-native application data path defined by ADR-0024 unless `--database` is supplied.
 
 The deterministic Core `scan.id` identifies equivalent scan configuration, not one execution.
 Persistence therefore creates a separate opaque `history_id` for each distinct report snapshot.

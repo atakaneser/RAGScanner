@@ -92,7 +92,7 @@ def report_input(*, active: bool = False, findings: list[Finding] | None = None)
             authorized_at=NOW,
             scope_description="Synthetic staging test",
             environment="staging",
-            expires_at=NOW + timedelta(days=1),
+            expires_at=None,
         )
         if active
         else None

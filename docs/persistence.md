@@ -5,7 +5,7 @@ create a database unless persistence is explicitly requested.
 
 ## Save a scan
 
-Use the default `.ragscanner/history.sqlite3` location:
+Use the platform-native `history.sqlite3` location shown by `ragscanner paths`:
 
 ```bash
 ragscanner scan ./knowledge-base --save-history
@@ -66,5 +66,5 @@ Packaged Alembic migrations run when the database is opened. Before an existing 
 database is upgraded, a timestamped `*.backup-*` SQLite copy is created beside it. Backups are not
 removed automatically. Corrupt databases fail closed with a bounded error.
 
-The API, dashboard, job worker, configurable retention, artifact directory, and administrative
-recovery commands are not implemented yet.
+The API, dashboard, and job worker use the same default database. Configurable retention,
+administrative recovery commands, and a general artifact store are not implemented yet.

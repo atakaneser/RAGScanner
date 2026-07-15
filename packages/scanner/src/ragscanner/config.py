@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from ragscanner.paths import default_data_dir
 
 
 class Settings(BaseSettings):
@@ -10,7 +13,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="RAGSCANNER_", env_file=".env", extra="ignore")
 
-    data_dir: Path = Path(".ragscanner")
+    data_dir: Path = Field(default_factory=default_data_dir)
     log_level: str = "INFO"
 
 

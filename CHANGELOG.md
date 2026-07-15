@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added consent-gated automatic local RAG-environment discovery to the CLI and dashboard. It
+  classifies known local container platform hints without reading content and keeps unsupported
+  platforms explicitly detected-only.
+- Added dashboard OpenWebUI URL/knowledge-base discovery through non-persisted `env:` credential
+  references and a CSRF-protected action to process one already-consented queued job.
+- Moved default RAGScanner data, guided HTML reports, and SQLite history into one platform-native
+  per-user application directory, added `ragscanner paths`, and stopped guided reports from being
+  written into the launch directory such as Windows System32.
+- Added bounded pypdf text-only recovery when PyMuPDF cannot read a PDF's page structure.
+- Made guided OpenWebUI discovery retain successful knowledge-base results when file inventory
+  fails and use the supported per-knowledge-base file metadata endpoints without requesting content.
 - Added durable static-scan jobs with idempotent enqueue, atomic leases, heartbeat, bounded retry,
   cooperative cancellation, a production handler, CLI job management, and `ragscanner worker`.
 - Added a versioned localhost FastAPI with history reads and scoped Bearer-authenticated,

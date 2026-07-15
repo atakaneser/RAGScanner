@@ -4,6 +4,7 @@ from pathlib import Path
 import httpx
 import pytest
 from ragscanner.api import create_app
+from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
 
 
 @pytest.mark.anyio
@@ -38,6 +39,10 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
                 "scan_consent": "true",
             },
         )
+        executed = await client.post(
+            "/dashboard/worker/run-once",
+            data={"csrf_token": csrf.group(1)},
+        )
         refreshed = await client.get("/")
 
     assert dashboard.status_code == 200
@@ -49,7 +54,10 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert invalid.status_code == 403
     assert queued.status_code == 303
     assert queued.headers["location"] == "/?notice=scan-queued"
+    assert executed.status_code == 303
+    assert executed.headers["location"] == "/?notice=job-completed"
     assert source.name in refreshed.text
+    assert "completed" in refreshed.text
 
 
 @pytest.mark.anyio
@@ -101,3 +109,59 @@ async def test_dashboard_openwebui_form_requires_explicit_content_consent(tmp_pa
 
     assert response.status_code == 303
     assert response.headers["location"] == "/?notice=invalid-scan"
+
+
+@pytest.mark.anyio
+async def test_dashboard_discovers_local_environments_and_openwebui_knowledge_bases(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "ragscanner.web.dashboard.discover_local_rag_environments",
+        lambda **kwargs: [
+            RAGEnvironmentCandidate(
+                platform="openwebui",
+                base_url="http://127.0.0.1:3000",
+                discovery_status="reachable",
+                runtime="docker",
+                metadata_inventory_supported=True,
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "ragscanner.web.dashboard.resolve_secret_reference", lambda reference: "synthetic-api-key"
+    )
+    monkeypatch.setattr(
+        "ragscanner.web.dashboard.discover_openwebui_knowledge_bases",
+        lambda base_url, api_key: [
+            KnowledgeBaseCandidate(id="kb-1", name="Engineering", description="Synthetic")
+        ],
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(tmp_path / "history.sqlite3")),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        dashboard = await client.get("/")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', dashboard.text)
+        assert csrf is not None
+        denied = await client.post(
+            "/dashboard/discovery/environments", data={"csrf_token": csrf.group(1)}
+        )
+        environments = await client.post(
+            "/dashboard/discovery/environments",
+            data={"csrf_token": csrf.group(1), "metadata_consent": "true"},
+        )
+        knowledge_bases = await client.post(
+            "/dashboard/discovery/openwebui/knowledge-bases",
+            data={
+                "csrf_token": csrf.group(1),
+                "base_url": "http://127.0.0.1:3000",
+                "credential_ref": "env:OPENWEBUI_API_KEY",
+            },
+        )
+
+    assert denied.status_code == 400
+    assert environments.json()["environments"][0]["platform"] == "openwebui"
+    assert knowledge_bases.json()["knowledge_bases"] == [
+        {"id": "kb-1", "name": "Engineering", "description": "Synthetic"}
+    ]

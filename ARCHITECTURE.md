@@ -121,8 +121,13 @@ explicit local root
 ```
 
 File-stage failures are isolated. Original content remains available for audit while normalized
-content carries explicit provenance. Parsers do not render, execute, fetch, or perform OCR.
+content carries explicit provenance. Parsers do not render, execute, fetch, or perform OCR. PDF
+parsing uses PyMuPDF first and a bounded pypdf text-only recovery pass only when the primary parser
+cannot read page structure; recovery records its reduced active-content inspection coverage.
 Reporting is framework-independent, applies final-boundary redaction, and performs no network access.
+
+Default reports, history, and other RAGScanner-owned state share one platform-native per-user data
+root. CLI-supplied output/database paths and `RAGSCANNER_DATA_DIR` remain explicit overrides.
 
 ## OpenWebUI content flow
 
@@ -132,7 +137,16 @@ content, and produces neutral source models for the same scanner pipeline. Core 
 OpenWebUI API types. The worker resolves only an `env:` credential reference in the first slice.
 
 The guided CLI separately checks consented container-runtime and common loopback health candidates
-and can inventory authenticated KB/file metadata. Content access is a separate explicit-consent job.
+and can inventory authenticated KB/file metadata through per-knowledge-base file endpoints. A later
+inventory failure does not discard an already successful KB result. Content access is a separate
+explicit-consent job.
+
+The CLI and dashboard share a consent-gated local environment inventory. It classifies bounded
+running-container name, image, and published loopback-port metadata for OpenWebUI and selected vector
+platform families. Only OpenWebUI currently has a metadata/content source connector; all other
+classifications remain detected-only hints and cannot imply RAG access or assessment coverage. The
+dashboard resolves an `env:` credential reference only in its local process to list OpenWebUI
+knowledge bases, then persists only the reference in a consented job.
 
 ## Active-security flow
 
