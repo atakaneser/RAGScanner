@@ -4,12 +4,15 @@ import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
+from io import BytesIO
 from pathlib import PurePosixPath
 from time import monotonic
 from typing import Any
 
 import pymupdf
 from pydantic import BaseModel, Field
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from ragscanner.domain import SourceContent
 from ragscanner.domain.helpers import (
@@ -78,7 +81,7 @@ class PdfExtractionStatistics(BaseModel):
 
 class PdfParser:
     name = "pdf"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -105,11 +108,7 @@ class PdfParser:
                 stream=source.content_bytes, filetype="pdf"
             )
         except (pymupdf.FileDataError, RuntimeError, ValueError) as error:
-            raise PdfParserError(
-                PdfParserErrorCategory.MALFORMED,
-                "PDF is malformed, incomplete, or uses an unsupported structure.",
-                remediation="Download the file again or export it as a valid PDF.",
-            ) from error
+            return self._parse_with_pypdf(source, started, error)
         try:
             if document.needs_pass:
                 raise PdfParserError(
@@ -117,7 +116,12 @@ class PdfParser:
                     "Password-protected PDF requires authentication.",
                     remediation="Create an authorized unencrypted copy and scan it again.",
                 )
-            page_count = self._page_count(document)
+            try:
+                page_count = self._page_count(document)
+            except PdfParserError as error:
+                if error.category is PdfParserErrorCategory.MALFORMED:
+                    return self._parse_with_pypdf(source, started, error)
+                raise
             if page_count > self.config.maximum_page_count:
                 raise PdfParserError(
                     PdfParserErrorCategory.LIMIT_EXCEEDED,
@@ -279,6 +283,195 @@ class PdfParser:
             )
         finally:
             document.close()  # type: ignore[no-untyped-call]
+
+    def _parse_with_pypdf(
+        self, source: SourceContent, started: float, primary_error: Exception
+    ) -> ParserResult:
+        """Attempt bounded text-only recovery when PyMuPDF cannot read page structure."""
+        try:
+            reader = PdfReader(BytesIO(source.content_bytes), strict=False)
+            if reader.is_encrypted:
+                raise PdfParserError(
+                    PdfParserErrorCategory.ENCRYPTED,
+                    "Password-protected PDF requires authentication.",
+                    remediation="Create an authorized unencrypted copy and scan it again.",
+                )
+            page_count = len(reader.pages)
+        except PdfParserError:
+            raise
+        except (PdfReadError, KeyError, TypeError, ValueError, RecursionError) as error:
+            raise PdfParserError(
+                PdfParserErrorCategory.MALFORMED,
+                "PDF is malformed, incomplete, or uses an unsupported structure.",
+                remediation="Download the file again or export it as a valid PDF.",
+            ) from error
+        if page_count <= 0:
+            raise PdfParserError(
+                PdfParserErrorCategory.ZERO_PAGES,
+                "PDF contains no scannable pages.",
+                remediation="Use a valid PDF containing at least one page.",
+            ) from primary_error
+        if page_count > self.config.maximum_page_count:
+            raise PdfParserError(
+                PdfParserErrorCategory.LIMIT_EXCEEDED,
+                "PDF exceeds the configured page-count limit.",
+                remediation="Increase the page limit carefully or split the document.",
+            )
+
+        warnings: list[ParserWarning] = []
+        self._warn(
+            warnings,
+            "recovery_parser_used",
+            "The primary PDF parser could not read the page structure; bounded recovery was used.",
+        )
+        self._warn(
+            warnings,
+            "active_content_inspection_limited",
+            "PDF active-content inspection was limited during recovery; no active content was executed.",
+        )
+        raw_metadata: Any = reader.metadata or {}
+        safe_metadata = self._metadata(
+            {
+                "title": raw_metadata.get("/Title"),
+                "author": raw_metadata.get("/Author"),
+                "subject": raw_metadata.get("/Subject"),
+                "keywords": raw_metadata.get("/Keywords"),
+                "creator": raw_metadata.get("/Creator"),
+                "producer": raw_metadata.get("/Producer"),
+                "creationDate": raw_metadata.get("/CreationDate"),
+                "modDate": raw_metadata.get("/ModDate"),
+            },
+            warnings,
+        )
+        safe_metadata["page_count"] = page_count
+        parts: list[str] = []
+        page_metadata: list[PdfPageMetadata] = []
+        offset = 0
+        pages_with_text = 0
+        empty_pages = 0
+        total_characters = 0
+        nonempty_texts: list[str] = []
+        for page_index, page in enumerate(reader.pages):
+            self._check_timeout(started)
+            page_number = page_index + 1
+            page_warning_codes: list[str] = []
+            try:
+                page_text = normalize_newlines(page.extract_text() or "")
+            except (PdfReadError, KeyError, TypeError, ValueError, RecursionError):
+                page_text = ""
+                self._warn(
+                    warnings,
+                    "extraction_failed_page",
+                    "Text extraction failed for a PDF page.",
+                    page_number,
+                )
+                page_warning_codes.append("extraction_failed_page")
+            if PAGE_SEPARATOR in page_text:
+                page_text = page_text.replace(PAGE_SEPARATOR, ESCAPED_PAGE_SEPARATOR)
+                self._warn(
+                    warnings,
+                    "page_separator_escaped",
+                    "Extracted text contained the reserved page separator.",
+                    page_number,
+                )
+                page_warning_codes.append("page_separator_escaped")
+            if len(page_text) > self.config.maximum_characters_per_page:
+                raise PdfParserError(
+                    PdfParserErrorCategory.LIMIT_EXCEEDED,
+                    "A PDF page exceeds the extracted-character limit.",
+                    remediation="Increase the character limit carefully or split the document.",
+                )
+            separator_start: int | None = None
+            separator_end: int | None = None
+            if page_index:
+                separator_start = offset
+                parts.append(PAGE_SEPARATOR)
+                offset += len(PAGE_SEPARATOR)
+                separator_end = offset
+            start_offset = offset
+            parts.append(page_text)
+            offset += len(page_text)
+            total_characters += len(page_text)
+            stripped = page_text.strip()
+            if stripped:
+                pages_with_text += 1
+                nonempty_texts.append(stripped)
+            else:
+                empty_pages += 1
+                self._warn(
+                    warnings, "empty_page", "A PDF page has no extractable text.", page_number
+                )
+                page_warning_codes.append("empty_page")
+            page_warning_codes.extend(self._quality_warnings(page_text, warnings, page_number))
+            page_metadata.append(
+                PdfPageMetadata(
+                    page_number=page_number,
+                    start_offset=start_offset,
+                    end_offset=offset,
+                    separator_start=separator_start,
+                    separator_end=separator_end,
+                    character_count=len(page_text),
+                    empty=not bool(stripped),
+                    image_count=0,
+                    warnings=sorted(set(page_warning_codes)),
+                )
+            )
+            if total_characters > self.config.maximum_extracted_characters:
+                raise PdfParserError(
+                    PdfParserErrorCategory.LIMIT_EXCEEDED,
+                    "PDF exceeds the total extracted-character limit.",
+                    remediation="Increase the character limit carefully or split the document.",
+                )
+
+        content = "".join(parts)
+        self._document_quality_warnings(
+            page_count, pages_with_text, empty_pages, 0, nonempty_texts, warnings
+        )
+        self._check_timeout(started)
+        statistics = PdfExtractionStatistics(
+            page_count=page_count,
+            pages_with_text=pages_with_text,
+            empty_pages=empty_pages,
+            total_characters=total_characters,
+            images_detected=0,
+            warnings_count=len(warnings),
+        )
+        title = (
+            safe_metadata.get("title") or PurePosixPath(source.item.path or source.item.name).stem
+        )
+        parsed_document = build_document(
+            source,
+            content=content,
+            normalized_content=content,
+            title=str(title),
+            mime_type="application/pdf",
+            metadata={
+                "pdf_metadata": safe_metadata,
+                "pages": [page.model_dump(mode="json") for page in page_metadata],
+                "page_separator": PAGE_SEPARATOR,
+                "page_offsets_include_separator": False,
+                "active_content_executed": False,
+                "attachments_extracted": False,
+                "recovery_parser": "pypdf",
+            },
+            warnings=warnings,
+            clock=self._now(),
+        )
+        return ParserResult(
+            document=parsed_document,
+            warnings=warnings,
+            parser_name=self.name,
+            parser_version=self.version,
+            source_item_id=source.item.id,
+            metadata={
+                "statistics": statistics.model_dump(mode="json"),
+                "chunked": False,
+                "ocr_used": False,
+                "active_content_executed": False,
+                "attachments_extracted": False,
+                "recovery_parser": "pypdf",
+            },
+        )
 
     def _validate_source(self, source: SourceContent) -> None:
         extension = PurePosixPath(source.item.path or source.item.name).suffix.casefold()

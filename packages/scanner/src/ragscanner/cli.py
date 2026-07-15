@@ -7,6 +7,7 @@ import socket
 import subprocess
 import tempfile
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -39,6 +40,8 @@ from ragscanner.models import ComponentStatus, DoctorReport
 from ragscanner.normalization import DocumentNormalizer
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
+    ServiceCandidate,
+    discover_local_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
@@ -52,6 +55,7 @@ from ragscanner.parsers import (
     PdfParser,
     PlainTextParser,
 )
+from ragscanner.paths import new_report_path, reports_directory
 from ragscanner.pipeline import (
     OutputFormat,
     ProgressMode,
@@ -134,10 +138,9 @@ def _run_uv_tool(*arguments: str) -> None:
 
 
 def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
-    output = Path("ragscanner-report.html") if html_report else None
-    if output is not None and output.exists():
-        suffix = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        output = Path(f"ragscanner-report-{suffix}.html")
+    output = new_report_path(get_settings().data_dir) if html_report else None
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
     unified_scan(
         path=path,
         output_format="html" if html_report else "terminal",
@@ -172,18 +175,137 @@ def _prompt_choice(prompt: str, choices: set[str], *, default: str) -> str:
         typer.echo(f"Invalid choice. Enter one of: {', '.join(sorted(choices))}")
 
 
+def _guided_openwebui_metadata(service_candidates: Sequence[ServiceCandidate]) -> None:
+    """List consented OpenWebUI metadata from one already-discovered local service."""
+    if not service_candidates or not typer.confirm(
+        "List accessible knowledge bases using an OpenWebUI API key?"
+    ):
+        return
+    selected = service_candidates[0]
+    if len(service_candidates) > 1:
+        for index, candidate in enumerate(service_candidates, start=1):
+            typer.echo(f"  {index}. {candidate.base_url}")
+        selected_index = int(
+            _prompt_choice(
+                "OpenWebUI service",
+                {str(index) for index in range(1, len(service_candidates) + 1)},
+                default="1",
+            )
+        )
+        selected = service_candidates[selected_index - 1]
+    api_key = typer.prompt("OpenWebUI API key", hide_input=True)
+    try:
+        knowledge_bases = discover_openwebui_knowledge_bases(selected.base_url, str(api_key))
+    except OpenWebUIDiscoveryError as error:
+        typer.echo(f"Knowledge-base discovery failed: {error}", err=True)
+        return
+    if knowledge_bases:
+        typer.echo("Accessible OpenWebUI knowledge bases:")
+        for knowledge_base in knowledge_bases:
+            typer.echo(f"- {knowledge_base.name} ({knowledge_base.id})")
+    else:
+        typer.echo("No accessible OpenWebUI knowledge bases were returned.")
+    try:
+        files = discover_openwebui_files(
+            selected.base_url,
+            str(api_key),
+            knowledge_base_ids=(item.id for item in knowledge_bases),
+        )
+    except OpenWebUIDiscoveryError as error:
+        typer.echo(f"File metadata inventory failed: {error}", err=True)
+        return
+    linked_files = sum(bool(item.knowledge_base_ids) for item in files)
+    standalone_files = len(files) - linked_files
+    typer.echo(
+        "Accessible OpenWebUI file inventory: "
+        f"{linked_files} knowledge-linked, {standalone_files} standalone."
+    )
+
+
+def _guided_local_source_scan() -> None:
+    local_candidates = discover_local_sources(Path.cwd())
+    default_path = str(local_candidates[0].path) if local_candidates else "."
+    if local_candidates:
+        typer.echo("Nearby source candidates:")
+        for local_candidate in local_candidates[:5]:
+            typer.echo(
+                f"- {local_candidate.path} ({local_candidate.supported_file_count} supported files)"
+            )
+    value = typer.prompt("File or folder to scan", default=default_path)
+    path = Path(value).expanduser()
+    if not path.exists():
+        raise typer.BadParameter(f"path not found: {path}")
+    html_report = typer.confirm("Create a standalone HTML report?", default=True)
+    _run_guided_local_scan(path, html_report=html_report)
+
+
 def _guided_onboarding() -> None:
     typer.echo("Welcome to RAGScanner.")
     typer.echo("What would you like to scan?")
-    typer.echo("  1. A local file or folder")
-    typer.echo("  2. An OpenWebUI knowledge base")
-    typer.echo("  3. Another RAG platform or vector store")
-    typer.echo("  4. Exit")
-    choice = _prompt_choice("Your choice", {"1", "2", "3", "4"}, default="1")
-    if choice == "4":
+    typer.echo("  1. Automatically discover local RAG environments")
+    typer.echo("  2. A local file or folder")
+    typer.echo("  3. An OpenWebUI knowledge base")
+    typer.echo("  4. Another RAG platform or vector store")
+    typer.echo("  5. Exit")
+    choice = _prompt_choice("Your choice", {"1", "2", "3", "4", "5"}, default="1")
+    if choice == "5":
         typer.echo("No action was taken.")
         return
-    if choice == "2":
+    if choice == "1":
+        typer.echo("RAGScanner requires consent before inspecting local service metadata.")
+        if not typer.confirm("Inspect local container runtimes and common loopback addresses?"):
+            typer.echo("Automatic discovery was not run.")
+            return
+        environments = discover_local_rag_environments(include_container_runtimes=True)
+        if environments:
+            typer.echo("Local RAG environment candidates:")
+            for environment in environments:
+                origin = f" via {environment.runtime}" if environment.runtime else ""
+                capability = (
+                    "knowledge-base metadata available"
+                    if environment.metadata_inventory_supported
+                    else "connector not available yet"
+                )
+                typer.echo(
+                    f"- {environment.platform} at {environment.base_url} "
+                    f"({environment.discovery_status}{origin}; {capability})"
+                )
+        else:
+            typer.echo("No local RAG service candidate was found.")
+        local_candidates = discover_local_sources(Path.cwd())
+        if local_candidates:
+            typer.echo("Nearby local source candidates:")
+            for local_candidate in local_candidates[:5]:
+                typer.echo(
+                    f"- {local_candidate.path} "
+                    f"({local_candidate.supported_file_count} supported files)"
+                )
+        openwebui_services = [
+            environment
+            for environment in environments
+            if environment.platform == "openwebui" and environment.discovery_status == "reachable"
+        ]
+        if openwebui_services:
+            _guided_openwebui_metadata(
+                [
+                    ServiceCandidate(
+                        base_url=item.base_url,
+                        health_path="/health",
+                        discovery_source="container_runtime" if item.runtime else "common_loopback",
+                        runtime=item.runtime,
+                        container_name=item.container_name,
+                        image=item.image,
+                    )
+                    for item in openwebui_services
+                ]
+            )
+        typer.echo("Automatic discovery does not retrieve document content.")
+        typer.echo(
+            "For an OpenWebUI content scan, select a knowledge base in the dashboard or use "
+            "`ragscanner jobs enqueue-openwebui --help`, then run `ragscanner worker`."
+        )
+        return
+    if choice == "3":
         typer.echo("RAGScanner requires separate consent before accessing document content.")
         service_candidates = []
         if typer.confirm("Inspect local container runtimes and common loopback addresses?"):
@@ -200,69 +322,21 @@ def _guided_onboarding() -> None:
                     )
             else:
                 typer.echo("No responsive OpenWebUI candidate was found on loopback.")
-        if service_candidates and typer.confirm(
-            "List accessible knowledge bases using an OpenWebUI API key?"
-        ):
-            selected = service_candidates[0]
-            if len(service_candidates) > 1:
-                for index, candidate in enumerate(service_candidates, start=1):
-                    typer.echo(f"  {index}. {candidate.base_url}")
-                selected_index = int(
-                    _prompt_choice(
-                        "OpenWebUI service",
-                        {str(index) for index in range(1, len(service_candidates) + 1)},
-                        default="1",
-                    )
-                )
-                selected = service_candidates[selected_index - 1]
-            api_key = typer.prompt("OpenWebUI API key", hide_input=True)
-            try:
-                knowledge_bases = discover_openwebui_knowledge_bases(
-                    selected.base_url, str(api_key)
-                )
-                files = discover_openwebui_files(selected.base_url, str(api_key))
-            except OpenWebUIDiscoveryError as error:
-                typer.echo(f"Knowledge-base discovery failed: {error}", err=True)
-            else:
-                if knowledge_bases:
-                    typer.echo("Accessible OpenWebUI knowledge bases:")
-                    for knowledge_base in knowledge_bases:
-                        typer.echo(f"- {knowledge_base.name} ({knowledge_base.id})")
-                else:
-                    typer.echo("No accessible OpenWebUI knowledge bases were returned.")
-                linked_files = sum(bool(item.knowledge_base_ids) for item in files)
-                standalone_files = len(files) - linked_files
-                typer.echo(
-                    "Accessible OpenWebUI file inventory: "
-                    f"{linked_files} knowledge-linked, {standalone_files} standalone."
-                )
+        _guided_openwebui_metadata(service_candidates)
         typer.echo("Metadata inventory does not retrieve document content.")
         typer.echo(
             "To queue a consented content scan, use `ragscanner jobs enqueue-openwebui --help`, "
             "then run `ragscanner worker`."
         )
         return
-    if choice == "3":
+    if choice == "4":
         typer.echo(
             "Other connectors are not implemented yet. Each source type will use the same safe "
             "SourceConnector contract."
         )
         return
 
-    local_candidates = discover_local_sources(Path.cwd())
-    default_path = str(local_candidates[0].path) if local_candidates else "."
-    if local_candidates:
-        typer.echo("Nearby source candidates:")
-        for local_candidate in local_candidates[:5]:
-            typer.echo(
-                f"- {local_candidate.path} ({local_candidate.supported_file_count} supported files)"
-            )
-    value = typer.prompt("File or folder to scan", default=default_path)
-    path = Path(value).expanduser()
-    if not path.exists():
-        raise typer.BadParameter(f"path not found: {path}")
-    html_report = typer.confirm("Create a standalone HTML report?", default=True)
-    _run_guided_local_scan(path, html_report=html_report)
+    _guided_local_source_scan()
 
 
 @app.callback()
@@ -291,6 +365,15 @@ def doctor() -> None:
     typer.echo(f"OK version: {report.version}")
     typer.echo(f"OK configuration: {report.configuration.detail}")
     typer.echo(f"OK network: {report.network.detail}")
+
+
+@app.command("paths")
+def show_paths() -> None:
+    """Show the platform-native locations used for RAGScanner-owned data."""
+    data_dir = get_settings().data_dir.expanduser().resolve()
+    typer.echo(f"Data directory: {data_dir}")
+    typer.echo(f"Reports directory: {reports_directory(data_dir)}")
+    typer.echo(f"History database: {data_dir / 'history.sqlite3'}")
 
 
 @app.command()

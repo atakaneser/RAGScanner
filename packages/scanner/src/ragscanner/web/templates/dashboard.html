@@ -31,6 +31,17 @@
           <h1>Overview</h1>
           <p>Local-first RAG security and health posture.</p>
         </section>
+        {% if notice %}
+        <p class="notice" role="status">
+          {% if notice == "scan-queued" %}Scan job queued. Run the next job from this dashboard or with <code>ragscanner worker</code>.
+          {% elif notice == "job-completed" %}The next queued job was processed.
+          {% elif notice == "no-queued-job" %}There was no queued job to process.
+          {% elif notice == "job-cancelled" %}Job cancellation was requested.
+          {% elif notice == "job-retried" %}Job was requeued.
+          {% else %}The requested action could not be completed. Check the required consent and values.
+          {% endif %}
+        </p>
+        {% endif %}
 
         <section class="status-band" aria-label="Current scan posture">
           <div class="status-item risk">
@@ -75,6 +86,10 @@
 
         <section class="data-section" id="jobs">
           <div class="section-heading"><h2>Durable jobs</h2><span>{{ job_total }} total</span></div>
+          <form method="post" action="/dashboard/worker/run-once" class="inline-control">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="secondary small" type="submit">Run next queued job</button>
+          </form>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Job ID</th><th>Source</th><th>Status</th><th>Progress</th><th>Attempts</th><th>Actions</th></tr></thead>
@@ -106,6 +121,14 @@
 
     <aside class="scan-drawer" aria-label="New scan" data-drawer>
       <div class="drawer-heading"><h2>New scan</h2><button class="icon-button" type="button" aria-label="Close new scan" data-close-drawer>×</button></div>
+      <section class="discovery-panel" aria-labelledby="discovery-heading">
+        <h3 id="discovery-heading">Automatic discovery</h3>
+        <p>Inspect only local runtime metadata and approved loopback health endpoints. No document content is read.</p>
+        <label class="consent compact"><input type="checkbox" data-metadata-consent> <span>I consent to local RAG environment discovery.</span></label>
+        <button class="secondary full" type="button" data-discover-environments>Discover local environments</button>
+        <p class="field-note" data-discovery-status aria-live="polite"></p>
+        <ul class="discovery-results" data-discovery-results></ul>
+      </section>
       <div class="source-tabs" role="tablist">
         <button class="source-tab active" type="button" data-source="local">Local files</button>
         <button class="source-tab" type="button" data-source="openwebui">OpenWebUI</button>
@@ -121,10 +144,12 @@
       <form class="scan-form hidden" method="post" action="/dashboard/scans/openwebui" data-form="openwebui">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="idempotency_key" value="dashboard-openwebui-{{ request_id }}">
-        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000"></label>
-        <label>Knowledge ID<input name="knowledge_id" required placeholder="Knowledge base identifier"></label>
+        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000" data-openwebui-url></label>
         <label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label>
-        <p class="field-note">The credential value remains outside the database.</p>
+        <p class="field-note">Use an environment reference shared by the dashboard and worker. The credential value remains outside the database.</p>
+        <button class="secondary full" type="button" data-load-knowledge-bases>Load knowledge bases</button>
+        <label>Discovered knowledge base<select data-knowledge-bases><option value="">Load knowledge bases first</option></select></label>
+        <label>Knowledge ID<input name="knowledge_id" required placeholder="Select above or enter an identifier" data-knowledge-id></label>
         <label class="consent"><input type="checkbox" name="content_consent" value="true" required> <span>I explicitly consent to retrieving accessible OpenWebUI document content for this scan.</span></label>
         <button class="primary full" type="submit">Queue scan</button>
       </form>

@@ -209,6 +209,31 @@ def test_invalid_signature_and_page_count_library_error_are_typed(monkeypatch) -
     assert malformed.value.remediation
 
 
+def test_page_count_failure_uses_bounded_pypdf_recovery(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    data = make_pdf(["Recovered local text"])
+
+    class BrokenDocument:
+        needs_pass = False
+
+        @property
+        def page_count(self) -> int:
+            raise RuntimeError("Invalid number of pages")
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(pymupdf, "open", lambda **_kwargs: BrokenDocument())
+
+    result = parse(data)
+
+    assert "Recovered local text" in result.document.content
+    assert result.metadata["recovery_parser"] == "pypdf"
+    assert {"recovery_parser_used", "active_content_inspection_limited"}.issubset(
+        warning_codes(result)
+    )
+    assert result.metadata["ocr_used"] is False
+
+
 def test_file_page_total_and_per_page_limits() -> None:
     data = make_pdf(["one", "two"])
     with pytest.raises(PdfParserError) as file_limit:

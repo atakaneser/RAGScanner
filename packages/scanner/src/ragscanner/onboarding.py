@@ -7,7 +7,7 @@ import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -30,6 +30,22 @@ CONTAINER_RUNTIME_NAMES = ("docker", "podman", "nerdctl", "finch")
 MAX_RUNTIME_OUTPUT_BYTES = 1_000_000
 MAX_OPENWEBUI_RESPONSE_BYTES = 1_000_000
 _OPENWEBUI_HINTS = ("open-webui", "open_webui", "openwebui")
+_RAG_PLATFORM_HINTS = {
+    "openwebui": _OPENWEBUI_HINTS,
+    "qdrant": ("qdrant",),
+    "chroma": ("chroma", "chromadb"),
+    "weaviate": ("weaviate",),
+    "milvus": ("milvus", "attu"),
+    "pgvector": ("pgvector", "postgres", "postgresql"),
+}
+_RAG_PLATFORM_PORTS = {
+    "openwebui": frozenset({3000, 8080}),
+    "qdrant": frozenset({6333, 6334}),
+    "chroma": frozenset({8000}),
+    "weaviate": frozenset({8080}),
+    "milvus": frozenset({19530, 9091}),
+    "pgvector": frozenset({5432}),
+}
 _PUBLISHED_PORT = re.compile(
     r"(?P<host>\[[0-9a-fA-F:]+\]|[0-9a-fA-F:.]+|localhost):"
     r"(?P<host_port>\d+)->(?P<container_port>\d+)/(?:tcp|TCP)"
@@ -54,6 +70,19 @@ class ServiceCandidate:
     runtime: str | None = None
     container_name: str | None = None
     image: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RAGEnvironmentCandidate:
+    """A local RAG-related service inferred from bounded runtime metadata."""
+
+    platform: str
+    base_url: str
+    discovery_status: str
+    runtime: str | None = None
+    container_name: str | None = None
+    image: str | None = None
+    metadata_inventory_supported: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,12 +173,19 @@ def _record_text(record: dict[str, object], *keys: str) -> str:
     return ""
 
 
-def _loopback_base_urls(record: dict[str, object]) -> list[str]:
+def _platform_for_record(record: dict[str, object]) -> str | None:
     name = _record_text(record, "Names", "Name", "names", "name")
     image = _record_text(record, "Image", "image")
-    ports = _record_text(record, "Ports", "ports")
     identity = f"{name} {image}".casefold()
-    hinted = any(hint in identity for hint in _OPENWEBUI_HINTS)
+    for platform, hints in _RAG_PLATFORM_HINTS.items():
+        if any(hint in identity for hint in hints):
+            return platform
+    return None
+
+
+def _loopback_base_urls(record: dict[str, object], *, platform: str | None = None) -> list[str]:
+    ports = _record_text(record, "Ports", "ports")
+    allowed_ports = _RAG_PLATFORM_PORTS.get(platform or "", frozenset({3000, 8080}))
     endpoints: list[str] = []
     for match in _PUBLISHED_PORT.finditer(ports):
         host = match.group("host").strip("[]").casefold()
@@ -157,17 +193,17 @@ def _loopback_base_urls(record: dict[str, object]) -> list[str]:
         container_port = int(match.group("container_port"))
         if host not in {"0.0.0.0", "::", "127.0.0.1", "localhost"}:
             continue
-        if not hinted and container_port not in {3000, 8080}:
+        if container_port not in allowed_ports:
             continue
         endpoints.append(f"http://127.0.0.1:{host_port}")
     return endpoints
 
 
-def discover_container_openwebui_endpoints(
+def discover_container_rag_environments(
     *, timeout_seconds: float = 2.0
-) -> dict[str, tuple[str, str | None, str | None]]:
-    """Read bounded local runtime metadata without a shell and return loopback endpoints."""
-    endpoints: dict[str, tuple[str, str | None, str | None]] = {}
+) -> list[RAGEnvironmentCandidate]:
+    """Classify bounded local container metadata without reading mounts, content, or secrets."""
+    candidates: dict[tuple[str, str], RAGEnvironmentCandidate] = {}
     for runtime in CONTAINER_RUNTIME_NAMES:
         executable = shutil.which(runtime)
         if executable is None:
@@ -185,11 +221,60 @@ def discover_container_openwebui_endpoints(
         if result.returncode != 0:
             continue
         for record in _runtime_records(result.stdout):
+            platform = _platform_for_record(record)
+            if platform is None:
+                continue
             name = _record_text(record, "Names", "Name", "names", "name") or None
             image = _record_text(record, "Image", "image") or None
-            for endpoint in _loopback_base_urls(record):
-                endpoints.setdefault(endpoint, (runtime, name, image))
-    return endpoints
+            for endpoint in _loopback_base_urls(record, platform=platform):
+                candidate = RAGEnvironmentCandidate(
+                    platform=platform,
+                    base_url=endpoint,
+                    discovery_status="detected",
+                    runtime=runtime,
+                    container_name=name,
+                    image=image,
+                    metadata_inventory_supported=platform == "openwebui",
+                )
+                candidates.setdefault((platform, endpoint), candidate)
+    return sorted(candidates.values(), key=lambda item: (item.platform, item.base_url))
+
+
+def discover_container_openwebui_endpoints(
+    *, timeout_seconds: float = 2.0
+) -> dict[str, tuple[str, str | None, str | None]]:
+    """Read bounded local runtime metadata without a shell and return loopback endpoints."""
+    return {
+        candidate.base_url: (candidate.runtime or "", candidate.container_name, candidate.image)
+        for candidate in discover_container_rag_environments(timeout_seconds=timeout_seconds)
+        if candidate.platform == "openwebui"
+    }
+
+
+def discover_local_rag_environments(
+    *, include_container_runtimes: bool = False
+) -> list[RAGEnvironmentCandidate]:
+    """Discover supported local RAG service candidates after caller-controlled consent."""
+    environments = discover_container_rag_environments() if include_container_runtimes else []
+    openwebui_services = discover_openwebui_services(
+        include_container_runtimes=include_container_runtimes,
+    )
+    confirmed = {
+        service.base_url: RAGEnvironmentCandidate(
+            platform="openwebui",
+            base_url=service.base_url,
+            discovery_status="reachable",
+            runtime=service.runtime,
+            container_name=service.container_name,
+            image=service.image,
+            metadata_inventory_supported=True,
+        )
+        for service in openwebui_services
+    }
+    for candidate in environments:
+        if candidate.platform != "openwebui":
+            confirmed.setdefault(candidate.base_url, candidate)
+    return sorted(confirmed.values(), key=lambda item: (item.platform, item.base_url))
 
 
 def discover_openwebui_services(
@@ -328,6 +413,7 @@ def discover_openwebui_files(
     base_url: str,
     api_key: str,
     *,
+    knowledge_base_ids: Iterable[str] | None = None,
     max_pages: int = 10,
     max_items: int = 500,
     timeout_seconds: float = 3.0,
@@ -337,47 +423,79 @@ def discover_openwebui_files(
     files: dict[str, dict[str, object]] = {}
     memberships: dict[str, set[str]] = {}
     base = base_url.rstrip("/")
+    requested_knowledge_bases = tuple(dict.fromkeys(knowledge_base_ids or ()))
     with httpx.Client(
         timeout=httpx.Timeout(timeout_seconds), follow_redirects=False, trust_env=False
     ) as client:
-        for page in range(1, max_pages + 1):
-            items, total = _openwebui_page(
-                client,
-                f"{base}/api/v1/files/",
-                headers,
-                {"page": page, "content": False},
-            )
-            for item in items:
-                if isinstance(item, dict) and isinstance(item.get("id"), str):
-                    files[item["id"]] = item
-                    if len(files) >= max_items:
-                        break
-            if len(files) >= max_items or not items or (total is not None and len(files) >= total):
-                break
+        try:
+            for page in range(1, max_pages + 1):
+                items, total = _openwebui_page(
+                    client,
+                    f"{base}/api/v1/files/",
+                    headers,
+                    {"page": page, "content": False},
+                )
+                for item in items:
+                    if isinstance(item, dict) and isinstance(item.get("id"), str):
+                        files[item["id"]] = item
+                        if len(files) >= max_items:
+                            break
+                if (
+                    len(files) >= max_items
+                    or not items
+                    or (total is not None and len(files) >= total)
+                ):
+                    break
+        except OpenWebUIDiscoveryError:
+            if not requested_knowledge_bases:
+                raise
 
-        linked_seen = 0
-        for page in range(1, max_pages + 1):
-            items, total = _openwebui_page(
-                client,
-                f"{base}/api/v1/knowledge/search/files",
-                headers,
-                {"page": page},
-            )
-            for item in items:
-                if not isinstance(item, dict) or not isinstance(item.get("id"), str):
-                    continue
-                file_id = item["id"]
-                if file_id not in files:
-                    if len(files) >= max_items:
+        if requested_knowledge_bases:
+            for knowledge_base_id in requested_knowledge_bases[:max_items]:
+                linked_seen = 0
+                safe_path_id = quote(knowledge_base_id, safe="")
+                for page in range(1, max_pages + 1):
+                    items, total = _openwebui_page(
+                        client,
+                        f"{base}/api/v1/knowledge/{safe_path_id}/files",
+                        headers,
+                        {"page": page, "include_content": False},
+                    )
+                    for item in items:
+                        if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                            continue
+                        file_id = item["id"]
+                        if file_id not in files and len(files) < max_items:
+                            files[file_id] = item
+                        if file_id in files:
+                            memberships.setdefault(file_id, set()).add(knowledge_base_id)
                         linked_seen += 1
+                    if not items or (total is not None and linked_seen >= total):
+                        break
+        else:
+            linked_seen = 0
+            for page in range(1, max_pages + 1):
+                items, total = _openwebui_page(
+                    client,
+                    f"{base}/api/v1/knowledge/search/files",
+                    headers,
+                    {"page": page},
+                )
+                for item in items:
+                    if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                         continue
-                    files[file_id] = item
-                collection = item.get("collection")
-                if isinstance(collection, dict) and isinstance(collection.get("id"), str):
-                    memberships.setdefault(file_id, set()).add(collection["id"])
-                linked_seen += 1
-            if not items or (total is not None and linked_seen >= total):
-                break
+                    file_id = item["id"]
+                    if file_id not in files:
+                        if len(files) >= max_items:
+                            linked_seen += 1
+                            continue
+                        files[file_id] = item
+                    collection = item.get("collection")
+                    if isinstance(collection, dict) and isinstance(collection.get("id"), str):
+                        memberships.setdefault(file_id, set()).add(collection["id"])
+                    linked_seen += 1
+                if not items or (total is not None and linked_seen >= total):
+                    break
 
     discovered: list[OpenWebUIFileCandidate] = []
     for file_id, item in files.items():

@@ -14,6 +14,7 @@ from ragscanner.application.static_scan import (
     StaticScanJobPayload,
     build_pipeline_report,
     pipeline_report_input,
+    resolve_secret_reference,
 )
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "StaticScanJobPayload",
     "build_pipeline_report",
     "pipeline_report_input",
+    "resolve_secret_reference",
 ]
