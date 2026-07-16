@@ -264,10 +264,10 @@ def _guided_openwebui_metadata(service_candidates: Sequence[ServiceCandidate]) -
 
 
 def _guided_local_source_scan() -> None:
-    local_candidates = discover_local_sources(Path.cwd())
+    local_candidates = discover_local_sources(Path.cwd(), include_root=True)
     default_path = str(local_candidates[0].path) if local_candidates else "."
     if local_candidates:
-        typer.echo("Nearby source candidates:")
+        typer.echo("Local scan suggestions (file extensions only; not verified as RAG data):")
         for local_candidate in local_candidates[:5]:
             typer.echo(
                 f"- {local_candidate.path} ({local_candidate.supported_file_count} supported files)"
@@ -315,7 +315,7 @@ def _guided_onboarding() -> None:
             typer.echo("No local RAG service candidate was found.")
         local_candidates = discover_local_sources(Path.cwd())
         if local_candidates:
-            typer.echo("Nearby local source candidates:")
+            typer.echo("Name-based local RAG source candidates (not content-verified):")
             for local_candidate in local_candidates[:5]:
                 typer.echo(
                     f"- {local_candidate.path} "

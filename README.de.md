@@ -59,8 +59,9 @@ ragscanner doctor
 ragscanner
 ```
 
-Der einfache Befehl öffnet eine englische Einführung. Sie fragt nach der verwendeten Quelle,
-schlägt begrenzte lokale Quellen in der Nähe vor und kann einen Scan starten. Nach ausdrücklicher
+Der einfache Befehl öffnet eine englische Einführung. Sie fragt nach der verwendeten Quelle und
+kann einen Scan starten. Die automatische Erkennung schlägt nur unmittelbare Ordner mit
+RAG-orientierten Namen vor und behandelt allgemeine Ordner wie Documents nicht als RAG-Quellen. Nach ausdrücklicher
 Zustimmung prüft die OpenWebUI-Erkennung begrenzte Metadaten verfügbarer Docker-, Podman-, nerdctl-
 oder Finch-Runtimes sowie übliche Loopback-Adressen. Ein separat angegebener, nur im Speicher
 gehaltener API-Schlüssel kann zugängliche Knowledge Bases sowie verknüpfte und eigenständige/Chat-

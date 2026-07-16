@@ -59,8 +59,9 @@ ragscanner doctor
 ragscanner
 ```
 
-La commande seule ouvre un parcours d’accueil en anglais. Il demande la source utilisée, suggère des
-sources locales proches et limitées, et peut lancer une analyse. Après consentement explicite, la
+La commande seule ouvre un parcours d’accueil en anglais. Il demande la source utilisée et peut
+lancer une analyse. La découverte automatique ne suggère que les dossiers immédiats aux noms orientés
+RAG et ne traite pas les dossiers généraux tels que Documents comme des sources RAG. Après consentement explicite, la
 découverte OpenWebUI inspecte des métadonnées limitées des runtimes Docker, Podman, nerdctl ou Finch
 disponibles ainsi que les adresses loopback courantes. Une clé API fournie séparément et conservée
 uniquement en mémoire peut inventorier les bases de connaissances accessibles ainsi que les
