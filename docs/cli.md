@@ -58,6 +58,12 @@ ragscanner agent install
 ragscanner agent status
 ragscanner agent uninstall
 ragscanner agent run
+ragscanner setup
+ragscanner site status
+ragscanner site register
+ragscanner host install
+ragscanner host status
+ragscanner host uninstall
 ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/one-large.pdf
 ragscanner scan ./knowledge-base --format html --output report.html
@@ -109,6 +115,14 @@ selects another file.
 least-privilege Windows Scheduled Task, a macOS LaunchAgent, or a Linux systemd user service. It
 requires no administrator access and binds only to `127.0.0.1`. `ragscanner agent run` is the
 foreground form useful for diagnostics. `agent uninstall` removes only the automatic-start record.
+
+`ragscanner host install` is the elevated, machine-wide mode for always-on hosts such as Docker
+OpenWebUI. It registers `local.ragscanner.com` to `127.0.0.1` in the local hosts file, starts the
+Host Service, and opens a first-run local-administrator setup screen at the dashboard address. The
+mapping is local to the machine; it does not use public DNS or expose the dashboard on the network.
+Use `host status` for a read-only check and `host uninstall` to remove the service and hostname while
+preserving reports and history. `ragscanner setup` offers the dashboard or terminal path; browser
+guidance cannot silently obtain the administrator permission required for a Host Service.
 
 `ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000` without a worker. `--port` changes the
 loopback port and `--history-db` selects another database. History reads are local; API scan/job

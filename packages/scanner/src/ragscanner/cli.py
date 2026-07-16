@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import webbrowser
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,7 +41,21 @@ from ragscanner.domain import (
     SourceContent,
     SourceItem,
 )
+from ragscanner.host_service import (
+    install_host_service,
+    is_elevated,
+    remove_host_service,
+    service_definition_path,
+    system_data_dir,
+)
 from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
+from ragscanner.local_site import (
+    dashboard_url,
+    hosts_file_path,
+    local_hostname_is_registered,
+    register_local_hostname,
+    unregister_local_hostname,
+)
 from ragscanner.logging import configure_logging
 from ragscanner.models import ComponentStatus, DoctorReport
 from ragscanner.normalization import DocumentNormalizer
@@ -113,11 +128,15 @@ quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis com
 history_app = typer.Typer(help="Opt-in local SQLite scan history and comparison commands.")
 jobs_app = typer.Typer(help="Durable local scan job commands.")
 agent_app = typer.Typer(help="Run and manage the per-user local dashboard Agent.")
+site_app = typer.Typer(help="Configure the machine-local dashboard address.")
+host_app = typer.Typer(help="Run and manage the machine-wide local Host Service.")
 app.add_typer(security_app, name="security")
 app.add_typer(quality_app, name="quality")
 app.add_typer(history_app, name="history")
 app.add_typer(jobs_app, name="jobs")
 app.add_typer(agent_app, name="agent")
+app.add_typer(site_app, name="site")
+app.add_typer(host_app, name="host")
 
 
 def _static_rule_directory() -> Path:
@@ -410,6 +429,7 @@ def show_paths() -> None:
     typer.echo(f"Reports directory: {reports_directory(data_dir)}")
     typer.echo(f"History database: {data_dir / 'history.sqlite3'}")
     typer.echo(f"Agent registration: {platform_autostart_path(data_dir)}")
+    typer.echo(f"Local dashboard: {dashboard_url()}")
 
 
 @app.command()
@@ -504,6 +524,175 @@ def agent_run(
     database = _history_database(history_db)
     typer.echo(f"RAGScanner Agent listening at http://127.0.0.1:{port}", err=True)
     run_agent(database, port=port, poll_interval=poll_interval)
+
+
+@site_app.command("status")
+def site_status() -> None:
+    """Show whether this machine maps the dashboard name to loopback."""
+    path = hosts_file_path()
+    state = "registered" if local_hostname_is_registered(path) else "not registered"
+    typer.echo(f"Local hostname: {state}")
+    typer.echo(f"Hosts file: {path}")
+    typer.echo(f"Dashboard address: {dashboard_url()}")
+
+
+@site_app.command("register")
+def site_register(
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip the hosts-file confirmation.")
+    ] = False,
+) -> None:
+    """Map local.ragscanner.com to 127.0.0.1 on this machine only."""
+    path = hosts_file_path()
+    if not yes and not typer.confirm(
+        f"Add a machine-local loopback mapping for {dashboard_url()} in {path}?"
+    ):
+        typer.echo("Local hostname registration cancelled. No changes were made.")
+        return
+    try:
+        register_local_hostname(path)
+    except PermissionError as error:
+        raise typer.BadParameter(
+            "administrator permission is required to update the hosts file; rerun this command "
+            "from an elevated terminal"
+        ) from error
+    except OSError as error:
+        raise typer.BadParameter(f"cannot update the hosts file: {error}") from error
+    typer.echo(f"Local dashboard hostname registered: {dashboard_url()}")
+
+
+@site_app.command("unregister")
+def site_unregister(
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip the hosts-file confirmation.")
+    ] = False,
+) -> None:
+    """Remove only RAGScanner's machine-local hosts-file mapping."""
+    path = hosts_file_path()
+    if not local_hostname_is_registered(path):
+        typer.echo("Local dashboard hostname is not registered.")
+        return
+    if not yes and not typer.confirm(f"Remove RAGScanner's local mapping from {path}?"):
+        typer.echo("Local hostname removal cancelled. No changes were made.")
+        return
+    try:
+        unregister_local_hostname(path)
+    except PermissionError as error:
+        raise typer.BadParameter(
+            "administrator permission is required to update the hosts file; rerun this command "
+            "from an elevated terminal"
+        ) from error
+    except OSError as error:
+        raise typer.BadParameter(f"cannot update the hosts file: {error}") from error
+    typer.echo("Local dashboard hostname removed.")
+
+
+@host_app.command("install")
+def host_install(
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompts.")] = False,
+) -> None:
+    """Install the always-on machine-local Host Service and loopback dashboard name."""
+    if not is_elevated():
+        raise typer.BadParameter(
+            "machine-wide setup requires administrator permission; open an elevated terminal and run "
+            "`ragscanner host install --yes`"
+        )
+    hosts_path = hosts_file_path()
+    if not yes and not typer.confirm(
+        f"Install the machine-local Host Service and map {dashboard_url()} to loopback?"
+    ):
+        typer.echo("Host Service installation cancelled. No changes were made.")
+        return
+    try:
+        register_local_hostname(hosts_path)
+        definition = install_host_service()
+    except OSError as error:
+        raise typer.BadParameter(f"cannot install the Host Service: {error}") from error
+    typer.echo("RAGScanner Host Service installed and started.")
+    typer.echo(f"Service data: {system_data_dir()}")
+    typer.echo(f"Service definition: {definition}")
+    typer.echo(f"Dashboard: {dashboard_url()}")
+
+
+@host_app.command("status")
+def host_status() -> None:
+    """Show machine-local Host Service locations without changing the machine."""
+    typer.echo(f"Administrator terminal: {'yes' if is_elevated() else 'no'}")
+    typer.echo(f"Service data: {system_data_dir()}")
+    typer.echo(f"Service definition: {service_definition_path()}")
+    hostname = "registered" if local_hostname_is_registered(hosts_file_path()) else "not registered"
+    typer.echo(f"Local hostname: {hostname}")
+    typer.echo(f"Dashboard: {dashboard_url()}")
+
+
+@host_app.command("uninstall")
+def host_uninstall(
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompts.")] = False,
+) -> None:
+    """Stop and remove the Host Service while preserving reports and history."""
+    if not is_elevated():
+        raise typer.BadParameter(
+            "machine-wide setup requires administrator permission; open an elevated terminal and run "
+            "`ragscanner host uninstall --yes`"
+        )
+    if not yes and not typer.confirm("Stop and remove the RAGScanner Host Service?"):
+        typer.echo("Host Service removal cancelled. No changes were made.")
+        return
+    try:
+        remove_host_service()
+        unregister_local_hostname(hosts_file_path())
+    except OSError as error:
+        raise typer.BadParameter(f"cannot remove the Host Service: {error}") from error
+    typer.echo(
+        "RAGScanner Host Service and local hostname mapping were removed. Data was preserved."
+    )
+
+
+@host_app.command("run")
+def host_run(
+    data_dir: Annotated[Path | None, typer.Option("--data-dir", file_okay=False)] = None,
+    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
+    poll_interval: Annotated[float, typer.Option("--poll-interval", min=0.1, max=60)] = 1,
+) -> None:
+    """Run the Host Service in the foreground; used only by a service manager."""
+    selected_data_dir = (data_dir or system_data_dir()).expanduser().resolve()
+    selected_data_dir.mkdir(parents=True, exist_ok=True)
+    typer.echo(f"RAGScanner Host Service listening at {dashboard_url(port=port)}", err=True)
+    run_agent(
+        selected_data_dir / "history.sqlite3",
+        port=port,
+        poll_interval=poll_interval,
+        local_administrator_data_dir=selected_data_dir,
+    )
+
+
+@app.command("setup")
+def setup(
+    mode: Annotated[str | None, typer.Option("--mode", help="dashboard or terminal")] = None,
+) -> None:
+    """Choose the initial local setup experience."""
+    selected = mode
+    if selected is None:
+        typer.echo("How would you like to complete RAGScanner setup?")
+        typer.echo("  1. Open the local dashboard")
+        typer.echo("  2. Continue in this terminal")
+        typer.echo("  3. Exit")
+        choice = typer.prompt("Your choice", default="1").strip()
+        selected = {"1": "dashboard", "2": "terminal", "3": "exit"}.get(choice, "")
+    if selected == "exit":
+        typer.echo("No setup changes were made.")
+        return
+    if selected == "dashboard":
+        url = dashboard_url()
+        typer.echo(
+            f"Open {url} after running `ragscanner site register` from an elevated terminal."
+        )
+        webbrowser.open(url)
+        return
+    if selected == "terminal":
+        typer.echo("Terminal setup will configure sources and scheduling in a later step.")
+        return
+    raise typer.BadParameter("mode must be dashboard or terminal")
 
 
 def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:

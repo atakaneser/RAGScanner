@@ -39,6 +39,7 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Kapsam yetkili kimlik doğrulamalı asenkron tarama/iş API’si | Loopback üzerinde mevcut |
 | Yerel genel bakış ve kuyruk dashboard’u | `ragscanner serve` ile mevcut |
 | Her zaman hazır dashboard ve kalıcı iş yürütme için kullanıcı başına Yerel Agent | Mevcut |
+| Yerel yönetici ilk kurulumu olan makine-geneli Host Service | Mevcut |
 | Açık onaylı OpenWebUI bilgi tabanı içerik connector’ı | Mevcut |
 | Scheduler ve vector store içerik connector’ları | Henüz mevcut değil |
 | ModelProvider/BYOM entegrasyonu | Henüz mevcut değil |
@@ -75,6 +76,7 @@ ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner agent install
+ragscanner host install
 ```
 
 `uninstall` onay ister. Otomasyonlar `ragscanner uninstall --yes` kullanabilir. Bu komutlar kabuk

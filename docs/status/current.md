@@ -15,6 +15,8 @@
   deferred Windows removal that avoids self-locking executable-file failures
 - Per-user Local Agent that combines the localhost dashboard/API with one durable worker, plus
   least-privilege Windows logon, macOS LaunchAgent, and Linux systemd-user installation commands
+- Elevated machine-local Host Service mode with a `local.ragscanner.com` loopback hosts-file mapping,
+  a first-run local administrator, and an authenticated local dashboard bootstrap
 - English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder
   discovery that excludes generic Documents/current-working-directory candidates,
   consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint

@@ -40,6 +40,7 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | API asynchrone authentifiée avec scopes pour analyses/jobs | Disponible sur loopback |
 | Dashboard local d’aperçu et de file d’attente | Disponible avec `ragscanner serve` |
 | Agent local par utilisateur pour un dashboard toujours disponible et le traitement durable des tâches | Disponible |
+| Service hôte local à la machine avec initialisation d’un administrateur local | Disponible |
 | Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
 | Scheduler et connecteurs de contenu vector store | Pas encore disponible |
 | Intégration ModelProvider/BYOM | Pas encore disponible |
@@ -77,6 +78,7 @@ ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner agent install
+ragscanner host install
 ```
 
 `uninstall` demande confirmation. Les automatisations peuvent utiliser `ragscanner uninstall --yes`.

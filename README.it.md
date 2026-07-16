@@ -39,6 +39,7 @@ telemetria, non segue link e non esegue mai i comandi rilevati.
 | API asincrona autenticata con scope per scansioni/job | Disponibile su loopback |
 | Dashboard locale di panoramica e coda | Disponibile con `ragscanner serve` |
 | Agent locale per utente per un dashboard sempre pronto e l’elaborazione durevole dei job | Disponibile |
+| Host Service locale alla macchina con inizializzazione di un amministratore locale | Disponibile |
 | Connettore di contenuti knowledge OpenWebUI con consenso | Disponibile |
 | Scheduler e connettori di contenuti vector store | Non ancora disponibile |
 | Integrazione ModelProvider/BYOM | Non ancora disponibile |
@@ -75,6 +76,7 @@ ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner agent install
+ragscanner host install
 ```
 
 `uninstall` chiede conferma. Le automazioni possono usare `ragscanner uninstall --yes`. Questi

@@ -123,7 +123,13 @@ def remove_autostart(data_dir: Path, *, platform: str | None = None) -> None:
     path.unlink(missing_ok=True)
 
 
-def run_agent(database_path: Path, *, port: int = 8000, poll_interval: float = 1.0) -> None:
+def run_agent(
+    database_path: Path,
+    *,
+    port: int = 8000,
+    poll_interval: float = 1.0,
+    local_administrator_data_dir: Path | None = None,
+) -> None:
     """Run the local dashboard/API and one durable worker until interrupted."""
     stop = threading.Event()
 
@@ -148,7 +154,7 @@ def run_agent(database_path: Path, *, port: int = 8000, poll_interval: float = 1
     thread.start()
     try:
         uvicorn.run(
-            create_app(database_path),
+            create_app(database_path, local_administrator_data_dir=local_administrator_data_dir),
             host="127.0.0.1",
             port=port,
             access_log=False,

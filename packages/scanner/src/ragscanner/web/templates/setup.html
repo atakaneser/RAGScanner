@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAGScanner · Local setup</title>
+  <link rel="stylesheet" href="/dashboard-assets/dashboard.css">
+</head>
+<body>
+  <main class="setup-shell">
+    <a class="wordmark" href="/">RAG<span>Scanner</span></a>
+    <section class="setup-card">
+      <p class="eyebrow">Machine-local setup</p>
+      <h1>Create the local administrator</h1>
+      <p>This account protects the dashboard on this machine. It does not create an online account and no password leaves this device.</p>
+      {% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" class="scan-form">
+        <label>Administrator username<input name="username" required minlength="3" maxlength="80" autocomplete="username"></label>
+        <label>Passphrase<input type="password" name="password" required minlength="14" maxlength="512" autocomplete="new-password"></label>
+        <p class="field-note">Use at least 14 characters. The passphrase is stored as a local memory-hard hash.</p>
+        <button class="primary full" type="submit">Create local administrator</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
