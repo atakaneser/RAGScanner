@@ -10,7 +10,7 @@ construct a durable job command before they could scan selected content.
 
 ## Decision
 
-Option 3 presents a numbered selection after metadata discovery. A separately explicit content
+Option 2 presents a numbered selection after metadata discovery. A separately explicit content
 consent starts one selected knowledge-base scan in the same CLI process. The supplied API key is
 stored in a unique temporary environment variable only for the duration of that scan, is not written
 to a report or database, and is removed in a final cleanup block.

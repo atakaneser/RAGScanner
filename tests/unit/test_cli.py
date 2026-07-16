@@ -9,7 +9,6 @@ from ragscanner.onboarding import (
     KnowledgeBaseCandidate,
     OpenWebUIDiscoveryError,
     OpenWebUIFileCandidate,
-    RAGEnvironmentCandidate,
     ServiceCandidate,
     discover_container_openwebui_endpoints,
     discover_container_rag_environments,
@@ -133,7 +132,7 @@ def test_maintenance_command_reports_missing_uv_and_failure(monkeypatch) -> None
 
 
 def test_bare_command_opens_english_onboarding_and_can_exit() -> None:
-    result = runner.invoke(app, input="5\n")
+    result = runner.invoke(app, input="3\n")
     assert result.exit_code == 0
     assert "What would you like to scan?" in result.stdout
     assert "No action was taken." in result.stdout
@@ -143,7 +142,7 @@ def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None
     source = tmp_path / "bilgi tabanı.txt"
     source.write_text("Güvenli ve yerel örnek bilgi.", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, input=f"2\n{source}\nn\n")
+    result = runner.invoke(app, input=f"1\n{source}\nn\n")
     assert result.exit_code == 0
     assert "RAGScanner scan:" in result.stdout
     assert "bilgi tabanı.txt" in result.stdout
@@ -160,7 +159,7 @@ def test_guided_html_report_uses_the_single_configured_data_directory(
     monkeypatch.chdir(working_directory)
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(data_dir))
 
-    result = runner.invoke(app, input=f"2\n{source}\ny\n")
+    result = runner.invoke(app, input=f"1\n{source}\ny\n")
 
     assert result.exit_code == 0
     reports = list((data_dir / "reports").glob("ragscanner-report-*.html"))
@@ -304,50 +303,19 @@ def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # ty
         return []
 
     monkeypatch.setattr("ragscanner.cli.discover_openwebui_services", fail_if_called)
-    result = runner.invoke(app, input="3\nn\n")
+    result = runner.invoke(app, input="2\nn\n")
     assert result.exit_code == 0
     assert called is False
     assert "in-session scan" in result.stdout
 
 
-def test_automatic_discovery_lists_supported_and_detected_environment_types(
-    monkeypatch,
-) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(
-        "ragscanner.cli.discover_local_rag_environments",
-        lambda **kwargs: [
-            RAGEnvironmentCandidate(
-                platform="openwebui",
-                base_url="http://127.0.0.1:3000",
-                discovery_status="reachable",
-                runtime="docker",
-                metadata_inventory_supported=True,
-            ),
-            RAGEnvironmentCandidate(
-                platform="qdrant",
-                base_url="http://127.0.0.1:6333",
-                discovery_status="detected",
-                runtime="podman",
-                metadata_inventory_supported=False,
-            ),
-        ],
-    )
-    monkeypatch.setattr(
-        "ragscanner.cli.discover_openwebui_knowledge_bases",
-        lambda base_url, api_key: [
-            KnowledgeBaseCandidate(id="kb-1", name="Engineering", description="Synthetic")
-        ],
-    )
-    monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", lambda *args, **kwargs: [])
-
-    result = runner.invoke(app, input="1\ny\ny\nsynthetic-api-key\n")
+def test_guided_menu_only_offers_supported_scan_routes() -> None:
+    result = runner.invoke(app, input="3\n")
 
     assert result.exit_code == 0
-    assert "openwebui at http://127.0.0.1:3000" in result.stdout
-    assert "qdrant at http://127.0.0.1:6333" in result.stdout
-    assert "connector not available yet" in result.stdout
-    assert "Engineering (kb-1)" in result.stdout
-    assert "synthetic-api-key" not in result.stdout
+    assert "1. A local file or folder" in result.stdout
+    assert "2. An OpenWebUI knowledge base (API)" in result.stdout
+    assert "Automatically discover local RAG environments" not in result.stdout
 
 
 def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
@@ -388,7 +356,7 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
         ],
     )
 
-    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\nn\n")
+    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\nn\n")
 
     assert result.exit_code == 0
     assert "http://127.0.0.1:49152" in result.stdout
@@ -422,7 +390,7 @@ def test_guided_openwebui_can_select_and_start_a_consented_content_scan(
         lambda selected, knowledge_id, api_key: started.append((selected, knowledge_id, api_key)),
     )
 
-    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\ny\n1\ny\n")
+    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\ny\n1\ny\n")
 
     assert result.exit_code == 0
     assert "Knowledge base to scan" in result.stdout
@@ -455,7 +423,7 @@ def test_guided_openwebui_keeps_knowledge_results_when_file_inventory_fails(
 
     monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", fail_inventory)
 
-    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\n")
+    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\n")
 
     assert result.exit_code == 0
     assert "Engineering (kb-1)" in result.stdout

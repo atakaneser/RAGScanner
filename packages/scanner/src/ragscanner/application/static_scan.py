@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ragscanner.application.jobs import JobCancellationRequested, JobCheckpoint, JobHandler
 from ragscanner.connectors import OpenWebUISourceConfig, OpenWebUISourceConnector
-from ragscanner.domain import SourceConnector
 from ragscanner.history import ScanHistoryRepository
 from ragscanner.jobs import JobKind, JobRecord
 from ragscanner.pipeline import (
@@ -144,41 +143,41 @@ class StaticScanApplicationService:
             api_key=api_key,
         )
         config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
-        try:
-            return self._run_connector(config, connector, checkpoint=checkpoint)
-        finally:
-            asyncio.run(connector.aclose())
+        return asyncio.run(self._run_openwebui_connector(config, connector, checkpoint=checkpoint))
 
-    def _run_connector(
+    async def _run_openwebui_connector(
         self,
         config: StaticPipelineConfig,
-        connector: SourceConnector,
+        connector: OpenWebUISourceConnector,
         *,
         checkpoint: JobCheckpoint | None,
     ) -> tuple[str, ReportDocument]:
-        pipeline_holder: dict[str, StaticScanPipeline] = {}
-        sink = (
-            _CheckpointEventSink(checkpoint, lambda: pipeline_holder["pipeline"])
-            if checkpoint is not None
-            else None
-        )
-        pipeline = StaticScanPipeline(
-            config,
-            connector=connector,
-            event_sink=sink,
-            single_source=False,
-        )
-        pipeline_holder["pipeline"] = pipeline
-        result = run_static_pipeline(pipeline)
-        report = build_pipeline_report(
-            result,
-            show_absolute_paths=False,
-            maximum_findings=config.maximum_findings,
-        )
-        history_id = self.history_repository.save(report)
-        if sink is not None and sink.cancellation_requested:
-            raise JobCancellationRequested(f"history:{history_id}")
-        return history_id, report
+        try:
+            pipeline_holder: dict[str, StaticScanPipeline] = {}
+            sink = (
+                _CheckpointEventSink(checkpoint, lambda: pipeline_holder["pipeline"])
+                if checkpoint is not None
+                else None
+            )
+            pipeline = StaticScanPipeline(
+                config,
+                connector=connector,
+                event_sink=sink,
+                single_source=False,
+            )
+            pipeline_holder["pipeline"] = pipeline
+            result = await pipeline.run()
+            report = build_pipeline_report(
+                result,
+                show_absolute_paths=False,
+                maximum_findings=config.maximum_findings,
+            )
+            history_id = self.history_repository.save(report)
+            if sink is not None and sink.cancellation_requested:
+                raise JobCancellationRequested(f"history:{history_id}")
+            return history_id, report
+        finally:
+            await connector.aclose()
 
 
 class StaticScanJobHandler(JobHandler):
