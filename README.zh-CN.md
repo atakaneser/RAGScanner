@@ -72,7 +72,8 @@ ragscanner uninstall
 ```
 
 `uninstall` 会要求确认。自动化可使用 `ragscanner uninstall --yes`。这些命令不启动 shell，
-而是委托给官方 `uv tool` 环境；`repair` 会完整重新安装，同时保留原始安装源和设置。
+而是委托给官方 `uv tool` 环境；`repair` 会完整重新安装，同时保留原始安装源和设置。在
+Windows 上，`uninstall` 会在启动器退出后安排删除，以避免锁定的可执行文件导致拒绝访问错误。
 
 发布到 PyPI 后，安装将使用 `uv tool install ragscanner`。目前尚未发布 PyPI 包或版本标签。
 

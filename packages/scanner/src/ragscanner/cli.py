@@ -6,6 +6,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Sequence
@@ -129,7 +130,7 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def _run_uv_tool(*arguments: str) -> None:
+def _uv_executable() -> str:
     uv = shutil.which("uv")
     if uv is None:
         typer.echo(
@@ -137,6 +138,11 @@ def _run_uv_tool(*arguments: str) -> None:
             err=True,
         )
         raise typer.Exit(code=1)
+    return uv
+
+
+def _run_uv_tool(*arguments: str) -> None:
+    uv = _uv_executable()
     result = subprocess.run([uv, "tool", *arguments], check=False)  # noqa: S603
     if result.returncode != 0:
         typer.echo(
@@ -144,6 +150,32 @@ def _run_uv_tool(*arguments: str) -> None:
             err=True,
         )
         raise typer.Exit(code=result.returncode)
+
+
+def _schedule_windows_uninstall(uv: str) -> None:
+    """Run uv after this Windows launcher has released its executable files."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", suffix=".cmd", prefix="ragscanner-uninstall-", delete=False
+    ) as script:
+        script.write(
+            "@echo off\r\n"
+            "ping 127.0.0.1 -n 3 > nul\r\n"
+            f'"{uv}" tool uninstall ragscanner\r\n'
+            'del "%~f0"\r\n'
+        )
+        script_path = script.name
+    try:
+        subprocess.Popen(  # noqa: S603
+            [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", script_path],
+            close_fds=True,
+            creationflags=(
+                getattr(subprocess, "DETACHED_PROCESS", 0)
+                | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            ),
+        )
+    except OSError:
+        Path(script_path).unlink(missing_ok=True)
+        raise
 
 
 def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
@@ -411,6 +443,13 @@ def uninstall(
     """Remove the installed RAGScanner tool through uv."""
     if not yes and not typer.confirm("Uninstall RAGScanner from this user account?"):
         typer.echo("Uninstall cancelled. No changes were made.")
+        return
+    if sys.platform == "win32":
+        try:
+            _schedule_windows_uninstall(_uv_executable())
+        except OSError as error:
+            raise typer.BadParameter(f"cannot schedule Windows uninstall: {error}") from error
+        typer.echo("RAGScanner uninstall is scheduled after this command exits.")
         return
     typer.echo("Uninstalling RAGScanner through uv...")
     _run_uv_tool("uninstall", "ragscanner")

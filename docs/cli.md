@@ -125,8 +125,11 @@ The default data root is `%LOCALAPPDATA%\RAGScanner` on Windows,
 
 - `ragscanner update` upgrades the installed uv tool environment.
 - `ragscanner repair` fully reinstalls that environment while retaining its source/settings.
-- `ragscanner uninstall` asks for confirmation and removes the uv tool environment.
+- `ragscanner uninstall` asks for confirmation and removes the uv tool environment. On Windows it
+  schedules the removal after the CLI launcher exits, avoiding locked-file access-denied failures.
 - `ragscanner uninstall --yes` is the non-interactive form.
 
 Maintenance commands invoke the resolved `uv` executable directly without a shell and preserve its
-exit status. They require an installation managed by `uv tool`.
+exit status. Windows uninstall uses a short-lived generated command file solely to defer the same
+direct `uv tool uninstall ragscanner` invocation until the launcher has exited. They require an
+installation managed by `uv tool`.

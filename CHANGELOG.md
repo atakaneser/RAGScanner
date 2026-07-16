@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Defer Windows `ragscanner uninstall` until its launcher exits, avoiding recurring locked-file
+  access-denied failures from `uv tool uninstall`.
+
 - Retry OpenWebUI knowledge-base metadata discovery once without pagination for compatible legacy
   or reverse-proxied installations, and show bounded redacted HTTP 400 diagnostics.
 - Classify malformed-PDF reader failures without including untrusted parser text in reports.

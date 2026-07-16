@@ -76,7 +76,8 @@ ragscanner uninstall
 
 `uninstall` onay ister. Otomasyonlar `ragscanner uninstall --yes` kullanabilir. Bu komutlar kabuk
 açmadan resmi `uv tool` ortamına yönlenir; `repair`, özgün kurulum kaynağını ve ayarları koruyarak tam
-yeniden kurulum yapar.
+yeniden kurulum yapar. Windows'ta `uninstall`, kilitli çalıştırılabilir dosyaların erişim reddi hatası
+oluşturmaması için kaldırma işlemini başlatıcı kapandıktan sonra zamanlar.
 
 PyPI sürümünden sonra kurulum `uv tool install ragscanner` komutunu kullanacaktır. Henüz PyPI paketi
 veya sürüm etiketi yayımlanmamıştır.
