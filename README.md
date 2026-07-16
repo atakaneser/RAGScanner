@@ -75,7 +75,8 @@ ragscanner uninstall
 
 `uninstall` asks for confirmation. Automation may use `ragscanner uninstall --yes`. These commands
 delegate to the official `uv tool` environment without a shell; `repair` performs a full reinstall
-while retaining the original installation source and settings.
+while retaining the original installation source and settings. On Windows, `uninstall` schedules
+the removal after its launcher exits so locked executable files do not cause an access-denied error.
 
 After a PyPI release, installation will use `uv tool install ragscanner`. No PyPI package or release
 tag has been published yet.

@@ -11,7 +11,8 @@
 - Python 3.12+ src-layout package locked with `uv`
 - Typer CLI, Pydantic environment configuration, and structured logging
 - Network-free `ragscanner doctor` and `ragscanner --version`
-- One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`
+- One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`, with
+  deferred Windows removal that avoids self-locking executable-file failures
 - English guided local scanning from a bare `ragscanner` command, bounded nearby-source discovery,
   consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint
   discovery, and separately consented authenticated knowledge-base plus linked/standalone file

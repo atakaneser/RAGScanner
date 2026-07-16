@@ -85,6 +85,37 @@ def test_uninstall_can_be_cancelled_without_external_change(monkeypatch) -> None
     assert "Uninstall cancelled" in result.stdout
 
 
+def test_windows_uninstall_is_deferred_until_the_launcher_exits(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    started: list[tuple[list[str], dict[str, object]]] = []
+
+    def popen(arguments: list[str], **kwargs: object) -> object:
+        started.append((arguments, kwargs))
+        return object()
+
+    monkeypatch.setattr("ragscanner.cli.sys.platform", "win32")
+    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "C:\\Tools\\uv.exe")
+    monkeypatch.setattr("ragscanner.cli.subprocess.Popen", popen)
+    monkeypatch.setattr(
+        "ragscanner.cli.subprocess.run",
+        lambda *args, **kwargs: pytest.fail("Windows uninstall must not run uv before exit"),
+    )
+
+    result = runner.invoke(app, ["uninstall", "--yes"])
+
+    assert result.exit_code == 0
+    assert "scheduled after this command exits" in result.stdout
+    assert len(started) == 1
+    script = Path(started[0][0][-1])
+    try:
+        content = script.read_text(encoding="utf-8")
+    finally:
+        script.unlink(missing_ok=True)
+    assert '"C:\\Tools\\uv.exe" tool uninstall ragscanner' in content
+    assert "ping 127.0.0.1 -n 3" in content
+
+
 def test_maintenance_command_reports_missing_uv_and_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: None)
     missing = runner.invoke(app, ["update"])
