@@ -587,6 +587,50 @@ def test_openwebui_knowledge_discovery_rejects_remote_hosts_and_auth_without_lea
     assert "synthetic-api-key" not in str(captured.value)
 
 
+def test_openwebui_knowledge_discovery_retries_without_pagination_on_http_400(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    requested: list[dict[str, int | bool]] = []
+
+    class Response:
+        def __init__(self, status_code: int, payload: object) -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.content = json.dumps(payload).encode()
+
+        def json(self) -> object:
+            return self._payload
+
+    def get(self, url: str, *, headers: dict[str, str], params: dict[str, int | bool]) -> Response:
+        requested.append(params)
+        if params:
+            return Response(400, {"detail": "Pagination is disabled by this proxy."})
+        return Response(200, [{"id": "kb-1", "name": "Legacy knowledge"}])
+
+    monkeypatch.setattr(httpx.Client, "get", get)
+
+    knowledge_bases = discover_openwebui_knowledge_bases(
+        "http://127.0.0.1:3000", "synthetic-api-key"
+    )
+
+    assert [item.id for item in knowledge_bases] == ["kb-1"]
+    assert requested == [{"page": 1}, {}]
+
+
+def test_openwebui_knowledge_discovery_reports_safe_http_400_detail(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    class Response:
+        status_code = 400
+        content = b'{"detail":"Knowledge API is disabled."}'
+
+        def json(self) -> dict[str, str]:
+            return {"detail": "Knowledge API is disabled."}
+
+    monkeypatch.setattr(httpx.Client, "get", lambda *args, **kwargs: Response())
+
+    with pytest.raises(OpenWebUIDiscoveryError, match="Knowledge API is disabled"):
+        discover_openwebui_knowledge_bases("http://127.0.0.1:3000", "synthetic-api-key")
+
+
 def test_openwebui_file_inventory_classifies_knowledge_linked_and_standalone_files(
     monkeypatch,
 ) -> None:  # type: ignore[no-untyped-def]

@@ -29,7 +29,8 @@
 - Versioned active security test library, response evaluation, and in-memory active runner
 - Root-confined filesystem connector for TXT, Markdown, PDF, and DOCX
 - Bounded PDF and DOCX parsers with typed failure categories and remediation metadata, including a
-  local text-only pypdf recovery pass for PDFs whose page structure PyMuPDF cannot read
+  local text-only pypdf recovery pass for PDFs whose page structure PyMuPDF cannot read and safe,
+  classified diagnostics when both local readers reject a PDF
 - Deterministic normalization, source mapping, and structure/paragraph/token-window chunking
 - Versioned offline static security rules covering ten categories
 - Exact and lexical near-duplicate analysis plus deterministic chunk-quality analysis
@@ -47,13 +48,16 @@
   OpenWebUI enqueue, cancellation, retry, consented environment/knowledge-base discovery, and a
   one-job local worker action with same-origin CSRF protection
 - HTML executive summary, assessment-coverage notice, and per-file ingestion remediation table
+- Opt-in detailed-report enrichment with a loopback Ollama model or explicitly consented HTTPS
+  OpenAI-compatible endpoint; it sends only bounded redacted finding summaries and validates
+  structured advisory output before writing a separate JSON or HTML artefact
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage
 - pytest, Ruff, strict mypy, and GitHub Actions
 
 ## Not available yet
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
-Health and RAG Rot formulas, semantic analysis, broader source connectors, incremental OpenWebUI
+Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, broader source connectors, incremental OpenWebUI
 synchronization, model providers, scheduler, configurable retention, dashboard scan detail and
 comparison, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.

@@ -300,11 +300,14 @@ class PdfParser:
         except PdfParserError:
             raise
         except (PdfReadError, KeyError, TypeError, ValueError, RecursionError) as error:
+            recovery_detail = self._recovery_error_detail(error)
             raise PdfParserError(
                 PdfParserErrorCategory.MALFORMED,
-                "PDF is malformed, incomplete, or uses an unsupported structure.",
+                "PDF is malformed, incomplete, or uses an unsupported structure."
+                + (f" Reader diagnosis: {recovery_detail}" if recovery_detail else ""),
                 remediation="Download the file again or export it as a valid PDF.",
             ) from error
+
         if page_count <= 0:
             raise PdfParserError(
                 PdfParserErrorCategory.ZERO_PAGES,
@@ -472,6 +475,22 @@ class PdfParser:
                 "recovery_parser": "pypdf",
             },
         )
+
+    @staticmethod
+    def _recovery_error_detail(error: Exception) -> str | None:
+        """Classify parser failures without exposing untrusted PDF content."""
+        message = str(error).casefold()
+        if "eof marker" in message:
+            return "the final PDF marker is missing"
+        if "xref" in message or "cross-reference" in message:
+            return "cross-reference data cannot be read"
+        if "trailer" in message:
+            return "trailer data cannot be read"
+        if "root object" in message:
+            return "the document root object is missing or invalid"
+        if "stream" in message:
+            return "a required PDF stream cannot be read"
+        return None
 
     def _validate_source(self, source: SourceContent) -> None:
         extension = PurePosixPath(source.item.path or source.item.name).suffix.casefold()
