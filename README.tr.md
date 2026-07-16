@@ -63,9 +63,9 @@ başlatabilir. Otomatik keşif yalnızca RAG odaklı ada sahip doğrudan klasör
 genel klasörleri RAG kaynağı saymaz. OpenWebUI keşfi açık onaydan sonra mevcut
 Docker, Podman, nerdctl veya Finch runtime’larından sınırlı metadata ile yaygın loopback adreslerini
 inceler. Ayrı olarak sağlanan ve yalnız bellekte tutulan API anahtarı, erişilebilir knowledge base’ler
-ile bunlara bağlı veya bağımsız/sohbet dosyalarının metadata envanterini çıkarabilir. Ayrı bir açık
-onaylı iş, seçilen tek bir OpenWebUI bilgi tabanındaki erişilebilir dosyaları alıp statik işlem
-hattını çalıştırabilir.
+ile bunlara bağlı veya bağımsız/sohbet dosyalarının metadata envanterini çıkarabilir. 3. seçenek,
+kullanıcının listelenen tek bir OpenWebUI bilgi tabanını seçmesine ve ayrı açık içerik onayından sonra
+statik işlem hattını aynı yerel süreçte çalıştırmasına izin verir.
 
 Kurulumu tek bir RAGScanner komutuyla yönetin veya kaldırın:
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Let guided OpenWebUI option 3 select a discovered knowledge base and start a separately consented
+  immediate local content scan, instead of ending after metadata inventory.
+
 - Stop automatic RAG discovery from suggesting generic Documents folders or the current working
   directory; it now lists only immediate folders with RAG-oriented names as unverified candidates.
 

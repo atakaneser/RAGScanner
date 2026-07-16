@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 import uvicorn
@@ -216,8 +217,40 @@ def _prompt_choice(prompt: str, choices: set[str], *, default: str) -> str:
         typer.echo(f"Invalid choice. Enter one of: {', '.join(sorted(choices))}")
 
 
-def _guided_openwebui_metadata(service_candidates: Sequence[ServiceCandidate]) -> None:
-    """List consented OpenWebUI metadata from one already-discovered local service."""
+def _guided_openwebui_content_scan(
+    service: ServiceCandidate,
+    knowledge_base_id: str,
+    api_key: str,
+) -> None:
+    """Run one consented OpenWebUI scan without persisting the supplied API key."""
+    secret_name = f"RAGSCANNER_GUIDED_OPENWEBUI_KEY_{uuid4().hex}"
+    output = new_report_path(get_settings().data_dir)
+    history_repository: SQLiteScanHistoryRepository | None = None
+    os.environ[secret_name] = api_key
+    try:
+        history_repository = SQLiteScanHistoryRepository(_history_database(None))
+        _, report = StaticScanApplicationService(history_repository).run_openwebui(
+            base_url=service.base_url,
+            knowledge_id=knowledge_base_id,
+            credential_ref=f"env:{secret_name}",
+            content_consent=True,
+        )
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(HtmlReporter().render(report), encoding="utf-8")
+    except (OSError, StorageError, ValueError) as error:
+        typer.echo(f"OpenWebUI content scan failed: {error}", err=True)
+        return
+    finally:
+        os.environ.pop(secret_name, None)
+        if history_repository is not None:
+            history_repository.close()
+    typer.echo(f"OpenWebUI content scan completed. Report written: {output}")
+
+
+def _guided_openwebui_metadata(
+    service_candidates: Sequence[ServiceCandidate], *, offer_content_scan: bool = False
+) -> None:
+    """List consented OpenWebUI metadata and optionally start one selected content scan."""
     if not service_candidates or not typer.confirm(
         "List accessible knowledge bases using an OpenWebUI API key?"
     ):
@@ -260,6 +293,31 @@ def _guided_openwebui_metadata(service_candidates: Sequence[ServiceCandidate]) -
     typer.echo(
         "Accessible OpenWebUI file inventory: "
         f"{linked_files} knowledge-linked, {standalone_files} standalone."
+    )
+    if not offer_content_scan or not knowledge_bases:
+        return
+    if not typer.confirm("Select a knowledge base and start a content scan now?", default=False):
+        typer.echo("No OpenWebUI content scan was started.")
+        return
+    for index, knowledge_base in enumerate(knowledge_bases, start=1):
+        typer.echo(f"  {index}. {knowledge_base.name}")
+    selected_index = int(
+        _prompt_choice(
+            "Knowledge base to scan",
+            {str(index) for index in range(1, len(knowledge_bases) + 1)},
+            default="1",
+        )
+    )
+    if not typer.confirm(
+        "I explicitly consent to retrieving accessible document content for this scan.",
+        default=False,
+    ):
+        typer.echo("OpenWebUI content scan was not started because consent was not granted.")
+        return
+    _guided_openwebui_content_scan(
+        selected,
+        knowledge_bases[selected_index - 1].id,
+        str(api_key),
     )
 
 
@@ -363,11 +421,10 @@ def _guided_onboarding() -> None:
                     )
             else:
                 typer.echo("No responsive OpenWebUI candidate was found on loopback.")
-        _guided_openwebui_metadata(service_candidates)
-        typer.echo("Metadata inventory does not retrieve document content.")
+        _guided_openwebui_metadata(service_candidates, offer_content_scan=True)
         typer.echo(
-            "To queue a consented content scan, use `ragscanner jobs enqueue-openwebui --help`, "
-            "then run `ragscanner worker`."
+            "Metadata inventory does not retrieve document content unless you explicitly select "
+            "and consent to an in-session scan."
         )
         return
     if choice == "4":

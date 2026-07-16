@@ -65,9 +65,9 @@ RAG et ne traite pas les dossiers généraux tels que Documents comme des source
 découverte OpenWebUI inspecte des métadonnées limitées des runtimes Docker, Podman, nerdctl ou Finch
 disponibles ainsi que les adresses loopback courantes. Une clé API fournie séparément et conservée
 uniquement en mémoire peut inventorier les bases de connaissances accessibles ainsi que les
-métadonnées des fichiers liés ou autonomes/de chat. Un job séparé avec consentement explicite peut
-récupérer les fichiers accessibles d’une base de connaissances OpenWebUI sélectionnée et exécuter
-le pipeline statique.
+métadonnées des fichiers liés ou autonomes/de chat. L’option 3 permet à l’utilisateur de sélectionner
+une base de connaissances OpenWebUI listée puis, après un consentement explicite distinct pour le
+contenu, d’exécuter le pipeline statique dans le même processus local.
 
 Entretenez ou supprimez l’installation avec une seule commande RAGScanner :
 

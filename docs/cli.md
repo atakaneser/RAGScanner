@@ -25,8 +25,9 @@ key held only in memory can inventory accessible knowledge bases plus linked and
 file metadata. Discovery itself does not retrieve document content or prove version compatibility.
 Knowledge-base results remain visible even if a later file-inventory endpoint is unavailable. The
 inventory uses the selected knowledge bases' supported file endpoints and does not request file
-content. The flow then points to the separate consent-gated `jobs enqueue-openwebui` content
-workflow.
+content. In option 3, the flow offers a numbered knowledge-base selection and a separate
+content-consent prompt before it starts one immediate local scan. The API key remains only in the
+CLI process memory; durable `jobs enqueue-openwebui` remains available for automation.
 
 The dashboard at `http://127.0.0.1:8000` offers the same consented local environment discovery,
 can transfer a discovered reachable OpenWebUI URL into its scan form, and can list knowledge bases
