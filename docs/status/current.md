@@ -56,6 +56,12 @@
 - Browser-tested local Jinja dashboard for scan posture, recent history, durable jobs, local and
   OpenWebUI enqueue, cancellation, retry, consented environment/knowledge-base discovery, and a
   one-job local worker action with same-origin CSRF protection
+- Full local product navigation for Sources, Jobs, Reports, and Settings; remembered non-secret
+  source profiles; date/source report filtering; report detail; and coverage-aware comparison
+- Bounded Kubernetes service and common vector-platform localhost discovery in addition to
+  Docker, Podman, nerdctl, and Finch metadata inventory
+- Guided local and OpenWebUI scans persist reports for dashboard viewing instead of creating a
+  standalone HTML file by default; explicit CLI export formats remain available
 - HTML executive summary, assessment-coverage notice, and per-file ingestion remediation table
 - Opt-in detailed-report enrichment with a loopback Ollama model or explicitly consented HTTPS
   OpenAI-compatible endpoint; it sends only bounded redacted finding summaries and validates
@@ -67,8 +73,8 @@
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
 Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, broader source connectors, incremental OpenWebUI
-synchronization, source profiles with remembered consent, filesystem watch, scheduler, configurable retention, dashboard scan detail and
-comparison, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
+synchronization, remembered per-source content consent, filesystem watch, scheduler, configurable
+retention, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.
 
 Qdrant, Chroma, Weaviate, Milvus, and pgvector containers can be detected from bounded local runtime
@@ -81,7 +87,7 @@ Domain models do not perform scans and contain no network, filesystem, database,
 1. Complete persistence concurrency/recovery hardening and history/comparison filter/scale acceptance.
 2. Define capability-tiered SharePoint, web/sitemap, SaaS knowledge, Git, object-store, vector-store,
    and generic RAG-environment connectors.
-3. Add scheduling, retention, and dashboard scan detail/comparison/settings surfaces.
+3. Add scheduling, retention, recurring jobs, and report-localization surfaces.
 4. Resolve OpenWebUI compatibility, change detection, source identity, and broader secret providers.
 
 ## Next scoped issue

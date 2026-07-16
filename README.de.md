@@ -39,8 +39,11 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Dauerhafte SQLite-Static-Scan-Jobs und Worker | Verfügbar |
 | Bereichsgebundene authentifizierte asynchrone Scan-/Job-API | Auf Loopback verfügbar |
 | Lokales Übersichts- und Warteschlangen-Dashboard | Mit `ragscanner serve` verfügbar |
+| Dashboard-Berichtsarchiv mit Datums-/Quellenfiltern, Details und Vergleich | Verfügbar |
+| Dauerhafte, nicht geheime Quellenprofile und Sources-/Settings-Verwaltung | Verfügbar |
 | Lokaler Agent pro Benutzer für ein stets bereites Dashboard und dauerhafte Job-Verarbeitung | Verfügbar |
 | Maschinenlokaler Host Service mit lokaler Administrator-Ersteinrichtung | Verfügbar |
+| Metadatenerkennung für Docker, Podman, nerdctl, Finch, Kubernetes und localhost | Verfügbar |
 | Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
 | Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
 | ModelProvider-/BYOM-Integration | Noch nicht verfügbar |
@@ -228,7 +231,7 @@ Die unmittelbare Reihenfolge lautet:
 1. Verbleibende Wiederherstellung der Persistenz und Verlauf/Vergleich im API-Maßstab
 2. Fähigkeitsgestufte SharePoint-, Web-, SaaS-, Git-, Objektspeicher- und Vektorkonnektoren
 3. OpenWebUI-Kompatibilität, inkrementelle Änderungserkennung, Quellenidentität und Secret-Anbieter
-4. Dashboard-Scandetails, Vergleich, Konnektoreinstellungen und Barrierefreiheitsabnahme
+4. Planung, Aufbewahrung, wiederkehrende Jobs und Lokalisierung der Berichtsoberfläche
 5. Scheduler, Aufbewahrung und Benachrichtigungen
 6. Härtung von Paketierung und Bereitstellung
 

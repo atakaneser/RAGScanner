@@ -3,164 +3,147 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RAGScanner · Overview</title>
+  <title>RAGScanner · {{ page|replace('_', ' ')|title }}</title>
   <link rel="stylesheet" href="/dashboard-assets/dashboard.css">
   <script defer src="/dashboard-assets/dashboard.js"></script>
 </head>
-<body>
+<body class="drawer-collapsed">
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary navigation">
-      <a class="wordmark" href="/">RAG<span>Scanner</span></a>
+      <a class="wordmark" href="/"><span>RAG</span>Scanner</a>
       <nav>
-        <a class="nav-item active" href="#overview">Overview</a>
-        <a class="nav-item" href="#scans">Scans</a>
-        <a class="nav-item" href="#jobs">Jobs</a>
-        <a class="nav-item" href="#sources">Sources</a>
-        <a class="nav-item" href="#settings">Settings</a>
+        <a class="nav-item {{ 'active' if page == 'overview' }}" href="/">Overview</a>
+        <a class="nav-item {{ 'active' if page == 'sources' }}" href="/sources">Sources</a>
+        <a class="nav-item {{ 'active' if page == 'jobs' }}" href="/jobs">Jobs</a>
+        <a class="nav-item {{ 'active' if page in ['reports', 'report_detail', 'compare'] }}" href="/reports">Reports</a>
+        <a class="nav-item {{ 'active' if page == 'settings' }}" href="/settings">Settings</a>
       </nav>
-      <div class="local-mode"><i></i><span>Local Agent</span><small>Private to this device</small></div>
+      <div class="sidebar-footer">
+        <div class="service-health"><i></i><span>Local service healthy</span></div>
+        {% if host_auth_enabled %}<form method="post" action="/logout"><button class="text-button" type="submit">Sign out</button></form>{% endif %}
+      </div>
     </aside>
 
-    <main class="workspace" id="overview">
+    <main class="workspace">
       <header class="topbar">
-        <strong>Overview</strong>
+        <strong>{{ page|replace('_', ' ')|title }}</strong>
         <div class="topbar-actions">
-          {% if host_auth_enabled %}<form method="post" action="/logout"><button class="secondary small" type="submit">Sign out</button></form>{% endif %}
-          <button class="primary" type="button" data-open-drawer>New scan</button>
+          <a class="secondary" href="/reports">Search reports</a>
+          <button class="primary" type="button" data-open-drawer>Create job</button>
         </div>
       </header>
       <div class="content">
-        <section class="page-heading">
-          <h1>Overview</h1>
-          <p>Private, local-first RAG security and health posture.</p>
-        </section>
         {% if notice %}
         <p class="notice" role="status">
-          {% if notice == "scan-queued" %}Scan job queued. The local Agent will process it automatically when installed.
+          {% if notice == "scan-queued" %}Scan job queued. The Host Service will process it.
           {% elif notice == "job-completed" %}The next queued job was processed.
           {% elif notice == "no-queued-job" %}There was no queued job to process.
           {% elif notice == "job-cancelled" %}Job cancellation was requested.
           {% elif notice == "job-retried" %}Job was requeued.
-          {% else %}The requested action could not be completed. Check the required consent and values.
+          {% elif notice == "source-saved" %}Source profile saved.
+          {% elif notice == "source-deleted" %}Source profile deleted.
+          {% else %}The requested action could not be completed. Check the supplied values.
           {% endif %}
         </p>
         {% endif %}
 
+        {% if page == 'overview' %}
+        <section class="page-heading"><h1>Overview</h1><p>Your local RAG security and content-quality workspace.</p></section>
         <section class="status-band" aria-label="Current scan posture">
-          <div class="status-item risk">
-            <span class="status-label">Risk posture</span>
-            <strong>{{ "Review required" if latest and latest.finding_count else "No detected findings" }}</strong>
-            <small>{{ latest.finding_count if latest else 0 }} finding(s) in the latest scan</small>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Assessment coverage</span>
-            <strong>{{ coverage }}%</strong>
-            <small>Assessed and partially assessed checks</small>
-          </div>
-          <div class="status-item agent-status">
-            <span class="status-label">Background processing</span>
-            <strong>Local Agent</strong>
-            <small>Install once to process queued scans automatically.</small>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Last scan</span>
-            <strong>{{ latest.status|replace("_", " ")|title if latest else "No scans yet" }}</strong>
-            <small>{{ latest.created_at|display_timestamp if latest else "Queue the first scan to begin" }}</small>
-          </div>
+          <div class="status-item"><span>Latest findings</span><strong>{{ latest.finding_count if latest else 0 }}</strong><small>{{ latest.source_name if latest else 'No scans yet' }}</small></div>
+          <div class="status-item"><span>Assessment coverage</span><strong>{{ coverage }}%</strong><small>Assessed and partially assessed checks</small></div>
+          <div class="status-item"><span>Sources</span><strong>{{ profiles|length }}</strong><small>{{ profiles|selectattr('enabled')|list|length }} enabled profile(s)</small></div>
+          <div class="status-item"><span>Queued work</span><strong>{{ jobs|selectattr('status.value', 'equalto', 'queued')|list|length }}</strong><small>The Host Service processes jobs continuously</small></div>
+        </section>
+        <section class="data-section">
+          <div class="section-heading"><h2>Recent reports</h2><a href="/reports">View all {{ scan_total }}</a></div>
+          {% include 'report_rows.html' %}
+        </section>
+        <section class="data-section">
+          <div class="section-heading"><h2>Recent jobs</h2><a href="/jobs">View all {{ job_total }}</a></div>
+          {% include 'job_rows.html' %}
         </section>
 
-        <section class="data-section" id="scans">
-          <div class="section-heading"><h2>Recent scans</h2><span>{{ scan_total }} total</span></div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Execution ID</th><th>Source</th><th>Risk</th><th>Status</th><th>Findings</th><th>Finished</th></tr></thead>
-              <tbody>
-              {% for scan in scans %}
-                <tr>
-                  <td><code>{{ scan.history_id[:12] }}</code></td>
-                  <td>{{ scan.source_name or "Unknown source" }}</td>
-                  <td>{{ "Review" if scan.finding_count else "Low" }}</td>
-                  <td><span class="state state-{{ scan.status }}">{{ scan.status|replace("_", " ") }}</span></td>
-                  <td>{{ scan.finding_count }}</td>
-                  <td>{{ (scan.completed_at or scan.created_at)|display_timestamp }}</td>
-                </tr>
-              {% else %}
-                <tr><td class="empty" colspan="6">No scan history yet. Queue a scan to create the first report.</td></tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        {% elif page == 'sources' %}
+        <section class="page-heading split-heading"><div><h1>Sources</h1><p>Remember environments without storing secret values.</p></div><button class="secondary" type="button" data-discover-environments>Scan local environment</button></section>
+        <div class="privacy-line">Discovery checks bounded Docker, Podman, nerdctl, Finch, Kubernetes, and common localhost metadata. It never reads document content.</div>
+        <p class="field-note" data-discovery-status aria-live="polite"></p>
+        <div class="environment-list" data-discovery-results></div>
+        <section class="data-section">
+          <div class="section-heading"><h2>Connected sources</h2><span>{{ profiles|length }} total</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Capability</th><th>Origin</th><th></th></tr></thead><tbody>
+          {% for profile in profiles %}<tr><td><strong>{{ profile.name }}</strong></td><td>{{ profile.kind }}</td><td><code>{{ profile.local_path or profile.base_url }}</code></td><td><span class="capability capability-{{ profile.capability_status }}">{{ profile.capability_status|replace('_', ' ') }}</span></td><td>{{ profile.discovery_origin }}</td><td><form method="post" action="/dashboard/sources/{{ profile.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="text-button danger" type="submit">Remove</button></form></td></tr>
+          {% else %}<tr><td class="empty" colspan="6">No source profiles yet. Discover the machine or add one manually.</td></tr>{% endfor %}
+          </tbody></table></div>
         </section>
-
-        <section class="data-section" id="jobs">
-          <div class="section-heading"><h2>Durable jobs</h2><span>{{ job_total }} total</span></div>
-          <form method="post" action="/dashboard/worker/run-once" class="inline-control">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="secondary small" type="submit">Process one job now</button>
+        <section class="form-section">
+          <div><h2>Add source manually</h2><p>OpenWebUI and filesystem profiles can create scan jobs now. Other detected platforms are saved as inventory until their content connector is available.</p></div>
+          <form class="settings-form" method="post" action="/dashboard/sources">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="discovery_origin" value="manual">
+            <label>Name<input name="name" required maxlength="160" placeholder="Product knowledge"></label>
+            <label>Type<select name="kind"><option value="openwebui">OpenWebUI</option><option value="filesystem">File or folder</option><option value="qdrant">Qdrant</option><option value="chroma">Chroma</option><option value="weaviate">Weaviate</option><option value="milvus">Milvus</option><option value="pgvector">pgvector</option><option value="generic">Other environment</option></select></label>
+            <label class="wide">URL or local path<input name="location" required maxlength="4096" placeholder="http://127.0.0.1:3000 or /srv/knowledge"></label>
+            <label class="wide">Credential reference (optional)<input name="credential_ref" maxlength="500" placeholder="env:OPENWEBUI_API_KEY"><small>Only a reference is stored. The secret remains outside SQLite.</small></label>
+            <button class="primary" type="submit">Save source</button>
           </form>
-          <p class="field-note">For continuous processing, run <code>ragscanner agent install</code> once. The Agent is local to this user account.</p>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Job ID</th><th>Source</th><th>Status</th><th>Progress</th><th>Attempts</th><th>Actions</th></tr></thead>
-              <tbody>
-              {% for job in jobs %}
-                <tr>
-                  <td><code>{{ job.id[:12] }}</code></td>
-                  <td>{{ job.payload.get("path") or job.payload.get("openwebui_knowledge_id") or "Configured source" }}</td>
-                  <td><span class="state state-{{ job.status.value }}">{{ job.status.value|replace("_", " ") }}</span></td>
-                  <td><div class="progress"><span style="width: {{ (job.progress * 100)|round|int }}%"></span></div><small>{{ (job.progress * 100)|round|int }}%</small></td>
-                  <td>{{ job.attempt_count }}/{{ job.max_attempts }}</td>
-                  <td class="actions">
-                    {% if job.status.value in ["queued", "running"] %}
-                    <form method="post" action="/dashboard/jobs/{{ job.id }}/cancel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary small" type="submit">Cancel</button></form>
-                    {% elif job.status.value in ["failed", "cancelled"] %}
-                    <form method="post" action="/dashboard/jobs/{{ job.id }}/retry"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary small" type="submit">Retry</button></form>
-                    {% else %}—{% endif %}
-                  </td>
-                </tr>
-              {% else %}
-                <tr><td class="empty" colspan="6">No durable jobs yet.</td></tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
         </section>
+
+        {% elif page == 'jobs' %}
+        <section class="page-heading split-heading"><div><h1>Jobs</h1><p>Create, monitor, cancel, and retry durable local work.</p></div><button class="primary" type="button" data-open-drawer>Create job</button></section>
+        <div class="toolbar"><form method="post" action="/dashboard/worker/run-once"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary" type="submit">Process one now</button></form><span>The machine-wide Host Service normally processes this queue automatically.</span></div>
+        {% include 'job_rows.html' %}
+
+        {% elif page == 'reports' %}
+        <section class="page-heading"><h1>Reports</h1><p>Every completed job is stored here as a versioned local report—not as a loose HTML file.</p></section>
+        <form class="filter-bar" method="get" action="/reports">
+          <label>From<input type="date" name="from" value="{{ request.query_params.get('from', '') }}"></label>
+          <label>To<input type="date" name="to" value="{{ request.query_params.get('to', '') }}"></label>
+          <label>Source<select name="source"><option value="">All sources</option>{% for item in all_scans|map(attribute='source_name')|unique %}{% if item %}<option value="{{ item }}" {{ 'selected' if request.query_params.get('source') == item }}>{{ item }}</option>{% endif %}{% endfor %}</select></label>
+          <button class="secondary" type="submit">Apply filters</button><a class="text-button" href="/reports">Clear</a>
+        </form>
+        <form method="get" action="/compare" data-compare-form>
+          <div class="selection-bar"><span>Select exactly two reports to compare.</span><button class="primary small" type="submit" data-compare-button disabled>Compare selected</button></div>
+          {% include 'report_rows.html' %}
+        </form>
+
+        {% elif page == 'report_detail' and selected_report %}
+        <section class="page-heading split-heading"><div><a class="back-link" href="/reports">← Reports</a><h1>{{ selected_report.scan.get('source_name') or 'Scan report' }}</h1><p>Run {{ selected_report.generated_at|display_timestamp }} · {{ selected_report.scan.get('status', 'unknown')|replace('_', ' ') }}</p></div><a class="secondary" href="/reports?source={{ selected_report.scan.get('source_name', '')|urlencode }}">More from this source</a></section>
+        <section class="report-summary">
+          <div class="score-block"><span>Overall score</span><strong>{{ selected_report.scores.get('overall') if selected_report.scores.get('overall') is not none else 'Not assessed' }}</strong></div>
+          {% for severity in ['critical', 'high', 'medium', 'low', 'informational'] %}<div><span>{{ severity|title }}</span><strong>{{ selected_report.severity_summary.get(severity, 0) }}</strong></div>{% endfor %}
+        </section>
+        {% if selected_report.ingestion_issues %}<p class="coverage-warning">{{ selected_report.ingestion_issues|length }} ingestion issue(s) reduced report coverage. Review them below.</p>{% endif %}
+        <section class="data-section"><div class="section-heading"><h2>Findings</h2><span>{{ selected_report.findings|length }} total</span></div><div class="finding-list">
+        {% for finding in selected_report.findings %}<article class="finding"><div><span class="severity severity-{{ finding.severity.value }}">{{ finding.severity.value }}</span><h3>{{ finding.title }}</h3><p>{{ finding.impact }}</p></div><dl><dt>Rule</dt><dd>{{ finding.rule_id }}</dd><dt>Evidence</dt><dd>{{ finding.evidence }}</dd><dt>Recommendation</dt><dd>{{ finding.recommendation }}</dd></dl></article>
+        {% else %}<p class="empty">No findings were detected within assessed coverage.</p>{% endfor %}</div></section>
+        <section class="data-section"><div class="section-heading"><h2>Coverage and ingestion</h2></div><div class="table-wrap"><table><thead><tr><th>Path</th><th>Stage</th><th>Issue</th><th>Remediation</th></tr></thead><tbody>{% for issue in selected_report.ingestion_issues %}<tr><td>{{ issue.path }}</td><td>{{ issue.stage }}</td><td>{{ issue.message }}</td><td>{{ issue.remediation or 'Review the source file.' }}</td></tr>{% else %}<tr><td class="empty" colspan="4">No ingestion issues recorded.</td></tr>{% endfor %}</tbody></table></div></section>
+
+        {% elif page == 'compare' and comparison %}
+        <section class="page-heading"><a class="back-link" href="/reports">← Reports</a><h1>Report comparison</h1><p>Coverage-aware changes between two saved executions.</p></section>
+        {% for warning in comparison.warnings %}<p class="coverage-warning">{{ warning }}</p>{% endfor %}
+        <section class="comparison-grid"><div><span>New findings</span><strong>{{ comparison.new_findings|length }}</strong></div><div><span>Resolved</span><strong>{{ comparison.resolved_findings|length }}</strong></div><div><span>Not observed</span><strong>{{ comparison.not_observed_findings|length }}</strong></div><div><span>Recurring</span><strong>{{ comparison.recurring_findings|length }}</strong></div></section>
+        <section class="data-section"><div class="section-heading"><h2>Score changes</h2></div><div class="table-wrap"><table><thead><tr><th>Metric</th><th>Baseline</th><th>Candidate</th><th>Change</th></tr></thead><tbody>{% for score in comparison.score_changes %}<tr><td>{{ score.name|replace('_', ' ')|title }}</td><td>{{ score.baseline|round(1) if score.baseline is not none else '—' }}</td><td>{{ score.candidate|round(1) if score.candidate is not none else '—' }}</td><td>{{ score.delta|round(1) if score.delta is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div></section>
+        {% for title, items in [('New findings', comparison.new_findings), ('Resolved findings', comparison.resolved_findings), ('Not observed', comparison.not_observed_findings), ('Severity changes', comparison.severity_changes)] %}{% if items %}<section class="data-section"><div class="section-heading"><h2>{{ title }}</h2><span>{{ items|length }}</span></div><div class="finding-list compact">{% for item in items %}<article class="finding"><div><h3>{{ item.title }}</h3><p>{{ item.rule_id }}</p></div><strong>{{ item.baseline_severity or '—' }} → {{ item.candidate_severity or '—' }}</strong></article>{% endfor %}</div></section>{% endif %}{% endfor %}
+
+        {% elif page == 'settings' %}
+        <section class="page-heading"><h1>Settings</h1><p>Machine-local service, privacy, and connector configuration.</p></section>
+        <section class="settings-list"><div><h2>Service</h2><p>RAGScanner is running as a machine-wide local Host Service. Jobs continue while no desktop user is signed in.</p><span class="capability capability-scan_ready">Healthy</span></div><div><h2>Reports</h2><p>Reports are stored as redacted, versioned SQLite snapshots and viewed in this dashboard. CLI JSON output remains available for automation.</p></div><div><h2>Sources</h2><p>Connect more environments from the Sources page. Credential values are never stored in source profiles.</p><a class="secondary" href="/sources">Manage sources</a></div><div><h2>Discovery privacy</h2><p>Automatic discovery is manual, bounded, and metadata-only. Document content is read only by a scan job for a scan-ready connector.</p></div></section>
+        {% endif %}
       </div>
     </main>
 
-    <aside class="scan-drawer" aria-label="New scan" data-drawer>
-      <div class="drawer-heading"><h2>New scan</h2><button class="icon-button" type="button" aria-label="Close new scan" data-close-drawer>×</button></div>
-      <section class="discovery-panel" aria-labelledby="discovery-heading">
-        <h3 id="discovery-heading">Automatic discovery</h3>
-        <p>Inspect only local runtime metadata and approved loopback health endpoints. No document content is read.</p>
-        <label class="consent compact"><input type="checkbox" data-metadata-consent> <span>I consent to local RAG environment discovery.</span></label>
-        <button class="secondary full" type="button" data-discover-environments>Discover local environments</button>
-        <p class="field-note" data-discovery-status aria-live="polite"></p>
-        <ul class="discovery-results" data-discovery-results></ul>
-      </section>
-      <div class="source-tabs" role="tablist">
-        <button class="source-tab active" type="button" data-source="local">Local files</button>
-        <button class="source-tab" type="button" data-source="openwebui">OpenWebUI</button>
-      </div>
+    <aside class="scan-drawer" aria-label="Create job" data-drawer>
+      <div class="drawer-heading"><h2>Create job</h2><button class="icon-button" type="button" aria-label="Close" data-close-drawer>×</button></div>
+      <p class="drawer-intro">Choose a scan-ready source. The Host Service will process the job and save its report in Reports.</p>
+      <label class="profile-picker">Saved source<select data-profile-picker><option value="">Enter details manually</option>{% for profile in profiles %}<option value="{{ profile.id }}" data-kind="{{ profile.kind }}" data-location="{{ profile.local_path or profile.base_url }}" data-credential="{{ profile.credential_ref or '' }}" {{ 'disabled' if profile.capability_status != 'scan_ready' }}>{{ profile.name }} · {{ profile.capability_status|replace('_', ' ') }}</option>{% endfor %}</select></label>
+      <div class="source-tabs" role="tablist"><button class="source-tab active" type="button" data-source="local">File or folder</button><button class="source-tab" type="button" data-source="openwebui">OpenWebUI</button></div>
       <form class="scan-form" method="post" action="/dashboard/scans/local" data-form="local">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="idempotency_key" value="dashboard-local-{{ request_id }}">
-        <label>Local path<input name="path" required placeholder="/data/rag/corpus" autocomplete="off"></label>
-        <p class="field-note">An explicit file or directory readable by the worker.</p>
-        <label class="consent"><input type="checkbox" name="scan_consent" value="true" required> <span>I confirm I have permission to scan this data and understand the scan runs locally.</span></label>
-        <button class="primary full" type="submit">Queue scan</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="idempotency_key" value="dashboard-local-{{ request_id }}"><input type="hidden" name="scan_consent" value="true">
+        <label>Local path<input name="path" required placeholder="/srv/knowledge" autocomplete="off" data-local-path></label><p class="field-note">The path must be readable by the machine-wide service account.</p><button class="primary full" type="submit">Queue scan</button>
       </form>
       <form class="scan-form hidden" method="post" action="/dashboard/scans/openwebui" data-form="openwebui">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="idempotency_key" value="dashboard-openwebui-{{ request_id }}">
-        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000" data-openwebui-url></label>
-        <label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label>
-        <p class="field-note">Use an environment reference shared by the dashboard and worker. The credential value remains outside the database.</p>
-        <button class="secondary full" type="button" data-load-knowledge-bases>Load knowledge bases</button>
-        <label>Discovered knowledge base<select data-knowledge-bases><option value="">Load knowledge bases first</option></select></label>
-        <label>Knowledge ID<input name="knowledge_id" required placeholder="Select above or enter an identifier" data-knowledge-id></label>
-        <label class="consent"><input type="checkbox" name="content_consent" value="true" required> <span>I explicitly consent to retrieving accessible OpenWebUI document content for this scan.</span></label>
-        <button class="primary full" type="submit">Queue scan</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="idempotency_key" value="dashboard-openwebui-{{ request_id }}"><input type="hidden" name="content_consent" value="true">
+        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000" data-openwebui-url></label><label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label><button class="secondary full" type="button" data-load-knowledge-bases>Load knowledge bases</button><label>Knowledge base<select data-knowledge-bases><option value="">Load knowledge bases first</option></select></label><label>Knowledge ID<input name="knowledge_id" required data-knowledge-id></label><p class="field-note" data-discovery-status aria-live="polite"></p><button class="primary full" type="submit">Queue scan</button>
       </form>
     </aside>
   </div>

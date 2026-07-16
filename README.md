@@ -38,8 +38,11 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Durable SQLite static-scan jobs and worker | Available |
 | Scoped authenticated asynchronous scan/job API | Available on loopback |
 | Local overview and queue dashboard | Available with `ragscanner serve` |
+| Dashboard report archive, date/source filters, detail, and comparison | Available |
+| Remembered non-secret source profiles and Settings/Sources management | Available |
 | Per-user Local Agent for an always-ready dashboard and durable job processing | Available |
 | Machine-local Host Service with local administrator bootstrap | Available |
+| Docker, Podman, nerdctl, Finch, Kubernetes, and localhost metadata discovery | Available |
 | Consent-gated OpenWebUI knowledge content connector | Available |
 | Scheduler and vector-store content connectors | Not available yet |
 | ModelProvider/BYOM integration | Not available yet |
@@ -60,10 +63,14 @@ ragscanner doctor
 ragscanner
 ```
 
-The bare command opens an English onboarding flow. It asks which source you use and can start a
-scan. Automatic discovery only suggests immediate folders with RAG-oriented names; it does not
+The bare command opens an English onboarding flow. `ragscanner setup` first asks whether setup
+continues in the web dashboard or CLI, then offers OpenWebUI, another RAG environment, or a
+temporary file/folder scan. The web setup creates the machine-local administrator and can remember
+the first non-secret source profile. Additional environments can be connected later from Sources.
+Automatic filesystem discovery only suggests immediate folders with RAG-oriented names; it does not
 treat general folders such as Documents as RAG sources. After explicit consent, OpenWebUI discovery inspects
-bounded metadata from available Docker, Podman, nerdctl, or Finch runtimes plus common loopback
+bounded metadata from available Docker, Podman, nerdctl, Finch, or the active Kubernetes context,
+plus common loopback
 addresses. A separately supplied in-memory API key can inventory accessible knowledge bases plus
 knowledge-linked and standalone/chat files. Option 2 then lets the user select one listed OpenWebUI
 knowledge base and, after separate explicit content consent, run the static pipeline in the same
@@ -103,7 +110,7 @@ ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/manual.pdf
 ```
 
-Create reports:
+Create explicit export files for automation or compatibility:
 
 ```bash
 ragscanner scan ./knowledge-base --format json --output report.json
@@ -118,6 +125,11 @@ ragscanner history list
 ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
 ragscanner serve
 ```
+
+Guided CLI scans and dashboard jobs save a versioned report snapshot to local history and do not
+create standalone HTML files. Open Reports in the dashboard to filter by date/source, inspect a
+report, or compare two executions. Direct `--format json` and `--format html` exports remain
+available when a caller explicitly requests an output file.
 
 Queue durable scans and run the worker:
 

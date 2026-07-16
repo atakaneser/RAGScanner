@@ -4,7 +4,7 @@ import hmac
 import os
 import secrets
 from collections.abc import Mapping
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -28,7 +28,12 @@ from ragscanner.onboarding import (
     discover_local_rag_environments,
     discover_openwebui_knowledge_bases,
 )
-from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
+from ragscanner.storage import (
+    SourceProfile,
+    SQLiteJobRepository,
+    SQLiteScanHistoryRepository,
+    SQLiteSourceProfileRepository,
+)
 
 DASHBOARD_ASSET_ROOT = Path(__file__).with_name("templates")
 templates = Jinja2Templates(directory=DASHBOARD_ASSET_ROOT)
@@ -73,19 +78,60 @@ def register_dashboard(
             return RedirectResponse("/", status_code=303)
         if administrator_store.configured:
             return RedirectResponse("/login", status_code=303)
-        return templates.TemplateResponse(request, "setup.html", {"error": ""})
+        csrf_token = request.cookies.get("ragscanner_csrf") or secrets.token_urlsafe(32)
+        response = templates.TemplateResponse(
+            request, "setup.html", {"error": "", "csrf_token": csrf_token}
+        )
+        _set_csrf_cookie(response, csrf_token)
+        return response
+
+    @app.post("/setup/discovery", include_in_schema=False)
+    async def setup_discovery(
+        request: Request,
+        csrf_token: Annotated[str, Form()],
+    ) -> JSONResponse:
+        _validate_csrf(request, csrf_token)
+        return await _environment_inventory_response()
 
     @app.post("/setup", response_class=HTMLResponse, response_model=None, include_in_schema=False)
     async def create_local_administrator(
         request: Request,
         username: Annotated[str, Form(min_length=3, max_length=80)],
         password: Annotated[str, Form(min_length=14, max_length=512)],
+        csrf_token: Annotated[str, Form()],
+        interface_mode: Annotated[str, Form(pattern=r"^(web|cli)$")] = "web",
+        source_mode: Annotated[
+            str, Form(pattern=r"^(openwebui|environment|temporary_folder)$")
+        ] = "openwebui",
+        source_name: Annotated[str | None, Form(max_length=160)] = None,
+        source_location: Annotated[str | None, Form(max_length=4096)] = None,
+        credential_ref: Annotated[str | None, Form(max_length=500)] = None,
     ) -> HTMLResponse | RedirectResponse:
         if administrator_store is None:
             return RedirectResponse("/", status_code=303)
+        _validate_csrf(request, csrf_token)
         try:
+            pending_profile = None
+            if source_location and source_mode != "temporary_folder":
+                kind = "openwebui" if source_mode == "openwebui" else "generic"
+                pending_profile = SourceProfile(
+                    name=(source_name or kind).strip(),
+                    kind=kind,
+                    base_url=source_location.strip(),
+                    credential_ref=credential_ref.strip() if credential_ref else None,
+                    discovery_origin="setup",
+                    capability_status=("scan_ready" if kind == "openwebui" else "metadata_only"),
+                )
             administrator_store.create(username, password)
             session = administrator_store.issue_session(username.strip())
+            sources = SQLiteSourceProfileRepository(database_path)
+            try:
+                sources.set_setting("interface_mode", interface_mode)
+                sources.set_setting("initial_source_mode", source_mode)
+                if pending_profile is not None:
+                    sources.save(pending_profile)
+            finally:
+                sources.close()
         except ValueError as error:
             return templates.TemplateResponse(request, "setup.html", {"error": str(error)})
         response = RedirectResponse("/", status_code=303)
@@ -125,18 +171,41 @@ def register_dashboard(
         response.delete_cookie("ragscanner_session")
         return response
 
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard(request: Request) -> HTMLResponse:
+    def render_dashboard(
+        request: Request,
+        *,
+        page: str,
+        report_id: str | None = None,
+        baseline_id: str | None = None,
+        candidate_id: str | None = None,
+    ) -> HTMLResponse:
         jobs_repository = SQLiteJobRepository(database_path)
         history_repository = SQLiteScanHistoryRepository(database_path)
+        source_repository = SQLiteSourceProfileRepository(database_path)
         try:
-            jobs = JobApplicationService(jobs_repository).list(limit=8)
+            jobs = JobApplicationService(jobs_repository).list(limit=100)
             history_service = HistoryApplicationService(history_repository)
-            history = history_service.list(limit=8)
-            latest_report = (
-                history_service.get(history.items[0].history_id) if history.items else None
+            date_from, date_to = _date_filters(request)
+            selected_source = request.query_params.get("source") or None
+            history = history_service.list(
+                limit=100,
+                created_after=date_from,
+                created_before=date_to,
+                source=selected_source,
             )
+            all_history = history_service.list(limit=200)
+            latest_report = (
+                history_service.get(all_history.items[0].history_id) if all_history.items else None
+            )
+            selected_report = history_service.get(report_id) if report_id else None
+            comparison = (
+                history_service.compare(baseline_id, candidate_id)
+                if baseline_id and candidate_id
+                else None
+            )
+            profiles = source_repository.list()
         finally:
+            source_repository.close()
             history_repository.close()
             jobs_repository.close()
         csrf_token = request.cookies.get("ragscanner_csrf") or secrets.token_urlsafe(32)
@@ -149,23 +218,108 @@ def register_dashboard(
                 "job_total": jobs.total,
                 "scans": history.items,
                 "scan_total": history.total,
-                "latest": history.items[0] if history.items else None,
+                "all_scans": all_history.items,
+                "latest": all_history.items[0] if all_history.items else None,
                 "coverage": coverage,
+                "page": page,
+                "profiles": profiles,
+                "selected_report": selected_report,
+                "selected_report_id": report_id,
+                "comparison": comparison,
+                "baseline_id": baseline_id,
+                "candidate_id": candidate_id,
                 "csrf_token": csrf_token,
                 "request_id": secrets.token_hex(16),
                 "notice": request.query_params.get("notice", ""),
                 "host_auth_enabled": administrator_store is not None,
             },
         )
-        response.set_cookie(
-            "ragscanner_csrf",
-            csrf_token,
-            httponly=True,
-            samesite="strict",
-            secure=False,
-            max_age=3600,
-        )
+        _set_csrf_cookie(response, csrf_token)
         return response
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard(request: Request) -> HTMLResponse:
+        return render_dashboard(request, page="overview")
+
+    @app.get("/sources", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_sources(request: Request) -> HTMLResponse:
+        return render_dashboard(request, page="sources")
+
+    @app.get("/jobs", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_jobs(request: Request) -> HTMLResponse:
+        return render_dashboard(request, page="jobs")
+
+    @app.get("/reports", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_reports(request: Request) -> HTMLResponse:
+        return render_dashboard(request, page="reports")
+
+    @app.get("/reports/{history_id}", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_report_detail(request: Request, history_id: str) -> HTMLResponse:
+        return render_dashboard(request, page="report_detail", report_id=history_id)
+
+    @app.get("/compare", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_compare(
+        request: Request,
+        baseline: str,
+        candidate: str,
+    ) -> HTMLResponse:
+        return render_dashboard(
+            request, page="compare", baseline_id=baseline, candidate_id=candidate
+        )
+
+    @app.get("/settings", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_settings(request: Request) -> HTMLResponse:
+        return render_dashboard(request, page="settings")
+
+    @app.post("/dashboard/sources", include_in_schema=False)
+    async def dashboard_add_source(
+        request: Request,
+        csrf_token: Annotated[str, Form()],
+        name: Annotated[str, Form(min_length=1, max_length=160)],
+        kind: Annotated[
+            str,
+            Form(
+                pattern=r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|generic)$"
+            ),
+        ],
+        location: Annotated[str, Form(min_length=1, max_length=4096)],
+        credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        discovery_origin: Annotated[str, Form(max_length=80)] = "manual",
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        repository = SQLiteSourceProfileRepository(database_path)
+        try:
+            scan_ready = kind in {"openwebui", "filesystem"}
+            repository.save(
+                SourceProfile(
+                    name=name.strip(),
+                    kind=kind,
+                    local_path=location.strip() if kind == "filesystem" else None,
+                    base_url=None if kind == "filesystem" else location.strip(),
+                    credential_ref=credential_ref.strip() if credential_ref else None,
+                    discovery_origin=discovery_origin,
+                    capability_status="scan_ready" if scan_ready else "metadata_only",
+                )
+            )
+        except ValueError:
+            return RedirectResponse("/sources?notice=invalid-source", status_code=303)
+        finally:
+            repository.close()
+        return RedirectResponse("/sources?notice=source-saved", status_code=303)
+
+    @app.post("/dashboard/sources/{profile_id}/delete", include_in_schema=False)
+    async def dashboard_delete_source(
+        request: Request,
+        profile_id: str,
+        csrf_token: Annotated[str, Form()],
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        repository = SQLiteSourceProfileRepository(database_path)
+        try:
+            repository.delete(profile_id)
+        finally:
+            repository.close()
+        return RedirectResponse("/sources?notice=source-deleted", status_code=303)
 
     @app.post("/dashboard/scans/local", include_in_schema=False)
     async def dashboard_local_scan(
@@ -201,23 +355,7 @@ def register_dashboard(
                 {"error": "Explicit consent is required before local environment discovery."},
                 status_code=400,
             )
-        environments = await run_in_threadpool(
-            lambda: discover_local_rag_environments(include_container_runtimes=True)
-        )
-        return JSONResponse(
-            {
-                "environments": [
-                    {
-                        "platform": item.platform,
-                        "base_url": item.base_url,
-                        "status": item.discovery_status,
-                        "runtime": item.runtime,
-                        "metadata_inventory_supported": item.metadata_inventory_supported,
-                    }
-                    for item in environments
-                ]
-            }
-        )
+        return await _environment_inventory_response()
 
     @app.post("/dashboard/discovery/openwebui/knowledge-bases", include_in_schema=False)
     async def dashboard_discover_openwebui_knowledge_bases(
@@ -322,9 +460,18 @@ def _validate_csrf(request: Request, form_token: str) -> None:
 
 def _requires_local_administrator(request: Request) -> bool:
     path = request.url.path
-    if path in {"/setup", "/login"} or path.startswith("/dashboard-assets/"):
+    if path.startswith("/setup") or path == "/login" or path.startswith("/dashboard-assets/"):
         return False
-    return path == "/" or path.startswith("/dashboard/") or path.startswith("/api/v1/history")
+    return (
+        path == "/"
+        or path.startswith("/sources")
+        or path.startswith("/jobs")
+        or path.startswith("/reports")
+        or path.startswith("/compare")
+        or path.startswith("/settings")
+        or path.startswith("/dashboard/")
+        or path.startswith("/api/v1/history")
+    )
 
 
 def _set_session_cookie(response: RedirectResponse, session: str) -> None:
@@ -335,6 +482,65 @@ def _set_session_cookie(response: RedirectResponse, session: str) -> None:
         samesite="strict",
         secure=False,
         max_age=8 * 60 * 60,
+    )
+
+
+def _set_csrf_cookie(response: HTMLResponse, token: str) -> None:
+    response.set_cookie(
+        "ragscanner_csrf",
+        token,
+        httponly=True,
+        samesite="strict",
+        secure=False,
+        max_age=3600,
+    )
+
+
+def _date_filters(request: Request) -> tuple[datetime | None, datetime | None]:
+    try:
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+        lower = (
+            datetime.combine(datetime.fromisoformat(date_from).date(), time.min, UTC)
+            if date_from
+            else None
+        )
+        upper = (
+            datetime.combine(datetime.fromisoformat(date_to).date(), time.max, UTC)
+            if date_to
+            else None
+        )
+    except ValueError:
+        return None, None
+    return lower, upper
+
+
+async def _environment_inventory_response() -> JSONResponse:
+    environments = await run_in_threadpool(
+        lambda: discover_local_rag_environments(
+            include_container_runtimes=True, include_kubernetes=True
+        )
+    )
+    return JSONResponse(
+        {
+            "environments": [
+                {
+                    "platform": item.platform,
+                    "base_url": item.base_url,
+                    "status": item.discovery_status,
+                    "runtime": item.runtime,
+                    "metadata_inventory_supported": item.metadata_inventory_supported,
+                    "capability_status": (
+                        "scan_ready"
+                        if item.platform == "openwebui" and item.discovery_status == "reachable"
+                        else "metadata_only"
+                        if item.discovery_status in {"reachable", "detected"}
+                        else "connection_required"
+                    ),
+                }
+                for item in environments
+            ]
+        }
     )
 
 

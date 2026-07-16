@@ -47,9 +47,9 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
 
     assert dashboard.status_code == 200
     assert "RAGScanner" in dashboard.text
-    assert "Recent scans" in dashboard.text
-    assert "Durable jobs" in dashboard.text
-    assert "New scan" in dashboard.text
+    assert "Recent reports" in dashboard.text
+    assert "Recent jobs" in dashboard.text
+    assert "Create job" in dashboard.text
     assert css.status_code == 200
     assert invalid.status_code == 403
     assert queued.status_code == 303
@@ -165,3 +165,54 @@ async def test_dashboard_discovers_local_environments_and_openwebui_knowledge_ba
     assert knowledge_bases.json()["knowledge_bases"] == [
         {"id": "kb-1", "name": "Engineering", "description": "Synthetic"}
     ]
+
+
+@pytest.mark.anyio
+async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
+    tmp_path: Path, report, finding
+) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    from ragscanner.storage import SQLiteScanHistoryRepository
+
+    history = SQLiteScanHistoryRepository(database)
+    try:
+        baseline = history.save(report("scan-a", findings=[finding("a")]))
+        candidate = history.save(report("scan-b", findings=[finding("b")]))
+    finally:
+        history.close()
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        overview = await client.get("/")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', overview.text)
+        assert csrf is not None
+        saved = await client.post(
+            "/dashboard/sources",
+            data={
+                "csrf_token": csrf.group(1),
+                "name": "Local OpenWebUI",
+                "kind": "openwebui",
+                "location": "http://127.0.0.1:3000",
+                "credential_ref": "env:OPENWEBUI_API_KEY",
+            },
+        )
+        sources = await client.get("/sources")
+        refreshed_overview = await client.get("/")
+        reports = await client.get("/reports", params={"from": "2026-07-01", "to": "2026-07-31"})
+        detail = await client.get(f"/reports/{baseline}")
+        comparison = await client.get(
+            "/compare", params={"baseline": baseline, "candidate": candidate}
+        )
+        jobs = await client.get("/jobs")
+        settings = await client.get("/settings")
+
+    assert saved.status_code == 303
+    assert "Local OpenWebUI" in sources.text
+    assert "Local OpenWebUI · scan ready" in refreshed_overview.text
+    assert "Select exactly two reports" in reports.text
+    assert "Finding a" in detail.text
+    assert "Report comparison" in comparison.text
+    assert "Create, monitor, cancel" in jobs.text
+    assert "versioned SQLite snapshots" in settings.text
