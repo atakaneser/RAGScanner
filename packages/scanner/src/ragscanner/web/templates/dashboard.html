@@ -18,7 +18,7 @@
         <a class="nav-item" href="#sources">Sources</a>
         <a class="nav-item" href="#settings">Settings</a>
       </nav>
-      <div class="local-mode"><i></i><span>Local mode</span><small>Technical alpha</small></div>
+      <div class="local-mode"><i></i><span>Local Agent</span><small>Private to this device</small></div>
     </aside>
 
     <main class="workspace" id="overview">
@@ -29,11 +29,11 @@
       <div class="content">
         <section class="page-heading">
           <h1>Overview</h1>
-          <p>Local-first RAG security and health posture.</p>
+          <p>Private, local-first RAG security and health posture.</p>
         </section>
         {% if notice %}
         <p class="notice" role="status">
-          {% if notice == "scan-queued" %}Scan job queued. Run the next job from this dashboard or with <code>ragscanner worker</code>.
+          {% if notice == "scan-queued" %}Scan job queued. The local Agent will process it automatically when installed.
           {% elif notice == "job-completed" %}The next queued job was processed.
           {% elif notice == "no-queued-job" %}There was no queued job to process.
           {% elif notice == "job-cancelled" %}Job cancellation was requested.
@@ -53,6 +53,11 @@
             <span class="status-label">Assessment coverage</span>
             <strong>{{ coverage }}%</strong>
             <small>Assessed and partially assessed checks</small>
+          </div>
+          <div class="status-item agent-status">
+            <span class="status-label">Background processing</span>
+            <strong>Local Agent</strong>
+            <small>Install once to process queued scans automatically.</small>
           </div>
           <div class="status-item">
             <span class="status-label">Last scan</span>
@@ -88,8 +93,9 @@
           <div class="section-heading"><h2>Durable jobs</h2><span>{{ job_total }} total</span></div>
           <form method="post" action="/dashboard/worker/run-once" class="inline-control">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="secondary small" type="submit">Run next queued job</button>
+            <button class="secondary small" type="submit">Process one job now</button>
           </form>
+          <p class="field-note">For continuous processing, run <code>ragscanner agent install</code> once. The Agent is local to this user account.</p>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Job ID</th><th>Source</th><th>Status</th><th>Progress</th><th>Attempts</th><th>Actions</th></tr></thead>

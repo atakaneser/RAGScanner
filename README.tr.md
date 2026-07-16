@@ -38,6 +38,7 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Dayanıklı SQLite statik tarama işleri ve worker | Mevcut |
 | Kapsam yetkili kimlik doğrulamalı asenkron tarama/iş API’si | Loopback üzerinde mevcut |
 | Yerel genel bakış ve kuyruk dashboard’u | `ragscanner serve` ile mevcut |
+| Her zaman hazır dashboard ve kalıcı iş yürütme için kullanıcı başına Yerel Agent | Mevcut |
 | Açık onaylı OpenWebUI bilgi tabanı içerik connector’ı | Mevcut |
 | Scheduler ve vector store içerik connector’ları | Henüz mevcut değil |
 | ModelProvider/BYOM entegrasyonu | Henüz mevcut değil |
@@ -73,6 +74,7 @@ Kurulumu tek bir RAGScanner komutuyla yönetin veya kaldırın:
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner agent install
 ```
 
 `uninstall` onay ister. Otomasyonlar `ragscanner uninstall --yes` kullanabilir. Bu komutlar kabuk

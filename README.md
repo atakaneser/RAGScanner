@@ -38,6 +38,7 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Durable SQLite static-scan jobs and worker | Available |
 | Scoped authenticated asynchronous scan/job API | Available on loopback |
 | Local overview and queue dashboard | Available with `ragscanner serve` |
+| Per-user Local Agent for an always-ready dashboard and durable job processing | Available |
 | Consent-gated OpenWebUI knowledge content connector | Available |
 | Scheduler and vector-store content connectors | Not available yet |
 | ModelProvider/BYOM integration | Not available yet |
@@ -73,9 +74,12 @@ Maintain or remove the installation with one RAGScanner command:
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner agent install
 ```
 
-`uninstall` asks for confirmation. Automation may use `ragscanner uninstall --yes`. These commands
+`uninstall` asks for confirmation and preserves reports/history unless `--purge-data` is explicitly
+provided. Automation may use `ragscanner uninstall --yes`. `ragscanner agent install` starts the
+localhost dashboard and durable worker automatically after sign-in for the current user. These commands
 delegate to the official `uv tool` environment without a shell; `repair` performs a full reinstall
 while retaining the original installation source and settings. On Windows, `uninstall` schedules
 the removal after its launcher exits so locked executable files do not cause an access-denied error.

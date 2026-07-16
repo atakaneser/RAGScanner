@@ -39,6 +39,7 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | Jobs d’analyse statique SQLite durables et worker | Disponible |
 | API asynchrone authentifiée avec scopes pour analyses/jobs | Disponible sur loopback |
 | Dashboard local d’aperçu et de file d’attente | Disponible avec `ragscanner serve` |
+| Agent local par utilisateur pour un dashboard toujours disponible et le traitement durable des tâches | Disponible |
 | Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
 | Scheduler et connecteurs de contenu vector store | Pas encore disponible |
 | Intégration ModelProvider/BYOM | Pas encore disponible |
@@ -75,6 +76,7 @@ Entretenez ou supprimez l’installation avec une seule commande RAGScanner :
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner agent install
 ```
 
 `uninstall` demande confirmation. Les automatisations peuvent utiliser `ragscanner uninstall --yes`.

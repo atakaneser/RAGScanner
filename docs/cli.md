@@ -36,8 +36,8 @@ The dashboard at `http://127.0.0.1:8000` offers the same consented local environ
 can transfer a discovered reachable OpenWebUI URL into its scan form, and can list knowledge bases
 using an `env:` credential reference. The key is resolved only in the local dashboard/worker process
 and is never sent to the browser, report, SQLite database, or job payload. The dashboard can process
-one already-consented queued job with **Run next queued job**; `ragscanner worker` remains the
-appropriate long-running option.
+one already-consented queued job immediately. For normal use, install the per-user Local Agent once;
+it keeps the dashboard available and processes queued work automatically.
 
 Guided HTML reports are written to the platform-native RAGScanner data directory, never the shell's
 current directory. Run `ragscanner paths` to see the exact data, report, and history locations.
@@ -53,6 +53,11 @@ ragscanner paths
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner uninstall --purge-data --yes
+ragscanner agent install
+ragscanner agent status
+ragscanner agent uninstall
+ragscanner agent run
 ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/one-large.pdf
 ragscanner scan ./knowledge-base --format html --output report.html
@@ -100,7 +105,12 @@ the `history.sqlite3` file shown by `ragscanner paths`; `--database` selects ano
 job. All default to the central `history.sqlite3` file shown by `ragscanner paths`; `--database`
 selects another file.
 
-`ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000`. `--port` changes the
+`ragscanner agent install` enables the normal no-terminal experience for the current user. It uses a
+least-privilege Windows Scheduled Task, a macOS LaunchAgent, or a Linux systemd user service. It
+requires no administrator access and binds only to `127.0.0.1`. `ragscanner agent run` is the
+foreground form useful for diagnostics. `agent uninstall` removes only the automatic-start record.
+
+`ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000` without a worker. `--port` changes the
 loopback port and `--history-db` selects another database. History reads are local; API scan/job
 mutation requires `RAGSCANNER_API_KEY`. See the [local API](api.md) and [durable jobs](jobs.md).
 
@@ -129,9 +139,12 @@ The default data root is `%LOCALAPPDATA%\RAGScanner` on Windows,
 
 ## Installation maintenance
 
-- `ragscanner update` upgrades the installed uv tool environment.
+- `ragscanner update` upgrades the installed uv tool environment and preserves local reports,
+  history, and Agent registration. Restarting the Agent loads the updated code.
 - `ragscanner repair` fully reinstalls that environment while retaining its source/settings.
-- `ragscanner uninstall` asks for confirmation and removes the uv tool environment. On Windows it
+- `ragscanner uninstall` asks for confirmation and removes the Agent registration plus uv tool
+  environment, while preserving reports and history by default. Add `--purge-data` to permanently
+  delete the application-owned data directory. On Windows it
   schedules the removal after the CLI launcher exits, avoiding locked-file access-denied failures.
 - `ragscanner uninstall --yes` is the non-interactive form.
 
