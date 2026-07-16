@@ -12,6 +12,11 @@ credential value is resolved only in worker memory and is not written to the job
 report. Non-loopback endpoints require HTTPS; HTTP is accepted only for loopback development.
 Redirects and environment proxies are disabled, and metadata/content responses are bounded.
 
+Knowledge-base discovery accepts both current paginated responses and older list responses. If an
+installation rejects the optional pagination parameter, RAGScanner retries the same read-only list
+request once without it. An HTTP 400 message includes the bounded, redacted server diagnostic when
+one is supplied; it never includes the API key.
+
 ```bash
 export OPENWEBUI_API_KEY="your-local-runtime-secret"
 ragscanner jobs enqueue-openwebui \

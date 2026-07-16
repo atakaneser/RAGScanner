@@ -1,5 +1,6 @@
 """RAGScanner local command-line interface."""
 
+import asyncio
 import json
 import os
 import shutil
@@ -15,6 +16,7 @@ from typing import Annotated
 import typer
 import uvicorn
 
+from ragscanner.ai_analysis.service import build_analysis_request
 from ragscanner.api import create_app
 from ragscanner.application import (
     DurableWorker,
@@ -24,6 +26,7 @@ from ragscanner.application import (
     StaticScanApplicationService,
     StaticScanJobHandler,
     pipeline_report_input,
+    resolve_secret_reference,
 )
 from ragscanner.chunking import DocumentChunker
 from ragscanner.config import get_settings
@@ -66,6 +69,11 @@ from ragscanner.pipeline import (
     load_local_scan_config,
     run_static_pipeline,
 )
+from ragscanner.providers import (
+    ModelProviderError,
+    OllamaAnalysisProvider,
+    OpenAICompatibleAnalysisProvider,
+)
 from ragscanner.quality import (
     ChunkQualityConfig,
     ChunkQualityScanner,
@@ -82,6 +90,7 @@ from ragscanner.reporting import (
     ReportLimits,
     TerminalReporter,
 )
+from ragscanner.reporting.models import ReportDocument
 from ragscanner.security import (
     StaticRuleLibrary,
     StaticRuleSelection,
@@ -1004,6 +1013,50 @@ def report_command(
     except OSError as error:
         raise typer.BadParameter(f"cannot write report: {error}") from error
     typer.echo(f"Report written: {output}")
+
+
+@app.command("analyze-report")
+def analyze_report_command(
+    report_file: Annotated[Path, typer.Argument(exists=True, readable=True, dir_okay=False)],
+    model: Annotated[str, typer.Option("--model")],
+    output: Annotated[Path, typer.Option("--output")],
+    provider: Annotated[str, typer.Option("--provider")] = "ollama",
+    base_url: Annotated[str, typer.Option("--base-url")] = "http://127.0.0.1:11434",
+    credential_ref: Annotated[str | None, typer.Option("--credential-ref")] = None,
+    consent_remote: Annotated[bool, typer.Option("--consent-remote")] = False,
+) -> None:
+    """Create a detailed JSON or HTML report with optional, validated AI analysis."""
+    if output.suffix.casefold() not in {".json", ".html", ".htm"}:
+        raise typer.BadParameter("output must end in .json, .html, or .htm")
+    try:
+        report = ReportDocument.model_validate_json(report_file.read_text(encoding="utf-8"))
+        adapter: OllamaAnalysisProvider | OpenAICompatibleAnalysisProvider
+        if provider == "ollama":
+            adapter = OllamaAnalysisProvider(
+                base_url=base_url, model=model, consent_remote=consent_remote
+            )
+        elif provider == "openai-compatible":
+            if credential_ref is None:
+                raise ValueError("--credential-ref is required for openai-compatible providers")
+            adapter = OpenAICompatibleAnalysisProvider(
+                base_url=base_url,
+                model=model,
+                consent_remote=consent_remote,
+                api_key=resolve_secret_reference(credential_ref),
+            )
+        else:
+            raise ValueError("provider must be ollama or openai-compatible")
+        analysis = asyncio.run(adapter.analyze(build_analysis_request(report)))
+        enriched = report.model_copy(update={"ai_analysis": analysis})
+        rendered = (
+            JsonReporter().render(enriched)
+            if output.suffix.casefold() == ".json"
+            else HtmlReporter().render(enriched)
+        )
+        output.write_text(rendered, encoding="utf-8")
+    except (OSError, ValueError, ModelProviderError) as error:
+        raise typer.BadParameter(f"cannot enrich report: {error}") from error
+    typer.echo(f"Detailed report written: {output}")
 
 
 def _parse_local_file(path: Path):  # type: ignore[no-untyped-def]

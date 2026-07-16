@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Retry OpenWebUI knowledge-base metadata discovery once without pagination for compatible legacy
+  or reverse-proxied installations, and show bounded redacted HTTP 400 diagnostics.
+- Classify malformed-PDF reader failures without including untrusted parser text in reports.
+
+- Added opt-in, validated AI report enrichment for local Ollama and explicitly consented HTTPS
+  OpenAI-compatible endpoints. It transmits only bounded redacted finding summaries and writes a
+  separate detailed JSON or HTML report without changing scan results or history.
 - Added consent-gated automatic local RAG-environment discovery to the CLI and dashboard. It
   classifies known local container platform hints without reading content and keeps unsupported
   platforms explicitly detected-only.

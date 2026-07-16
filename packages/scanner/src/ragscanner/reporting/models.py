@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
+from ragscanner.ai_analysis.models import AIReportAnalysis
 from ragscanner.domain import (
     EvaluationClassification,
     Finding,
@@ -180,3 +181,4 @@ class ReportDocument(BaseModel):
     source_count: int
     assessment_coverage: dict[str, dict[str, Any]]
     ingestion_issues: list[ReportIngestionIssue]
+    ai_analysis: AIReportAnalysis | None = None

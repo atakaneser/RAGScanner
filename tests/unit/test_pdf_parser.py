@@ -6,6 +6,7 @@ from typing import Any
 
 import pymupdf
 import pytest
+from pypdf.errors import PdfReadError
 from ragscanner.domain import SourceContent, SourceItem
 from ragscanner.parsers import (
     PAGE_SEPARATOR,
@@ -184,6 +185,12 @@ def test_encrypted_malformed_and_unsupported_input_fail_safely() -> None:
     assert encrypted.value.category is PdfParserErrorCategory.ENCRYPTED
     assert malformed.value.category is PdfParserErrorCategory.MALFORMED
     assert unsupported.value.category is PdfParserErrorCategory.UNSUPPORTED
+
+
+def test_pdf_recovery_diagnosis_is_classified_without_echoing_parser_text() -> None:
+    detail = PdfParser._recovery_error_detail(PdfReadError("EOF marker not found secret-value"))
+    assert detail == "the final PDF marker is missing"
+    assert "secret-value" not in detail
 
 
 def test_invalid_signature_and_page_count_library_error_are_typed(monkeypatch) -> None:  # type: ignore[no-untyped-def]

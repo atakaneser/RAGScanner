@@ -352,8 +352,20 @@ def _openwebui_page(
     if response.status_code in {401, 403}:
         raise OpenWebUIDiscoveryError("OpenWebUI rejected the API key or its metadata permission.")
     if response.status_code != 200:
+        detail = ""
+        if response.status_code == 400 and len(response.content) <= MAX_OPENWEBUI_RESPONSE_BYTES:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                detail = _safe_remote_text(
+                    payload.get("detail") or payload.get("message") or payload.get("error"),
+                    limit=300,
+                )
+        suffix = f": {detail}" if detail else "."
         raise OpenWebUIDiscoveryError(
-            f"OpenWebUI metadata discovery returned HTTP {response.status_code}."
+            f"OpenWebUI metadata discovery returned HTTP {response.status_code}{suffix}"
         )
     if len(response.content) > MAX_OPENWEBUI_RESPONSE_BYTES:
         raise OpenWebUIDiscoveryError("OpenWebUI returned an oversized discovery response.")
@@ -361,6 +373,10 @@ def _openwebui_page(
         payload = response.json()
     except ValueError as error:
         raise OpenWebUIDiscoveryError("OpenWebUI returned malformed discovery data.") from error
+    if isinstance(payload, list):
+        # Older OpenWebUI releases returned an unpaginated list. The caller
+        # still enforces its own bounded item count.
+        return payload, len(payload)
     if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
         raise OpenWebUIDiscoveryError("OpenWebUI returned an unsupported discovery schema.")
     total = payload.get("total")
@@ -382,12 +398,24 @@ def discover_openwebui_knowledge_bases(
         timeout=httpx.Timeout(timeout_seconds), follow_redirects=False, trust_env=False
     ) as client:
         for page in range(1, max_pages + 1):
-            items, total = _openwebui_page(
-                client,
-                f"{base_url.rstrip('/')}/api/v1/knowledge/",
-                headers,
-                {"page": page},
-            )
+            try:
+                items, total = _openwebui_page(
+                    client,
+                    f"{base_url.rstrip('/')}/api/v1/knowledge/",
+                    headers,
+                    {"page": page},
+                )
+            except OpenWebUIDiscoveryError as error:
+                if page != 1 or "HTTP 400" not in str(error):
+                    raise
+                # Some older or reverse-proxied installations reject optional
+                # pagination parameters despite serving the list endpoint.
+                items, total = _openwebui_page(
+                    client,
+                    f"{base_url.rstrip('/')}/api/v1/knowledge/",
+                    headers,
+                    {},
+                )
             for item in items:
                 if not isinstance(item, dict):
                     continue

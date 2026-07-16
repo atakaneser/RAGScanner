@@ -58,6 +58,18 @@
           "fatal": {"type": "boolean"}
         }
       }
+    },
+    "ai_analysis": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["schema_version", "provider", "model", "remote", "generated_at", "prompt_version", "disclaimer", "executive_summary", "priority_actions", "review_questions", "limitations", "finding_ids"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "provider": {"type": "string"}, "model": {"type": "string"}, "remote": {"type": "boolean"},
+        "generated_at": {"type": "string", "format": "date-time"}, "prompt_version": {"type": "string"}, "disclaimer": {"type": "string"},
+        "executive_summary": {"type": "string"}, "priority_actions": {"$ref": "#/$defs/strings"},
+        "review_questions": {"$ref": "#/$defs/strings"}, "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"}
+      }
     }
   },
   "$defs": {

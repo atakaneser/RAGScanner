@@ -200,6 +200,19 @@ class HtmlReporter:
             f"{assessed} of {coverage_total} assessment areas completed. "
             "Scores describe assessed checks only and are not a security guarantee."
         )
+        ai_analysis = report.ai_analysis
+        ai_section = ""
+        if ai_analysis is not None:
+            ai_section = (
+                '<section aria-labelledby="ai-analysis"><h2 id="ai-analysis">AI analysis</h2>'
+                f"<p>{esc(ai_analysis.executive_summary)}</p>"
+                f"<h3>Priority actions</h3><ul>{messages(ai_analysis.priority_actions)}</ul>"
+                f"<h3>Review questions</h3><ul>{messages(ai_analysis.review_questions)}</ul>"
+                f"<h3>Limitations</h3><ul>{messages(ai_analysis.limitations)}</ul>"
+                f"<p class=\"muted\">Provider: {esc(ai_analysis.provider)} · Model: "
+                f"{esc(ai_analysis.model)} · Remote: {esc(ai_analysis.remote)} · "
+                f"{esc(ai_analysis.disclaimer)}</p></section>"
+            )
 
         html_value = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -208,6 +221,7 @@ class HtmlReporter:
 :root{{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968;--accent:#176b5b}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}}header,main,footer{{max-width:1180px;margin:auto;padding:1.25rem}}header{{background:#17202a;color:#fff;max-width:none}}header>div{{max-width:1140px;margin:auto}}h1,h2,h3{{line-height:1.2}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}}.card,section{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}}.card{{margin:0}}.summary{{border-left:5px solid var(--accent)}}.metric{{font-size:1.6rem;font-weight:750;margin:.25rem 0}}.notice{{background:#eef7f5;border:1px solid #b8d9d2;border-radius:6px;padding:.75rem}}table{{width:100%;border-collapse:collapse}}th,td{{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}}.badge{{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}}.critical{{color:var(--critical)}}.high{{color:var(--high)}}.medium{{color:var(--medium)}}.low{{color:var(--low)}}.info{{color:var(--info)}}code,pre{{white-space:pre-wrap;overflow-wrap:anywhere}}summary{{cursor:pointer;font-weight:700}}.muted{{color:var(--muted)}}@media(max-width:650px){{table{{display:block;overflow-x:auto}}header,main,footer{{padding:.8rem}}}}@media print{{body{{background:#fff}}header{{color:#000;background:#fff;border-bottom:2px solid #000}}section,.card{{break-inside:avoid;box-shadow:none}}details{{display:block}}details>*{{display:block}}}}
 </style></head><body><header role="banner"><div><h1>RAGScanner report</h1><p>{esc(report.scan["id"])} · {esc(report.scan["type"])} · {esc(report.scan["status"])}</p></div></header>
 <main id="main-content"><section class="summary" aria-labelledby="summary"><h2 id="summary">Executive summary</h2><p class="metric">{esc(status_label)}</p><div class="grid"><div><strong>Discovered</strong><p class="metric">{report.processing.files_discovered}</p></div><div><strong>Processed</strong><p class="metric">{report.processing.files_scanned}</p></div><div><strong>Skipped</strong><p class="metric">{report.processing.files_skipped}</p></div><div><strong>Findings</strong><p class="metric">{len(report.findings)}</p></div></div><p class="notice">{esc(coverage_notice)}</p></section>
+{ai_section}
 <section aria-labelledby="ingestion"><h2 id="ingestion">File ingestion</h2><p>Files that could not be processed are listed separately from security and quality findings.</p><table><thead><tr><th>File</th><th>Stage</th><th>What happened</th><th>What to do</th></tr></thead><tbody>{ingestion_rows}</tbody></table></section>
 <section aria-labelledby="scores"><h2 id="scores">Scores</h2><p class="muted">Product-defined scores. Missing values are Not assessed, never zero.</p><div class="grid">{score_cards}</div></section>
 <section aria-labelledby="severity"><h2 id="severity">Severity distribution</h2><div class="grid">{"".join(f'<div class="card {esc(k)}"><strong>{esc(k.title())}</strong><p>{v}</p></div>' for k, v in report.severity_summary.items())}</div></section>
