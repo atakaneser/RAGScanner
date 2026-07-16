@@ -39,6 +39,7 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Dauerhafte SQLite-Static-Scan-Jobs und Worker | Verfügbar |
 | Bereichsgebundene authentifizierte asynchrone Scan-/Job-API | Auf Loopback verfügbar |
 | Lokales Übersichts- und Warteschlangen-Dashboard | Mit `ragscanner serve` verfügbar |
+| Lokaler Agent pro Benutzer für ein stets bereites Dashboard und dauerhafte Job-Verarbeitung | Verfügbar |
 | Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
 | Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
 | ModelProvider-/BYOM-Integration | Noch nicht verfügbar |
@@ -75,6 +76,7 @@ Verwalten oder entfernen Sie die Installation mit einem RAGScanner-Befehl:
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner agent install
 ```
 
 `uninstall` verlangt eine Bestätigung. Automatisierungen können `ragscanner uninstall --yes`

@@ -13,6 +13,8 @@
 - Network-free `ragscanner doctor` and `ragscanner --version`
 - One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`, with
   deferred Windows removal that avoids self-locking executable-file failures
+- Per-user Local Agent that combines the localhost dashboard/API with one durable worker, plus
+  least-privilege Windows logon, macOS LaunchAgent, and Linux systemd-user installation commands
 - English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder
   discovery that excludes generic Documents/current-working-directory candidates,
   consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint
@@ -63,7 +65,7 @@
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
 Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, broader source connectors, incremental OpenWebUI
-synchronization, model providers, scheduler, configurable retention, dashboard scan detail and
+synchronization, source profiles with remembered consent, filesystem watch, scheduler, configurable retention, dashboard scan detail and
 comparison, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.
 

@@ -18,6 +18,7 @@ from uuid import uuid4
 import typer
 import uvicorn
 
+from ragscanner.agent import install_autostart, platform_autostart_path, remove_autostart, run_agent
 from ragscanner.ai_analysis.service import build_analysis_request
 from ragscanner.api import create_app
 from ragscanner.application import (
@@ -111,10 +112,12 @@ security_app = typer.Typer(help="Offline and authorized security scanning comman
 quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis commands.")
 history_app = typer.Typer(help="Opt-in local SQLite scan history and comparison commands.")
 jobs_app = typer.Typer(help="Durable local scan job commands.")
+agent_app = typer.Typer(help="Run and manage the per-user local dashboard Agent.")
 app.add_typer(security_app, name="security")
 app.add_typer(quality_app, name="quality")
 app.add_typer(history_app, name="history")
 app.add_typer(jobs_app, name="jobs")
+app.add_typer(agent_app, name="agent")
 
 
 def _static_rule_directory() -> Path:
@@ -406,14 +409,15 @@ def show_paths() -> None:
     typer.echo(f"Data directory: {data_dir}")
     typer.echo(f"Reports directory: {reports_directory(data_dir)}")
     typer.echo(f"History database: {data_dir / 'history.sqlite3'}")
+    typer.echo(f"Agent registration: {platform_autostart_path(data_dir)}")
 
 
 @app.command()
 def update() -> None:
-    """Upgrade the installed RAGScanner tool through uv."""
+    """Upgrade the installed RAGScanner tool; local data and reports are preserved."""
     typer.echo("Updating RAGScanner through uv...")
     _run_uv_tool("upgrade", "ragscanner")
-    typer.echo("RAGScanner update completed.")
+    typer.echo("RAGScanner update completed. Restart the Agent to use the new version immediately.")
 
 
 @app.command()
@@ -430,11 +434,25 @@ def uninstall(
         bool,
         typer.Option("--yes", "-y", help="Skip the uninstall confirmation."),
     ] = False,
+    purge_data: Annotated[
+        bool,
+        typer.Option(
+            "--purge-data", help="Also permanently delete RAGScanner reports and local history."
+        ),
+    ] = False,
 ) -> None:
-    """Remove the installed RAGScanner tool through uv."""
+    """Remove the tool and its autostart record; data is preserved unless explicitly purged."""
     if not yes and not typer.confirm("Uninstall RAGScanner from this user account?"):
         typer.echo("Uninstall cancelled. No changes were made.")
         return
+    data_dir = get_settings().data_dir.expanduser().resolve()
+    remove_autostart(data_dir)
+    if purge_data:
+        if not yes and not typer.confirm(f"Permanently delete all RAGScanner data in {data_dir}?"):
+            typer.echo("Application removed; local data was preserved.")
+        else:
+            shutil.rmtree(data_dir, ignore_errors=True)
+            typer.echo("RAGScanner local data was permanently deleted.")
     if sys.platform == "win32":
         try:
             _schedule_windows_uninstall(_uv_executable())
@@ -445,6 +463,47 @@ def uninstall(
     typer.echo("Uninstalling RAGScanner through uv...")
     _run_uv_tool("uninstall", "ragscanner")
     typer.echo("RAGScanner uninstall completed.")
+
+
+@agent_app.command("install")
+def agent_install() -> None:
+    """Start RAGScanner automatically for the current user after sign-in."""
+    data_dir = get_settings().data_dir.expanduser().resolve()
+    try:
+        registration = install_autostart(data_dir)
+    except OSError as error:
+        raise typer.BadParameter(f"cannot install the local Agent: {error}") from error
+    typer.echo(f"RAGScanner Agent installed for this user: {registration}")
+    typer.echo("Dashboard: http://127.0.0.1:8000")
+
+
+@agent_app.command("uninstall")
+def agent_uninstall() -> None:
+    """Stop the local Agent and remove its per-user autostart registration."""
+    remove_autostart(get_settings().data_dir.expanduser().resolve())
+    typer.echo("RAGScanner Agent autostart was removed. Local reports and history were preserved.")
+
+
+@agent_app.command("status")
+def agent_status() -> None:
+    """Show the local Agent registration without contacting any remote service."""
+    registration = platform_autostart_path(get_settings().data_dir.expanduser().resolve())
+    state = "installed" if registration.exists() else "not installed"
+    typer.echo(f"Agent autostart: {state}")
+    typer.echo(f"Registration: {registration}")
+    typer.echo("Dashboard address: http://127.0.0.1:8000")
+
+
+@agent_app.command("run")
+def agent_run(
+    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
+    history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
+    poll_interval: Annotated[float, typer.Option("--poll-interval", min=0.1, max=60)] = 1,
+) -> None:
+    """Run the local dashboard and durable worker in one foreground Agent process."""
+    database = _history_database(history_db)
+    typer.echo(f"RAGScanner Agent listening at http://127.0.0.1:{port}", err=True)
+    run_agent(database, port=port, poll_interval=poll_interval)
 
 
 def _pipeline_report_input(result: StaticPipelineResult) -> ReportInput:

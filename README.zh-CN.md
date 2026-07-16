@@ -37,6 +37,7 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 持久 SQLite 静态扫描作业和 worker | 可用 |
 | 具有作用域身份验证的异步扫描/作业 API | 可在回环地址使用 |
 | 本地概览和队列仪表板 | 可通过 `ragscanner serve` 使用 |
+| 每用户本地 Agent，提供随时可用的仪表板和持久任务处理 | 可用 |
 | 经明确同意的 OpenWebUI 知识内容连接器 | 可用 |
 | 调度器和向量存储内容连接器 | 尚不可用 |
 | ModelProvider/BYOM 集成 | 尚不可用 |
@@ -69,6 +70,7 @@ ragscanner
 ragscanner update
 ragscanner repair
 ragscanner uninstall
+ragscanner agent install
 ```
 
 `uninstall` 会要求确认。自动化可使用 `ragscanner uninstall --yes`。这些命令不启动 shell，
