@@ -50,7 +50,12 @@ class _BaseAnalysisProvider:
     provider_id: str
 
     def __init__(
-        self, *, base_url: str, model: str, consent_remote: bool = False, timeout_seconds: float = 45
+        self,
+        *,
+        base_url: str,
+        model: str,
+        consent_remote: bool = False,
+        timeout_seconds: float = 45,
     ) -> None:
         self.base_url, self.remote = _validate_url(base_url, consent_remote=consent_remote)
         if not model.strip():
@@ -65,9 +70,14 @@ class _BaseAnalysisProvider:
             raise ModelProviderError("model returned invalid structured analysis") from error
         unknown_ids = set(generated.finding_ids) - request.finding_ids
         if unknown_ids:
-            raise ModelProviderError("model referenced finding IDs not included in the report summary")
+            raise ModelProviderError(
+                "model referenced finding IDs not included in the report summary"
+            )
         return AIReportAnalysis(
-            **generated.model_dump(), provider=self.provider_id, model=self.model, remote=self.remote
+            **generated.model_dump(),
+            provider=self.provider_id,
+            model=self.model,
+            remote=self.remote,
         )
 
     async def _post(
@@ -78,7 +88,9 @@ class _BaseAnalysisProvider:
     ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.post(f"{self.base_url}{path}", json=payload, headers=headers)
+                response = await client.post(
+                    f"{self.base_url}{path}", json=payload, headers=headers
+                )
                 response.raise_for_status()
                 if len(response.content) > 256_000:
                     raise ModelProviderError("model response exceeded the 256 KiB safety limit")
@@ -100,9 +112,19 @@ class OllamaAnalysisProvider(_BaseAnalysisProvider):
     async def analyze(self, request: AnalysisRequest) -> AIReportAnalysis:
         value = await self._post(
             "/api/chat",
-            {"model": self.model, "messages": _messages(request), "stream": False, "format": AIAnalysisContent.model_json_schema(), "options": {"temperature": 0}},
+            {
+                "model": self.model,
+                "messages": _messages(request),
+                "stream": False,
+                "format": AIAnalysisContent.model_json_schema(),
+                "options": {"temperature": 0},
+            },
         )
-        content = value.get("message", {}).get("content") if isinstance(value.get("message"), dict) else None
+        content = (
+            value.get("message", {}).get("content")
+            if isinstance(value.get("message"), dict)
+            else None
+        )
         if not isinstance(content, str):
             raise ModelProviderError("Ollama response did not contain message.content")
         return self._analysis(content, request)
@@ -120,11 +142,22 @@ class OpenAICompatibleAnalysisProvider(_BaseAnalysisProvider):
     async def analyze(self, request: AnalysisRequest) -> AIReportAnalysis:
         value = await self._post(
             "/v1/chat/completions",
-            {"model": self.model, "messages": _messages(request), "temperature": 0, "response_format": {"type": "json_object"}},
+            {
+                "model": self.model,
+                "messages": _messages(request),
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            },
             {"Authorization": f"Bearer {self.api_key}"},
         )
         choices = value.get("choices")
-        content = choices[0].get("message", {}).get("content") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
+        content = (
+            choices[0].get("message", {}).get("content")
+            if isinstance(choices, list) and choices and isinstance(choices[0], dict)
+            else None
+        )
         if not isinstance(content, str):
-            raise ModelProviderError("OpenAI-compatible response did not contain choices[0].message.content")
+            raise ModelProviderError(
+                "OpenAI-compatible response did not contain choices[0].message.content"
+            )
         return self._analysis(content, request)

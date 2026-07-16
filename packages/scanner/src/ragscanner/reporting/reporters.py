@@ -209,7 +209,7 @@ class HtmlReporter:
                 f"<h3>Priority actions</h3><ul>{messages(ai_analysis.priority_actions)}</ul>"
                 f"<h3>Review questions</h3><ul>{messages(ai_analysis.review_questions)}</ul>"
                 f"<h3>Limitations</h3><ul>{messages(ai_analysis.limitations)}</ul>"
-                f"<p class=\"muted\">Provider: {esc(ai_analysis.provider)} · Model: "
+                f'<p class="muted">Provider: {esc(ai_analysis.provider)} · Model: '
                 f"{esc(ai_analysis.model)} · Remote: {esc(ai_analysis.remote)} · "
                 f"{esc(ai_analysis.disclaimer)}</p></section>"
             )

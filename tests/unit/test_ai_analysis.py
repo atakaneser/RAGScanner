@@ -35,11 +35,19 @@ def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -
     adapter = OllamaAnalysisProvider(base_url="http://127.0.0.1:11434", model="llama3")
 
     async def fake_post(*_args, **_kwargs):
-        return {"message": {"content": json.dumps({"executive_summary": "Review now.", "finding_ids": ["other"]})}}
+        return {
+            "message": {
+                "content": json.dumps(
+                    {"executive_summary": "Review now.", "finding_ids": ["other"]}
+                )
+            }
+        }
 
     monkeypatch.setattr(adapter, "_post", fake_post)
     with pytest.raises(ModelProviderError, match="finding IDs"):
-        asyncio.run(adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")]))) )
+        asyncio.run(
+            adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
+        )
 
 
 def test_openai_compatible_adds_local_provenance(report, finding, monkeypatch) -> None:
@@ -48,11 +56,29 @@ def test_openai_compatible_adds_local_provenance(report, finding, monkeypatch) -
     )
 
     async def fake_post(*_args, **_kwargs):
-        return {"choices": [{"message": {"content": json.dumps({"executive_summary": "Review finding.", "priority_actions": ["Fix it"], "finding_ids": ["finding-a"]})}}]}
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "executive_summary": "Review finding.",
+                                "priority_actions": ["Fix it"],
+                                "finding_ids": ["finding-a"],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
 
     monkeypatch.setattr(adapter, "_post", fake_post)
     enriched = report("scan-a", findings=[finding("a")]).model_copy(
-        update={"ai_analysis": asyncio.run(adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")]))) )}
+        update={
+            "ai_analysis": asyncio.run(
+                adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
+            )
+        }
     )
     assert enriched.ai_analysis is not None
     assert enriched.ai_analysis.provider == "openai-compatible"
