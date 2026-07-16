@@ -433,21 +433,35 @@ def test_guided_openwebui_keeps_knowledge_results_when_file_inventory_fails(
     assert "Knowledge-base discovery failed" not in result.stderr
 
 
-def test_local_discovery_is_bounded_to_known_immediate_paths(tmp_path) -> None:
+def test_local_discovery_is_bounded_to_rag_named_immediate_paths(tmp_path) -> None:
     (tmp_path / "root.pdf").write_bytes(b"synthetic")
-    docs = tmp_path / "docs"
-    docs.mkdir()
-    (docs / "rehber.md").write_text("örnek", encoding="utf-8")
+    knowledge_base = tmp_path / "knowledge-base"
+    knowledge_base.mkdir()
+    (knowledge_base / "guide.md").write_text("example", encoding="utf-8")
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    (documents / "unrelated.pdf").write_bytes(b"synthetic")
     ignored = tmp_path / "unrelated" / "nested"
     ignored.mkdir(parents=True)
     (ignored / "secret.pdf").write_bytes(b"synthetic")
 
-    candidates = discover_local_sources(tmp_path)
+    candidates = discover_local_sources(tmp_path, include_root=True)
 
     assert [(item.path.name, item.supported_file_count) for item in candidates] == [
         ("RAGScaner" if tmp_path.name == "RAGScaner" else tmp_path.name, 1),
-        ("docs", 1),
+        ("knowledge-base", 1),
     ]
+
+
+def test_automatic_local_rag_discovery_ignores_generic_documents_and_working_directory(
+    tmp_path,
+) -> None:
+    (tmp_path / "manual.pdf").write_bytes(b"synthetic")
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    (documents / "unrelated.pdf").write_bytes(b"synthetic")
+
+    assert discover_local_sources(tmp_path) == []
 
 
 def test_openwebui_discovery_uses_only_supplied_loopback_health_endpoint(monkeypatch) -> None:  # type: ignore[no-untyped-def]

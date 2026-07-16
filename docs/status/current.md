@@ -13,7 +13,8 @@
 - Network-free `ragscanner doctor` and `ragscanner --version`
 - One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`, with
   deferred Windows removal that avoids self-locking executable-file failures
-- English guided local scanning from a bare `ragscanner` command, bounded nearby-source discovery,
+- English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder
+  discovery that excludes generic Documents/current-working-directory candidates,
   consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint
   discovery, and separately consented authenticated knowledge-base plus linked/standalone file
   metadata inventory with partial-result preservation and per-knowledge-base endpoint compatibility

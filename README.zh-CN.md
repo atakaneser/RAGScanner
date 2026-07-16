@@ -57,8 +57,8 @@ ragscanner doctor
 ragscanner
 ```
 
-裸命令会打开英文引导流程。它会询问您使用的源，建议范围受限的附近本地源，并可启动扫描。
-明确同意后，OpenWebUI 发现功能会检查可用 Docker、Podman、nerdctl 或 Finch 运行时的有限
+裸命令会打开英文引导流程。它会询问您使用的源，并可启动扫描。自动发现仅建议名称与 RAG 相关的
+直接文件夹，不会将 Documents 等通用文件夹视为 RAG 源。明确同意后，OpenWebUI 发现功能会检查可用 Docker、Podman、nerdctl 或 Finch 运行时的有限
 元数据以及常见回环地址。单独提供且仅保存在内存中的 API 密钥可清点有权访问的知识库，以及
 关联或独立/聊天文件的元数据。另一个需要明确同意的作业可从选定的 OpenWebUI 知识库获取
 可访问文件，并运行静态流水线。

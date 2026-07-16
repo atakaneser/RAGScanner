@@ -58,8 +58,9 @@ ragscanner doctor
 ragscanner
 ```
 
-Il comando senza argomenti apre un onboarding in inglese. Chiede quale fonte usi, suggerisce fonti
-locali vicine e limitate e può avviare una scansione. Dopo consenso esplicito, la scoperta OpenWebUI
+Il comando senza argomenti apre un onboarding in inglese. Chiede quale fonte usi e può avviare una
+scansione. La scoperta automatica suggerisce solo cartelle immediate con nomi orientati al RAG e non
+tratta cartelle generiche come Documents come fonti RAG. Dopo consenso esplicito, la scoperta OpenWebUI
 ispeziona metadata limitati dei runtime Docker, Podman, nerdctl o Finch disponibili e gli indirizzi
 loopback comuni. Una chiave API fornita separatamente e mantenuta solo in memoria può elencare i
 metadata delle knowledge base accessibili e dei file collegati o autonomi/di chat. Un job separato

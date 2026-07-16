@@ -15,7 +15,9 @@ Weaviate, Milvus, and pgvector-related containers from their names/images and pu
 ports. Detection of a non-OpenWebUI platform is an inventory hint only: no connector, collection,
 or document access is claimed until that platform has a supported connector.
 
-The flow also lists bounded nearby local source candidates. When OpenWebUI is selected,
+The flow only lists immediate folders whose names indicate a likely RAG source, and labels them as
+name-based candidates rather than verified RAG data. It never treats generic folders such as
+Documents or the current working directory as an automatic RAG candidate. When OpenWebUI is selected,
 available Docker, Podman, nerdctl, and Finch CLIs are inspected only after consent. Only bounded
 running-container names, images, and published-port metadata are read without a shell. Candidate
 loopback health endpoints are then checked without redirects. A separate consent step and an API

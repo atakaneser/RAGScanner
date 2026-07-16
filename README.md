@@ -58,8 +58,9 @@ ragscanner doctor
 ragscanner
 ```
 
-The bare command opens an English onboarding flow. It asks which source you use, suggests bounded
-nearby local sources, and can start a scan. After explicit consent, OpenWebUI discovery inspects
+The bare command opens an English onboarding flow. It asks which source you use and can start a
+scan. Automatic discovery only suggests immediate folders with RAG-oriented names; it does not
+treat general folders such as Documents as RAG sources. After explicit consent, OpenWebUI discovery inspects
 bounded metadata from available Docker, Podman, nerdctl, or Finch runtimes plus common loopback
 addresses. A separately supplied in-memory API key can inventory accessible knowledge bases plus
 knowledge-linked and standalone/chat files. A separate explicit-consent job can retrieve accessible

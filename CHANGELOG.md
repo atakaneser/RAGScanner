@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stop automatic RAG discovery from suggesting generic Documents folders or the current working
+  directory; it now lists only immediate folders with RAG-oriented names as unverified candidates.
+
 - Defer Windows `ragscanner uninstall` until its launcher exits, avoiding recurring locked-file
   access-denied failures from `uv tool uninstall`.
 

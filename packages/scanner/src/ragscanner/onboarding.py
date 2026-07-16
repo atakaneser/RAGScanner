@@ -14,13 +14,14 @@ import httpx
 from ragscanner.domain.helpers import mask_secret_like_values, normalize_control_characters
 
 SUPPORTED_LOCAL_EXTENSIONS = frozenset({".txt", ".md", ".markdown", ".pdf", ".docx"})
-COMMON_SOURCE_DIRECTORY_NAMES = (
+RAG_SOURCE_DIRECTORY_NAMES = (
     "knowledge-base",
     "knowledge_base",
     "knowledge",
-    "documents",
-    "docs",
     "uploads",
+    "rag",
+    "rag-data",
+    "rag_data",
 )
 OPENWEBUI_LOOPBACK_ENDPOINTS = (
     "http://127.0.0.1:8080",
@@ -123,14 +124,15 @@ def _supported_file_count(path: Path, *, limit: int = 200) -> int:
     return count
 
 
-def discover_local_sources(root: Path) -> list[LocalSourceCandidate]:
-    """Inspect only ``root`` and known immediate children; never crawl the home directory."""
+def discover_local_sources(root: Path, *, include_root: bool = False) -> list[LocalSourceCandidate]:
+    """Find name-based local RAG candidates without crawling or inspecting contents."""
     resolved = root.expanduser().resolve()
     candidates: list[LocalSourceCandidate] = []
-    root_count = _supported_file_count(resolved)
-    if root_count:
-        candidates.append(LocalSourceCandidate(path=resolved, supported_file_count=root_count))
-    for name in COMMON_SOURCE_DIRECTORY_NAMES:
+    if include_root:
+        root_count = _supported_file_count(resolved)
+        if root_count:
+            candidates.append(LocalSourceCandidate(path=resolved, supported_file_count=root_count))
+    for name in RAG_SOURCE_DIRECTORY_NAMES:
         candidate = resolved / name
         if not candidate.is_dir():
             continue
