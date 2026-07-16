@@ -79,6 +79,9 @@ def install_autostart(data_dir: Path, *, platform: str | None = None) -> Path:
             [_program("schtasks"), "/Create", "/TN", AGENT_LABEL, "/XML", str(path), "/F"],
             check=False,
         )
+        subprocess.run(  # noqa: S603 - fixed task name
+            [_program("schtasks"), "/Run", "/TN", AGENT_LABEL], check=False
+        )
     else:
         path.write_text(
             "[Unit]\nDescription=RAGScanner local agent\nAfter=network.target\n\n"

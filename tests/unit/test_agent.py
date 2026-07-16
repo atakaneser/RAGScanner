@@ -45,3 +45,4 @@ def test_windows_agent_registration_is_kept_inside_application_data(tmp_path, mo
     assert path == tmp_path / "data" / "agent" / "ragscanner-agent.xml"
     assert "LeastPrivilege" in path.read_text(encoding="utf-8")
     assert calls[0][:3] == ["schtasks", "/Create", "/TN"]
+    assert calls[1] == ["schtasks", "/Run", "/TN", "RAGScanner Agent"]
