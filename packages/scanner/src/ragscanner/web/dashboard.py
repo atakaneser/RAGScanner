@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.application import (
     DurableWorker,
     HistoryApplicationService,
@@ -28,6 +29,7 @@ from ragscanner.onboarding import (
     discover_local_rag_environments,
     discover_openwebui_knowledge_bases,
 )
+from ragscanner.providers import PROVIDER_CATALOG, ModelProviderError, discover_provider_models
 from ragscanner.storage import (
     SourceProfile,
     SQLiteJobRepository,
@@ -46,6 +48,24 @@ def _display_timestamp(value: datetime | None) -> str:
 
 
 templates.env.filters["display_timestamp"] = _display_timestamp
+
+
+def _ai_config(
+    enabled: bool,
+    provider: str | None,
+    model: str | None,
+    base_url: str | None,
+    credential_ref: str | None,
+    remote_consent: bool,
+) -> AIProviderConfig:
+    return AIProviderConfig(
+        enabled=enabled,
+        provider=provider.strip() if provider else None,
+        model=model.strip() if model else None,
+        base_url=base_url.strip() if base_url else None,
+        credential_ref=credential_ref.strip() if credential_ref else None,
+        remote_consent=remote_consent,
+    )
 
 
 def register_dashboard(
@@ -232,6 +252,7 @@ def register_dashboard(
                 "request_id": secrets.token_hex(16),
                 "notice": request.query_params.get("notice", ""),
                 "host_auth_enabled": administrator_store is not None,
+                "ai_providers": PROVIDER_CATALOG,
             },
         )
         _set_csrf_cookie(response, csrf_token)
@@ -328,6 +349,12 @@ def register_dashboard(
         path: Annotated[str, Form(min_length=1, max_length=4096)],
         idempotency_key: Annotated[str, Form(min_length=8, max_length=160)],
         scan_consent: Annotated[bool, Form()] = False,
+        ai_enabled: Annotated[bool, Form()] = False,
+        ai_provider: Annotated[str | None, Form(max_length=80)] = None,
+        ai_model: Annotated[str | None, Form(max_length=240)] = None,
+        ai_base_url: Annotated[str | None, Form(max_length=2048)] = None,
+        ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        ai_remote_consent: Annotated[bool, Form()] = False,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         if not scan_consent:
@@ -335,7 +362,16 @@ def register_dashboard(
         repository = SQLiteJobRepository(database_path)
         try:
             JobApplicationService(repository).enqueue_local_scan(
-                Path(path), idempotency_key=idempotency_key
+                Path(path),
+                idempotency_key=idempotency_key,
+                ai_config=_ai_config(
+                    ai_enabled,
+                    ai_provider,
+                    ai_model,
+                    ai_base_url,
+                    ai_credential_ref,
+                    ai_remote_consent,
+                ),
             )
         except (OSError, ValueError, JobStateError):
             return RedirectResponse("/?notice=invalid-scan", status_code=303)
@@ -383,6 +419,34 @@ def register_dashboard(
             }
         )
 
+    @app.post("/dashboard/discovery/ai-models", include_in_schema=False)
+    async def dashboard_discover_ai_models(
+        request: Request,
+        csrf_token: Annotated[str, Form()],
+        provider: Annotated[str, Form(max_length=80)],
+        base_url: Annotated[str | None, Form(max_length=2048)] = None,
+        credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        remote_consent: Annotated[bool, Form()] = False,
+    ) -> JSONResponse:
+        _validate_csrf(request, csrf_token)
+        try:
+            config = AIProviderConfig(
+                enabled=True,
+                provider=provider,
+                model="model-inventory",
+                base_url=base_url,
+                credential_ref=credential_ref,
+                remote_consent=remote_consent,
+            )
+            models = await discover_provider_models(
+                config, secret_resolver=resolve_secret_reference
+            )
+        except (ModelProviderError, OSError, ValueError):
+            return JSONResponse(
+                {"error": "The provider model inventory was unavailable."}, status_code=400
+            )
+        return JSONResponse({"models": models})
+
     @app.post("/dashboard/scans/openwebui", include_in_schema=False)
     async def dashboard_openwebui_scan(
         request: Request,
@@ -392,6 +456,12 @@ def register_dashboard(
         credential_ref: Annotated[str, Form(min_length=1, max_length=500)],
         idempotency_key: Annotated[str, Form(min_length=8, max_length=160)],
         content_consent: Annotated[bool, Form()] = False,
+        ai_enabled: Annotated[bool, Form()] = False,
+        ai_provider: Annotated[str | None, Form(max_length=80)] = None,
+        ai_model: Annotated[str | None, Form(max_length=240)] = None,
+        ai_base_url: Annotated[str | None, Form(max_length=2048)] = None,
+        ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        ai_remote_consent: Annotated[bool, Form()] = False,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         repository = SQLiteJobRepository(database_path)
@@ -402,6 +472,14 @@ def register_dashboard(
                 credential_ref=credential_ref,
                 content_consent=content_consent,
                 idempotency_key=idempotency_key,
+                ai_config=_ai_config(
+                    ai_enabled,
+                    ai_provider,
+                    ai_model,
+                    ai_base_url,
+                    ai_credential_ref,
+                    ai_remote_consent,
+                ),
             )
         except (ValueError, JobStateError):
             return RedirectResponse("/?notice=invalid-scan", status_code=303)

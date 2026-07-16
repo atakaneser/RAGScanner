@@ -2,11 +2,14 @@ import asyncio
 import json
 
 import pytest
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.ai_analysis.service import build_analysis_request
 from ragscanner.providers import (
+    PROVIDER_CATALOG,
     ModelProviderError,
     OllamaAnalysisProvider,
     OpenAICompatibleAnalysisProvider,
+    create_analysis_provider,
 )
 from ragscanner.reporting import HtmlReporter
 
@@ -31,6 +34,27 @@ def test_remote_provider_requires_explicit_consent() -> None:
         )
 
 
+def test_provider_catalog_covers_common_local_and_remote_services() -> None:
+    provider_ids = {item.id for item in PROVIDER_CATALOG}
+    assert {"ollama", "lm-studio", "localai", "vllm"} <= provider_ids
+    assert {"openrouter", "openai", "nvidia-nim", "anthropic", "google-gemini"} <= provider_ids
+
+
+def test_scan_ai_config_requires_remote_consent_and_never_contains_a_secret() -> None:
+    with pytest.raises(ValueError, match="explicit consent"):
+        AIProviderConfig(enabled=True, provider="openrouter", model="model")
+    config = AIProviderConfig(
+        enabled=True,
+        provider="openrouter",
+        model="model",
+        credential_ref="env:OPENROUTER_API_KEY",
+        remote_consent=True,
+    )
+    provider = create_analysis_provider(config, secret_resolver=lambda _reference: "runtime-key")
+    assert provider.provider_id == "openrouter"
+    assert "runtime-key" not in config.model_dump_json()
+
+
 def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -> None:
     adapter = OllamaAnalysisProvider(base_url="http://127.0.0.1:11434", model="llama3")
 
@@ -48,6 +72,16 @@ def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -
         asyncio.run(
             adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
         )
+
+
+def test_ollama_discovers_installed_models(monkeypatch) -> None:
+    adapter = OllamaAnalysisProvider(base_url="http://127.0.0.1:11434", model="inventory")
+
+    async def fake_request(*_args, **_kwargs):
+        return {"models": [{"name": "llama3.1:8b"}, {"name": "qwen3:8b"}]}
+
+    monkeypatch.setattr(adapter, "_request", fake_request)
+    assert asyncio.run(adapter.list_models()) == ["llama3.1:8b", "qwen3:8b"]
 
 
 def test_openai_compatible_adds_local_provenance(report, finding, monkeypatch) -> None:

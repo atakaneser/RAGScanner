@@ -19,6 +19,7 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     ) as client:
         dashboard = await client.get("/")
         css = await client.get("/dashboard-assets/dashboard.css")
+        i18n = await client.get("/dashboard-assets/dashboard-i18n.js")
         invalid = await client.post(
             "/dashboard/scans/local",
             data={
@@ -50,7 +51,19 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert "Recent reports" in dashboard.text
     assert "Recent jobs" in dashboard.text
     assert "Create job" in dashboard.text
+    assert "Add AI analysis to this report" in dashboard.text
+    assert "NVIDIA NIM" in dashboard.text
+    assert "Detect available models" in dashboard.text
     assert css.status_code == 200
+    assert i18n.status_code == 200
+    assert 'data-language-picker aria-label="Language"' in dashboard.text
+    for locale in ("English", "Türkçe", "Deutsch", "Français", "简体中文", "Italiano"):
+        assert locale in dashboard.text
+    assert '"Overview": "Genel Bakış"' in i18n.text
+    assert '"Overview": "Übersicht"' in i18n.text
+    assert '"Overview": "Vue d’ensemble"' in i18n.text
+    assert '"Overview": "概览"' in i18n.text
+    assert '"Overview": "Panoramica"' in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303
     assert queued.headers["location"] == "/?notice=scan-queued"

@@ -9,12 +9,18 @@ advisory report. Core scanning must remain local-first and independent of model 
 
 ## Decision
 
-AI enrichment is a post-processing adapter. It receives a bounded, redacted summary that excludes
+AI enrichment is an optional per-scan post-processing adapter. It receives a bounded, redacted summary that excludes
 raw documents and finding evidence, validates structured output, and produces a new report artefact.
 Ollama is loopback by default. Remote endpoints require explicit consent and HTTPS; credentials are
 resolved only from `env:` references and are not persisted.
 
+The supported catalog includes local Ollama, LM Studio, LocalAI, and vLLM plus OpenRouter, OpenAI,
+NVIDIA NIM, Anthropic, Google Gemini, Groq, Mistral AI, Together AI, and custom OpenAI-compatible
+endpoints. Provider/model/endpoint and credential references may be persisted in a job; secret
+values may not. Remote analysis requires consent on that scan. Provider failure does not invalidate
+or discard the deterministic report and is shown as a retryable advisory-analysis state.
+
 ## Consequences
 
-Deterministic scan scores, findings, and history remain authoritative and unchanged. Dashboard model
-settings, embeddings, and additional provider adapters remain separate future work.
+Deterministic scan scores, findings, and history remain authoritative and unchanged. Embeddings,
+AI-authored findings, and automatic remediation remain separate future work.

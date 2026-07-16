@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-0029
 
 ## Context
 
@@ -25,6 +25,12 @@ start it manually. Core, connectors, and storage ports remain independent of Age
 
 `ragscanner uninstall` removes the Agent registration and tool but preserves reports/history by
 default. `--purge-data` is an explicit separate destructive action.
+
+## Supersession
+
+Per-user Agent installation is retired. `ragscanner agent install` now directs administrators to
+the machine-wide Host Service. Existing source code remains temporarily for removal compatibility,
+but it is not an available installation mode.
 
 ## Consequences
 

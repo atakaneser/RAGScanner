@@ -1,9 +1,11 @@
 """Build bounded, redacted report context for optional model providers."""
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ragscanner.ai_analysis.models import AIProviderConfig, AIReportAnalysis
 from ragscanner.domain.helpers import mask_secret_like_values, truncate_text
 from ragscanner.reporting.models import ReportDocument
 
@@ -47,6 +49,25 @@ def build_analysis_request(report: ReportDocument) -> AnalysisRequest:
                 "This is a bounded summary, not source material.",
                 "Do not infer facts outside these findings.",
                 "Return advisory actions only; do not present a security guarantee.",
+                "Prioritize actions by severity, blast radius, and remediation dependency.",
+                "Ask questions only when the findings leave a material decision gap.",
+                "Provide verification steps that do not assume unavailable tools.",
             ],
         },
     )
+
+
+async def enrich_report(
+    report: ReportDocument,
+    config: AIProviderConfig,
+    *,
+    provider_factory: Callable[[AIProviderConfig], Any],
+) -> ReportDocument:
+    """Add advisory analysis without changing deterministic findings or scores."""
+
+    if not config.enabled:
+        return report
+    provider = provider_factory(config)
+    result: Awaitable[AIReportAnalysis] = provider.analyze(build_analysis_request(report))
+    analysis = await result
+    return report.model_copy(update={"ai_analysis": analysis, "ai_analysis_error": None})

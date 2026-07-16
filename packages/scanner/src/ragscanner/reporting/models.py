@@ -182,3 +182,4 @@ class ReportDocument(BaseModel):
     assessment_coverage: dict[str, dict[str, Any]]
     ingestion_issues: list[ReportIngestionIssue]
     ai_analysis: AIReportAnalysis | None = None
+    ai_analysis_error: str | None = Field(default=None, max_length=500)

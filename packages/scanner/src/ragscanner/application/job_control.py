@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.application.static_scan import StaticScanJobPayload
 from ragscanner.connectors import OpenWebUISourceConfig
 from ragscanner.jobs import (
@@ -25,6 +26,7 @@ class JobApplicationService:
         config_path: Path | None = None,
         idempotency_key: str | None = None,
         max_attempts: int = 3,
+        ai_config: AIProviderConfig | None = None,
     ) -> JobRecord:
         resolved_path = path.expanduser().resolve(strict=True)
         if resolved_path == Path(resolved_path.anchor):
@@ -34,6 +36,7 @@ class JobApplicationService:
             source_kind="local",
             path=str(resolved_path),
             config_path=str(resolved_config) if resolved_config else None,
+            ai=ai_config or AIProviderConfig(),
         )
         return self.repository.enqueue(
             JobRequest(
@@ -53,6 +56,7 @@ class JobApplicationService:
         content_consent: bool,
         idempotency_key: str | None = None,
         max_attempts: int = 3,
+        ai_config: AIProviderConfig | None = None,
     ) -> JobRecord:
         OpenWebUISourceConfig(
             base_url=base_url,
@@ -66,6 +70,7 @@ class JobApplicationService:
             openwebui_knowledge_id=knowledge_id,
             credential_ref=credential_ref,
             content_consent=content_consent,
+            ai=ai_config or AIProviderConfig(),
         )
         return self.repository.enqueue(
             JobRequest(

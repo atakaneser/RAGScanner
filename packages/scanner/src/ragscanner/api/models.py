@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.jobs import JobRecord
 
 
@@ -26,6 +27,7 @@ class LocalScanCreateRequest(BaseModel):
     path: str = Field(min_length=1, max_length=4096)
     config_path: str | None = Field(default=None, min_length=1, max_length=4096)
     max_attempts: int = Field(default=3, ge=1, le=10)
+    ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
 
 
 class OpenWebUIScanCreateRequest(BaseModel):
@@ -36,6 +38,7 @@ class OpenWebUIScanCreateRequest(BaseModel):
     credential_ref: str = Field(min_length=1, max_length=500)
     content_consent: bool
     max_attempts: int = Field(default=3, ge=1, le=10)
+    ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
 
 
 class JobAccepted(BaseModel):

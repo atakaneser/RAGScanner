@@ -19,8 +19,9 @@ from uuid import uuid4
 import typer
 import uvicorn
 
-from ragscanner.agent import install_autostart, platform_autostart_path, remove_autostart, run_agent
-from ragscanner.ai_analysis.service import build_analysis_request
+from ragscanner.agent import platform_autostart_path, remove_autostart, run_agent
+from ragscanner.ai_analysis import AIProviderConfig
+from ragscanner.ai_analysis.service import enrich_report
 from ragscanner.api import create_app
 from ragscanner.application import (
     DurableWorker,
@@ -43,10 +44,13 @@ from ragscanner.domain import (
 )
 from ragscanner.host_service import (
     install_host_service,
+    install_machine_runtime,
     is_elevated,
+    machine_launcher_path,
     remove_host_service,
+    remove_machine_runtime,
+    restart_host_service,
     service_definition_path,
-    system_data_dir,
 )
 from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
 from ragscanner.local_site import (
@@ -76,7 +80,13 @@ from ragscanner.parsers import (
     PdfParser,
     PlainTextParser,
 )
-from ragscanner.paths import new_report_path, reports_directory
+from ragscanner.paths import (
+    new_report_path,
+    reports_directory,
+    service_temp_dir,
+    system_data_dir,
+    user_cache_dir,
+)
 from ragscanner.pipeline import (
     OutputFormat,
     ProgressMode,
@@ -89,8 +99,7 @@ from ragscanner.pipeline import (
 )
 from ragscanner.providers import (
     ModelProviderError,
-    OllamaAnalysisProvider,
-    OpenAICompatibleAnalysisProvider,
+    create_analysis_provider,
 )
 from ragscanner.quality import (
     ChunkQualityConfig,
@@ -133,16 +142,16 @@ security_app = typer.Typer(help="Offline and authorized security scanning comman
 quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis commands.")
 history_app = typer.Typer(help="Opt-in local SQLite scan history and comparison commands.")
 jobs_app = typer.Typer(help="Durable local scan job commands.")
-agent_app = typer.Typer(help="Run and manage the per-user local dashboard Agent.")
+agent_app = typer.Typer(help="Manage the retired per-user Agent compatibility commands.")
 site_app = typer.Typer(help="Configure the machine-local dashboard address.")
 host_app = typer.Typer(help="Run and manage the machine-wide local Host Service.")
 app.add_typer(security_app, name="security")
 app.add_typer(quality_app, name="quality")
 app.add_typer(history_app, name="history")
 app.add_typer(jobs_app, name="jobs")
-app.add_typer(agent_app, name="agent")
-app.add_typer(site_app, name="site")
-app.add_typer(host_app, name="host")
+app.add_typer(agent_app, name="agent", hidden=True)
+app.add_typer(site_app, name="site", hidden=True)
+app.add_typer(host_app, name="host", hidden=True)
 
 
 def _static_rule_directory() -> Path:
@@ -208,7 +217,17 @@ def _schedule_windows_uninstall(uv: str) -> None:
 
 def _run_guided_local_scan(path: Path, *, html_report: bool = False) -> None:
     """Run a guided scan into local history; HTML is retained only for compatibility."""
-    output = new_report_path(get_settings().data_dir) if html_report else None
+    data_dir = get_settings().data_dir.expanduser().resolve()
+    can_write_machine_history = bool(os.environ.get("RAGSCANNER_DATA_DIR")) or (
+        data_dir.is_dir() and os.access(data_dir, os.W_OK)
+    )
+    output = new_report_path(user_cache_dir()) if html_report else None
+    if not html_report and not can_write_machine_history:
+        typer.echo(
+            "The scan will run interactively without writing machine history. "
+            "Use the local dashboard to queue a persistent Host Service scan.",
+            err=True,
+        )
     unified_scan(
         path=path,
         output_format="html" if html_report else "terminal",
@@ -230,7 +249,7 @@ def _run_guided_local_scan(path: Path, *, html_report: bool = False) -> None:
         quiet=False,
         verbose=False,
         no_color=False,
-        save_history=not html_report,
+        save_history=not html_report and can_write_machine_history,
         history_db=None,
     )
 
@@ -398,6 +417,32 @@ def _guided_onboarding() -> None:
     )
 
 
+def _machine_installation_present() -> bool:
+    return service_definition_path().is_file() and machine_launcher_path().is_file()
+
+
+def _wait_for_dashboard(*, timeout: float = 10) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", 8000), timeout=0.25):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
+
+
+def _open_local_dashboard(*, require_installation: bool = True) -> None:
+    """Open the installed local dashboard, while always printing a copyable fallback URL."""
+    if require_installation and not _machine_installation_present():
+        typer.echo("RAGScanner is not installed for this machine. Run `ragscanner install` first.")
+        return
+    url = dashboard_url()
+    typer.echo(f"Opening the RAGScanner dashboard: {url}")
+    if not webbrowser.open(url):
+        typer.echo(f"The browser could not be opened automatically. Open {url} manually.")
+
+
 @app.callback()
 def main(
     context: typer.Context,
@@ -408,7 +453,13 @@ def main(
 ) -> None:
     """RAGScanner command group."""
     if context.invoked_subcommand is None and not version:
-        _guided_onboarding()
+        _open_local_dashboard()
+
+
+@app.command("guided", hidden=True)
+def guided_scan() -> None:
+    """Run the legacy interactive scan assistant."""
+    _guided_onboarding()
 
 
 @app.command()
@@ -433,24 +484,99 @@ def show_paths() -> None:
     typer.echo(f"Data directory: {data_dir}")
     typer.echo(f"Reports directory: {reports_directory(data_dir)}")
     typer.echo(f"History database: {data_dir / 'history.sqlite3'}")
-    typer.echo(f"Agent registration: {platform_autostart_path(data_dir)}")
+    typer.echo(f"User cache directory: {user_cache_dir()}")
+    typer.echo(f"Service temporary directory: {service_temp_dir(data_dir)}")
     typer.echo(f"Local dashboard: {dashboard_url()}")
 
 
 @app.command()
+def install(
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", "-y", help="Skip the installation confirmation."),
+    ] = False,
+    mode: Annotated[
+        str,
+        typer.Option("--mode", help="Complete setup in the dashboard or terminal."),
+    ] = "dashboard",
+    open_dashboard: Annotated[
+        bool,
+        typer.Option(
+            "--open-dashboard/--no-open-dashboard",
+            help="Open the dashboard after installation.",
+        ),
+    ] = True,
+) -> None:
+    """Install the complete machine-wide service and local dashboard."""
+    if mode not in {"dashboard", "terminal"}:
+        raise typer.BadParameter("mode must be dashboard or terminal")
+    if not is_elevated():
+        command = "ragscanner install"
+        if sys.platform != "win32":
+            command = 'sudo "$(command -v ragscanner)" install'
+        raise typer.BadParameter(
+            "installation requires administrator permission; open an elevated terminal and run "
+            f"`{command}`"
+        )
+    if not yes and not typer.confirm(
+        "Install RAGScanner for this machine, start its background service, and configure the "
+        "local dashboard?"
+    ):
+        typer.echo("Installation cancelled. No changes were made.")
+        return
+    try:
+        register_local_hostname(hosts_file_path())
+        definition = install_host_service()
+    except OSError as error:
+        raise typer.BadParameter(f"RAGScanner installation failed: {error}") from error
+    typer.echo("RAGScanner installation completed.")
+    typer.echo(f"Machine data: {system_data_dir()}")
+    typer.echo(f"Service definition: {definition}")
+    typer.echo(f"Dashboard: {dashboard_url()}")
+    if mode == "terminal":
+        setup(mode="terminal")
+        return
+    if open_dashboard:
+        if not _wait_for_dashboard():
+            typer.echo("The background service is still starting; reload the dashboard if needed.")
+        _open_local_dashboard(require_installation=False)
+
+
+@app.command("open")
+def open_dashboard_command() -> None:
+    """Open the local RAGScanner dashboard."""
+    _open_local_dashboard()
+
+
+@app.command()
+def status() -> None:
+    """Show the machine-wide installation and dashboard status."""
+    typer.echo(
+        f"RAGScanner installation: {'installed' if _machine_installation_present() else 'not installed'}"
+    )
+    host_status()
+
+
+@app.command()
 def update() -> None:
-    """Upgrade the installed RAGScanner tool; local data and reports are preserved."""
-    typer.echo("Updating RAGScanner through uv...")
-    _run_uv_tool("upgrade", "ragscanner")
-    typer.echo("RAGScanner update completed. Restart the Agent to use the new version immediately.")
+    """Update the installed RAGScanner service and runtime."""
+    if not is_elevated():
+        raise typer.BadParameter("machine-wide update requires administrator permission")
+    typer.echo("Updating the machine-wide RAGScanner runtime...")
+    install_machine_runtime()
+    restart_host_service()
+    typer.echo("RAGScanner update completed. The Host Service was restarted.")
 
 
 @app.command()
 def repair() -> None:
-    """Reinstall the current RAGScanner tool environment through uv."""
-    typer.echo("Repairing the RAGScanner installation through uv...")
-    _run_uv_tool("upgrade", "ragscanner", "--reinstall")
-    typer.echo("RAGScanner repair completed.")
+    """Repair the complete machine-wide RAGScanner installation."""
+    if not is_elevated():
+        raise typer.BadParameter("machine-wide repair requires administrator permission")
+    typer.echo("Repairing the machine-wide RAGScanner runtime...")
+    install_machine_runtime(reinstall=True)
+    restart_host_service()
+    typer.echo("RAGScanner repair completed. The Host Service was restarted.")
 
 
 @app.command()
@@ -466,12 +592,17 @@ def uninstall(
         ),
     ] = False,
 ) -> None:
-    """Remove the tool and its autostart record; data is preserved unless explicitly purged."""
-    if not yes and not typer.confirm("Uninstall RAGScanner from this user account?"):
+    """Remove the machine installation; preserve data unless explicitly purged."""
+    if not is_elevated():
+        raise typer.BadParameter("machine-wide uninstall requires administrator permission")
+    if not yes and not typer.confirm("Uninstall RAGScanner from this machine?"):
         typer.echo("Uninstall cancelled. No changes were made.")
         return
     data_dir = get_settings().data_dir.expanduser().resolve()
     remove_autostart(data_dir)
+    remove_host_service()
+    unregister_local_hostname(hosts_file_path())
+    remove_machine_runtime()
     if purge_data:
         if not yes and not typer.confirm(f"Permanently delete all RAGScanner data in {data_dir}?"):
             typer.echo("Application removed; local data was preserved.")
@@ -492,14 +623,11 @@ def uninstall(
 
 @agent_app.command("install")
 def agent_install() -> None:
-    """Start RAGScanner automatically for the current user after sign-in."""
-    data_dir = get_settings().data_dir.expanduser().resolve()
-    try:
-        registration = install_autostart(data_dir)
-    except OSError as error:
-        raise typer.BadParameter(f"cannot install the local Agent: {error}") from error
-    typer.echo(f"RAGScanner Agent installed for this user: {registration}")
-    typer.echo("Dashboard: http://127.0.0.1:8000")
+    """Reject the retired per-user Agent installation mode."""
+    raise typer.BadParameter(
+        "per-user Agent installation is retired; run `ragscanner install` from an "
+        "administrator terminal to install the machine-wide service"
+    )
 
 
 @agent_app.command("uninstall")
@@ -596,27 +724,8 @@ def site_unregister(
 def host_install(
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompts.")] = False,
 ) -> None:
-    """Install the always-on machine-local Host Service and loopback dashboard name."""
-    if not is_elevated():
-        raise typer.BadParameter(
-            "machine-wide setup requires administrator permission; open an elevated terminal and run "
-            "`ragscanner host install --yes`"
-        )
-    hosts_path = hosts_file_path()
-    if not yes and not typer.confirm(
-        f"Install the machine-local Host Service and map {dashboard_url()} to loopback?"
-    ):
-        typer.echo("Host Service installation cancelled. No changes were made.")
-        return
-    try:
-        register_local_hostname(hosts_path)
-        definition = install_host_service()
-    except OSError as error:
-        raise typer.BadParameter(f"cannot install the Host Service: {error}") from error
-    typer.echo("RAGScanner Host Service installed and started.")
-    typer.echo(f"Service data: {system_data_dir()}")
-    typer.echo(f"Service definition: {definition}")
-    typer.echo(f"Dashboard: {dashboard_url()}")
+    """Compatibility alias for the unified installer."""
+    install(yes=yes, mode="dashboard", open_dashboard=True)
 
 
 @host_app.command("status")
@@ -633,6 +742,10 @@ def host_status() -> None:
 @host_app.command("uninstall")
 def host_uninstall(
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompts.")] = False,
+    purge_data: Annotated[
+        bool,
+        typer.Option("--purge-data", help="Also permanently delete machine reports and history."),
+    ] = False,
 ) -> None:
     """Stop and remove the Host Service while preserving reports and history."""
     if not is_elevated():
@@ -646,10 +759,14 @@ def host_uninstall(
     try:
         remove_host_service()
         unregister_local_hostname(hosts_file_path())
+        remove_machine_runtime()
+        if purge_data:
+            shutil.rmtree(system_data_dir(), ignore_errors=True)
     except OSError as error:
         raise typer.BadParameter(f"cannot remove the Host Service: {error}") from error
     typer.echo(
-        "RAGScanner Host Service and local hostname mapping were removed. Data was preserved."
+        "RAGScanner Host Service, machine runtime, and local hostname mapping were removed. "
+        + ("Machine data was deleted." if purge_data else "Machine data was preserved.")
     )
 
 
@@ -662,6 +779,9 @@ def host_run(
     """Run the Host Service in the foreground; used only by a service manager."""
     selected_data_dir = (data_dir or system_data_dir()).expanduser().resolve()
     selected_data_dir.mkdir(parents=True, exist_ok=True)
+    temporary_dir = service_temp_dir(selected_data_dir)
+    temporary_dir.mkdir(parents=True, exist_ok=True)
+    tempfile.tempdir = str(temporary_dir)
     typer.echo(f"RAGScanner Host Service listening at {dashboard_url(port=port)}", err=True)
     run_agent(
         selected_data_dir / "history.sqlite3",
@@ -671,7 +791,7 @@ def host_run(
     )
 
 
-@app.command("setup")
+@app.command("setup", hidden=True)
 def setup(
     mode: Annotated[str | None, typer.Option("--mode", help="dashboard or terminal")] = None,
 ) -> None:
@@ -770,7 +890,7 @@ def setup(
             )
         finally:
             repository.close()
-        typer.echo("Source profile saved. Use `ragscanner host install` for continuous jobs.")
+        typer.echo("Source profile saved. The machine service will process continuous jobs.")
         return
     raise typer.BadParameter("mode must be dashboard or terminal")
 
@@ -828,6 +948,11 @@ def unified_scan(
     no_color: Annotated[bool, typer.Option("--no-color")] = False,
     save_history: Annotated[bool, typer.Option("--save-history")] = False,
     history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
+    ai_provider: Annotated[str | None, typer.Option("--ai-provider")] = None,
+    ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
+    ai_base_url: Annotated[str | None, typer.Option("--ai-base-url")] = None,
+    ai_credential_ref: Annotated[str | None, typer.Option("--ai-credential-ref")] = None,
+    consent_remote_ai: Annotated[bool, typer.Option("--consent-remote-ai")] = False,
 ) -> None:
     """Run the complete local static scan pipeline and render a report."""
     del no_color  # Output is deliberately ANSI-free in the first implementation.
@@ -913,6 +1038,27 @@ def unified_scan(
         limits=limits,
         show_absolute_paths=not config.show_relative_paths,
     ).build(_pipeline_report_input(result))
+    if ai_provider is not None:
+        try:
+            ai_config = AIProviderConfig(
+                enabled=True,
+                provider=ai_provider,
+                model=ai_model,
+                base_url=ai_base_url,
+                credential_ref=ai_credential_ref,
+                remote_consent=consent_remote_ai,
+            )
+            report = asyncio.run(
+                enrich_report(
+                    report,
+                    ai_config,
+                    provider_factory=lambda selected: create_analysis_provider(
+                        selected, secret_resolver=resolve_secret_reference
+                    ),
+                )
+            )
+        except (ModelProviderError, OSError, ValueError) as error:
+            raise typer.BadParameter(f"AI analysis failed: {error}") from error
     if save_history or history_db is not None:
         database_path = history_db or (get_settings().data_dir / "history.sqlite3")
         repository: SQLiteScanHistoryRepository | None = None
@@ -969,6 +1115,23 @@ def _job_service(database: Path | None) -> tuple[SQLiteJobRepository, JobApplica
     return repository, JobApplicationService(repository)
 
 
+def _job_ai_config(
+    provider: str | None,
+    model: str | None,
+    base_url: str | None,
+    credential_ref: str | None,
+    consent_remote: bool,
+) -> AIProviderConfig:
+    return AIProviderConfig(
+        enabled=provider is not None,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        credential_ref=credential_ref,
+        remote_consent=consent_remote,
+    )
+
+
 @jobs_app.command("enqueue-scan")
 def jobs_enqueue_scan(
     path: Annotated[Path, typer.Argument(exists=True, readable=True)],
@@ -978,6 +1141,11 @@ def jobs_enqueue_scan(
     ] = None,
     idempotency_key: Annotated[str | None, typer.Option("--idempotency-key")] = None,
     max_attempts: Annotated[int, typer.Option("--max-attempts", min=1, max=10)] = 3,
+    ai_provider: Annotated[str | None, typer.Option("--ai-provider")] = None,
+    ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
+    ai_base_url: Annotated[str | None, typer.Option("--ai-base-url")] = None,
+    ai_credential_ref: Annotated[str | None, typer.Option("--ai-credential-ref")] = None,
+    consent_remote_ai: Annotated[bool, typer.Option("--consent-remote-ai")] = False,
 ) -> None:
     """Queue a local static scan without starting an in-process task."""
     repository: SQLiteJobRepository | None = None
@@ -988,6 +1156,9 @@ def jobs_enqueue_scan(
             config_path=config_file,
             idempotency_key=idempotency_key,
             max_attempts=max_attempts,
+            ai_config=_job_ai_config(
+                ai_provider, ai_model, ai_base_url, ai_credential_ref, consent_remote_ai
+            ),
         )
     except (OSError, StorageError, ValueError) as error:
         raise typer.BadParameter(f"cannot enqueue scan job: {error}") from error
@@ -1036,6 +1207,11 @@ def jobs_enqueue_openwebui(
     database: Annotated[Path | None, typer.Option("--database", dir_okay=False)] = None,
     idempotency_key: Annotated[str | None, typer.Option("--idempotency-key")] = None,
     max_attempts: Annotated[int, typer.Option("--max-attempts", min=1, max=10)] = 3,
+    ai_provider: Annotated[str | None, typer.Option("--ai-provider")] = None,
+    ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
+    ai_base_url: Annotated[str | None, typer.Option("--ai-base-url")] = None,
+    ai_credential_ref: Annotated[str | None, typer.Option("--ai-credential-ref")] = None,
+    consent_remote_ai: Annotated[bool, typer.Option("--consent-remote-ai")] = False,
 ) -> None:
     """Queue a consented OpenWebUI knowledge-base content scan."""
     if not consent_content:
@@ -1050,6 +1226,9 @@ def jobs_enqueue_openwebui(
             content_consent=True,
             idempotency_key=idempotency_key,
             max_attempts=max_attempts,
+            ai_config=_job_ai_config(
+                ai_provider, ai_model, ai_base_url, ai_credential_ref, consent_remote_ai
+            ),
         )
     except (OSError, StorageError, ValueError) as error:
         raise typer.BadParameter(f"cannot enqueue OpenWebUI scan job: {error}") from error
@@ -1379,7 +1558,7 @@ def analyze_report_command(
     model: Annotated[str, typer.Option("--model")],
     output: Annotated[Path, typer.Option("--output")],
     provider: Annotated[str, typer.Option("--provider")] = "ollama",
-    base_url: Annotated[str, typer.Option("--base-url")] = "http://127.0.0.1:11434",
+    base_url: Annotated[str | None, typer.Option("--base-url")] = None,
     credential_ref: Annotated[str | None, typer.Option("--credential-ref")] = None,
     consent_remote: Annotated[bool, typer.Option("--consent-remote")] = False,
 ) -> None:
@@ -1388,24 +1567,23 @@ def analyze_report_command(
         raise typer.BadParameter("output must end in .json, .html, or .htm")
     try:
         report = ReportDocument.model_validate_json(report_file.read_text(encoding="utf-8"))
-        adapter: OllamaAnalysisProvider | OpenAICompatibleAnalysisProvider
-        if provider == "ollama":
-            adapter = OllamaAnalysisProvider(
-                base_url=base_url, model=model, consent_remote=consent_remote
+        config = AIProviderConfig(
+            enabled=True,
+            provider=provider,
+            model=model,
+            base_url=base_url,
+            credential_ref=credential_ref,
+            remote_consent=consent_remote,
+        )
+        enriched = asyncio.run(
+            enrich_report(
+                report,
+                config,
+                provider_factory=lambda selected: create_analysis_provider(
+                    selected, secret_resolver=resolve_secret_reference
+                ),
             )
-        elif provider == "openai-compatible":
-            if credential_ref is None:
-                raise ValueError("--credential-ref is required for openai-compatible providers")
-            adapter = OpenAICompatibleAnalysisProvider(
-                base_url=base_url,
-                model=model,
-                consent_remote=consent_remote,
-                api_key=resolve_secret_reference(credential_ref),
-            )
-        else:
-            raise ValueError("provider must be ollama or openai-compatible")
-        analysis = asyncio.run(adapter.analyze(build_analysis_request(report)))
-        enriched = report.model_copy(update={"ai_analysis": analysis})
+        )
         rendered = (
             JsonReporter().render(enriched)
             if output.suffix.casefold() == ".json"

@@ -252,6 +252,7 @@ def create_app(
                 config_path=Path(request.config_path) if request.config_path else None,
                 idempotency_key=idempotency_key,
                 max_attempts=request.max_attempts,
+                ai_config=request.ai,
             )
         except (OSError, ValueError) as error:
             raise RequestValidationError([]) from error
@@ -279,6 +280,7 @@ def create_app(
                 content_consent=request.content_consent,
                 idempotency_key=idempotency_key,
                 max_attempts=request.max_attempts,
+                ai_config=request.ai,
             )
         except ValueError as error:
             raise RequestValidationError([]) from error

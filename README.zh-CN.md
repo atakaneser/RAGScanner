@@ -29,7 +29,7 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 分块质量检查 | 可用 |
 | 终端、JSON 和独立 HTML 报告 | 可用 |
 | 离线静态扫描 | 默认行为 |
-| 英文引导式上手流程 | 使用裸 `ragscanner` 命令可用 |
+| 统一机器安装和 dashboard 启动 | `ragscanner install`；裸 `ragscanner` 打开 dashboard |
 | 经同意的容器 OpenWebUI 发现和知识库/文件元数据清单 | 可用 |
 | OCR 和语义重复分析 | 尚不可用 |
 | 可选 SQLite 历史记录和覆盖范围感知比较 | 可通过 CLI 使用 |
@@ -39,12 +39,12 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 本地概览和队列仪表板 | 可通过 `ragscanner serve` 使用 |
 | 支持日期/来源筛选、详情和比较的仪表板报告存档 | 可用 |
 | 不含密钥的持久来源配置及 Sources/Settings 管理 | 可用 |
-| 每用户本地 Agent，提供随时可用的仪表板和持久任务处理 | 可用 |
+| 每用户本地 Agent | 已停用；由机器服务取代 |
 | 具有本地管理员初始化的机器本地 Host Service | 可用 |
 | Docker、Podman、nerdctl、Finch、Kubernetes 和 localhost 元数据发现 | 可用 |
 | 经明确同意的 OpenWebUI 知识内容连接器 | 可用 |
 | 调度器和向量存储内容连接器 | 尚不可用 |
-| ModelProvider/BYOM 集成 | 尚不可用 |
+| 每次扫描可选的本地/远程 AI 辅助报告分析 | 可用，默认关闭 |
 | 主动端点扫描 CLI | 不可用；仅有核心契约 |
 
 `ragscanner scan` 运行本地发现 → 解析 → 规范化 → 分块 → 静态安全 → 重复分析 → 分块质量
@@ -59,10 +59,12 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 ```powershell
 uv tool install git+https://github.com/atakaneser/RAGScanner.git
 ragscanner doctor
-ragscanner
+ragscanner install
 ```
 
-裸命令会打开英文引导流程。它会询问您使用的源，并可启动扫描。自动发现仅建议名称与 RAG 相关的
+`ragscanner install` 会一次性安装机器级服务、隔离运行时和本地 dashboard 地址，并默认打开
+dashboard。使用 `ragscanner install --mode terminal` 可在 CLI 中完成设置。之后直接运行
+`ragscanner` 将始终打开 dashboard。自动发现仅建议名称与 RAG 相关的
 直接文件夹，不会将 Documents 等通用文件夹视为 RAG 源。明确同意后，OpenWebUI 发现功能会检查可用 Docker、Podman、nerdctl 或 Finch 运行时的有限
 元数据以及常见回环地址。单独提供且仅保存在内存中的 API 密钥可清点有权访问的知识库，以及
 关联或独立/聊天文件的元数据。选项 2 允许用户选择一个列出的 OpenWebUI 知识库，并在单独明确
@@ -74,17 +76,26 @@ ragscanner
 ragscanner update
 ragscanner repair
 ragscanner uninstall
-ragscanner agent install
-ragscanner host install
+ragscanner status
+ragscanner open
 ```
 
-`uninstall` 会要求确认。自动化可使用 `ragscanner uninstall --yes`。这些命令不启动 shell，
-而是委托给官方 `uv tool` 环境；`repair` 会完整重新安装，同时保留原始安装源和设置。在
-Windows 上，`uninstall` 会在启动器退出后安排删除，以避免锁定的可执行文件导致拒绝访问错误。
+这些命令需要管理员权限。`update` 和 `repair` 会替换机器级运行时并重启 Host Service。
+自动化可使用 `ragscanner uninstall --yes`。除非指定 `--purge-data`，`uninstall` 会保留机器级报告和历史记录。
 
 发布到 PyPI 后，安装将使用 `uv tool install ragscanner`。目前尚未发布 PyPI 包或版本标签。
 
 ## 直接扫描
+
+每个直接扫描或 dashboard 任务都可以单独选择是否启用 AI 辅助分析。本地提供方包括
+Ollama、LM Studio、LocalAI 和 vLLM；远程选项包括 OpenRouter、OpenAI、NVIDIA NIM、
+Anthropic、Google Gemini、Groq、Mistral AI、Together AI 以及自定义 OpenAI 兼容端点。
+AI 默认关闭；远程使用需要对该次扫描明确同意。系统只发送有界且已脱敏的报告摘要，
+不会发送原始文档或发现证据。提供方失败不会影响确定性报告。
+
+```bash
+ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b
+```
 
 包含空格、括号或其他 shell 敏感字符的路径应使用引号包围。
 
@@ -135,6 +146,121 @@ ragscanner worker
 Bearer 身份验证扫描创建和作业控制。服务器仅绑定到 `127.0.0.1`。
 
 默认情况下，RAGScanner 不会覆盖现有输出文件。
+
+## 完整 CLI 命令参考
+
+运行 `ragscanner COMMAND --help` 可查看已安装版本的权威语法。以下内容覆盖全部公开接口；
+内部兼容命令会有意隐藏。
+
+### 调用与诊断
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner` | 已安装时打开 dashboard；否则显示安装命令。 |
+| `ragscanner --version` | 显示已安装的 CLI 版本。 |
+| `ragscanner --help` / `ragscanner COMMAND --help` | 显示全局或命令专用帮助，不改变机器状态。 |
+| `ragscanner --install-completion` / `--show-completion` | 安装 shell 补全或显示 Typer 支持的补全脚本。 |
+| `ragscanner doctor` | 离线诊断安装、路径、配置、解析器和运行时。 |
+| `ragscanner paths` | 显示当前系统的机器配置、数据、报告、临时及旧版路径。 |
+
+### 机器安装与生命周期
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner install` | 安装隔离运行时和系统服务，配置 `local.ragscanner.com`，初始化机器数据并打开 dashboard；需要时请求管理员权限。 |
+| `ragscanner install --yes` | 为无人值守安装接受常规提示；仍可能需要系统提权。 |
+| `ragscanner install --mode terminal` | 使用终端配置而非默认 dashboard；有效模式为 `dashboard` 和 `terminal`。 |
+| `ragscanner install --no-open-dashboard` | 完整安装，但结束后不打开浏览器。 |
+| `ragscanner open` | 在默认浏览器打开已安装 dashboard，不启动第二个前台服务器。 |
+| `ragscanner status` | 显示机器安装、服务、dashboard、运行时和数据路径状态。 |
+| `ragscanner update` | 替换隔离运行时并重启机器服务；需要管理员权限。 |
+| `ragscanner repair` | 修复缺失的运行时、服务、主机名、目录和配置；需要管理员权限。 |
+| `ragscanner uninstall` | 确认后删除服务、运行时和主机名映射，同时保留报告与历史。 |
+| `ragscanner uninstall --yes --purge-data` | 无交互删除，并清除机器配置、报告历史和托管数据；此操作具有破坏性。 |
+
+### 直接本地扫描
+
+```text
+ragscanner scan PATH [OPTIONS]
+```
+
+`PATH` 可以是受支持的文件或目录。含空格或 shell 特殊字符的路径须加引号。扫描在本地
+运行，除非明确选择，否则 AI 增强关闭。
+
+| 选项 | 详细用途 |
+| --- | --- |
+| `--format terminal|json|html`, `--output PATH` | 选择终端或显式 JSON/HTML 导出；导出需要路径，且不会覆盖现有文件。 |
+| `--include GLOB`, `--exclude GLOB` | 用可重复的 glob 模式限制目录发现。 |
+| `--recursive` / `--no-recursive` | 开关子目录递归；默认开启。 |
+| `--max-file-size BYTES`, `--max-files COUNT` | 对输入大小和文件数量设置正数安全上限。 |
+| `--category NAME`, `--exclude-rule ID` | 包含类别或排除规则；多个值可重复传入。 |
+| `--include-pii` / `--no-include-pii` | 开关有效扫描策略中的 PII 规则。 |
+| `--min-severity LEVEL`, `--fail-on LEVEL`, `--max-findings COUNT` | 过滤显示、设定非零退出阈值并限制发现数量。 |
+| `--config FILE` | 从显式文件加载扫描策略，而非仅使用默认值和机器配置。 |
+| `--security-only`, `--quality-only` | 仅运行安全或仅运行质量规则；不要同时使用。 |
+| `--quiet`, `--verbose`, `--no-color` | 控制终端详情和 ANSI 颜色，不改变扫描结果。 |
+| `--save-history`, `--history-db FILE` | 保存版本化报告，并可选择非默认 SQLite 历史数据库。 |
+| `--ai-provider NAME`, `--ai-model NAME`, `--ai-base-url URL` | 使用所选提供商、模型及可选兼容端点启用报告增强。 |
+| `--ai-credential-ref REF`, `--consent-remote-ai` | 从外部解析如 `env:OPENROUTER_API_KEY` 的凭据，并记录远程使用同意。 |
+
+### AI 报告增强
+
+| 命令或选项 | 详细用途 |
+| --- | --- |
+| `ragscanner analyze-report REPORT_FILE --model MODEL --output FILE` | 增强现有受支持报告；模型和输出均为必填。 |
+| `--provider NAME` | 选择分析提供商，默认为 `ollama`；可配置本地和远程兼容提供商。 |
+| `--base-url URL`, `--credential-ref REF` | 覆盖端点，并在报告/历史内容之外解析密钥。 |
+| `--consent-remote` | 明确允许发送受限且脱敏的报告摘要；原始文档和证据不会发送。 |
+
+### 持久作业与 worker
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner jobs enqueue-scan PATH` | 排队持久文件/目录扫描；支持 `--database`、`--config`、`--idempotency-key`、`--max-attempts` 和 AI 选项。 |
+| `ragscanner jobs enqueue-openwebui` | 排队 OpenWebUI 扫描；必须提供 `--base-url`、`--knowledge-id`、`--credential-ref`、`--consent-content`，也支持数据库、幂等、重试和 AI 选项。 |
+| `ragscanner jobs list` | 用 `--database`、`--limit`（1–200）、`--offset` 和 `--format` 列出作业。 |
+| `ragscanner jobs show JOB_ID` | 显示尝试、时间、结果引用和错误；`--database` 选择存储。 |
+| `ragscanner jobs cancel JOB_ID` | 取消尚未终止的作业；`--database` 选择存储。 |
+| `ragscanner jobs retry JOB_ID` | 为符合条件的失败/取消作业创建新尝试。 |
+| `ragscanner worker` | 持续租用并执行机器作业数据库中的持久作业。 |
+| `ragscanner worker --once` | 处理一次可用工作后退出。 |
+| `--database FILE`, `--poll-interval SECONDS`, `--lease-seconds SECONDS`, `--worker-id ID` | 控制存储、轮询（0.1–60）、租约（5–3600）和 worker 身份。 |
+
+### 已存报告历史
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner history list` | 用 `--database`、`--limit`（1–200）、`--offset` 和 `--format` 列出扫描。 |
+| `ragscanner history show SCAN_ID` | 用 `--database`、`--format` 和可选 `--verbose` 渲染一份报告。 |
+| `ragscanner history compare BASELINE_ID CANDIDATE_ID` | 比较新增、已解决和未变化发现；支持 `--database` 与 `--format`。 |
+| `ragscanner history delete SCAN_ID` | 确认后删除报告；仅在有意自动化时使用 `--yes`，`--database` 选择存储。 |
+
+### 渲染与前台服务
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner report SCAN_RESULT` | 使用 `--format`、`--output`、`--verbose`、发现过滤器、`--max-findings`、`--include-info`/`--exclude-info` 及可选 `--show-absolute-paths` 重新渲染。 |
+| `ragscanner serve` | 在 loopback 前台运行 dashboard/API 供开发或诊断；正常安装使用机器服务。 |
+| `ragscanner serve --port PORT --history-db FILE` | 选择 loopback 端口（1–65535）和替代历史数据库。 |
+
+### 专用扫描器
+
+| 命令 | 详细用途 |
+| --- | --- |
+| `ragscanner security scan PATH` | 仅运行安全规则；支持规则/类别/严重性过滤、`--format`、`--fail-on`、`--max-findings`、`--include-pii`、`--offline`/`--no-offline`；默认离线。 |
+| `ragscanner quality scan PATH` | 用独立开关、`--similarity-threshold`（0.5–1.0）、chunk token 上限、`--fail-on` 和 `--format` 检查精确/近似重复与 chunk 质量。 |
+
+### 运行规则
+
+| 规则 | 含义 |
+| --- | --- |
+| 退出状态 | 无效输入、运行错误或达到 `--fail-on` 的发现会产生适合 CI 的非零退出码。 |
+| 同意 | OpenWebUI 内容访问和远程 AI 需要明确开关；仅发现元数据不授予内容访问。 |
+| 凭据 | 将密钥存于外部，只传递凭据引用。 |
+| 存储 | 未指定的路径解析为 `ragscanner paths` 显示的系统机器位置。 |
+| 服务 | 已安装 dashboard/worker 为机器级；前台 `serve` 和 `worker` 可用于诊断。 |
+| 输出安全 | 不覆盖文件，默认隐藏绝对路径，并限制和转义报告证据。 |
+| 兼容性 | 选项名和命令输出为英语；所有受支持语言的 RAG 内容保持原生 Unicode。 |
 
 ## 多语言输入
 

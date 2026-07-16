@@ -210,15 +210,28 @@ class HtmlReporter:
         ai_analysis = report.ai_analysis
         ai_section = ""
         if ai_analysis is not None:
+            risk_interpretation = (
+                f"<h3>Risk interpretation</h3><p>{esc(ai_analysis.risk_interpretation)}</p>"
+                if ai_analysis.risk_interpretation
+                else ""
+            )
             ai_section = (
                 '<section aria-labelledby="ai-analysis"><h2 id="ai-analysis">AI analysis</h2>'
                 f"<p>{esc(ai_analysis.executive_summary)}</p>"
+                f"{risk_interpretation}"
                 f"<h3>Priority actions</h3><ul>{messages(ai_analysis.priority_actions)}</ul>"
-                f"<h3>Review questions</h3><ul>{messages(ai_analysis.review_questions)}</ul>"
+                f"<h3>Questions for review</h3><ul>{messages(ai_analysis.review_questions)}</ul>"
+                f"<h3>Verification steps</h3><ul>{messages(ai_analysis.verification_steps)}</ul>"
                 f"<h3>Limitations</h3><ul>{messages(ai_analysis.limitations)}</ul>"
                 f'<p class="muted">Provider: {esc(ai_analysis.provider)} · Model: '
                 f"{esc(ai_analysis.model)} · Remote: {esc(ai_analysis.remote)} · "
                 f"{esc(ai_analysis.disclaimer)}</p></section>"
+            )
+        elif report.ai_analysis_error:
+            ai_section = (
+                '<section aria-labelledby="ai-analysis"><h2 id="ai-analysis">'
+                "AI analysis unavailable</h2>"
+                f"<p>{esc(report.ai_analysis_error)}</p></section>"
             )
 
         html_value = f"""<!doctype html>

@@ -3,6 +3,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.application import (
     DurableWorker,
     JobApplicationService,
@@ -19,6 +20,7 @@ from ragscanner.domain import (
     SourcePage,
 )
 from ragscanner.jobs import JobKind, JobStatus
+from ragscanner.providers import ModelProviderError
 from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
 
 
@@ -53,6 +55,40 @@ def test_local_scan_job_runs_pipeline_and_persists_report(tmp_path: Path) -> Non
         assert report is not None
         assert report.scan["source_name"] == source.name
         assert any(finding.rule_id == "STATIC-PI-001" for finding in report.findings)
+    finally:
+        history.close()
+        jobs.close()
+
+
+def test_ai_provider_failure_preserves_authoritative_scan_report(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic knowledge", encoding="utf-8")
+    database = tmp_path / "ragscanner.sqlite3"
+    jobs = SQLiteJobRepository(database)
+    history = SQLiteScanHistoryRepository(database)
+    monkeypatch.setattr(
+        "ragscanner.application.static_scan.create_analysis_provider",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ModelProviderError("unavailable")),
+    )
+    try:
+        queued = JobApplicationService(jobs).enqueue_local_scan(
+            source,
+            idempotency_key="integration:local-ai-scan:001",
+            ai_config=AIProviderConfig(enabled=True, provider="ollama", model="llama3.1:8b"),
+        )
+        completed = DurableWorker(
+            jobs,
+            {JobKind.SCAN: StaticScanJobHandler(StaticScanApplicationService(history))},
+            worker_id="integration-ai-worker",
+        ).run_once()
+        assert completed is not None and completed.id == queued.id
+        assert completed.status is JobStatus.SUCCEEDED
+        report = history.get(completed.result_ref.removeprefix("history:"))
+        assert report is not None
+        assert report.ai_analysis is None
+        assert report.ai_analysis_error is not None
     finally:
         history.close()
         jobs.close()

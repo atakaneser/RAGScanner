@@ -128,8 +128,20 @@ parsing uses PyMuPDF first and a bounded pypdf text-only recovery pass only when
 cannot read page structure; recovery records its reduced active-content inspection coverage.
 Reporting is framework-independent, applies final-boundary redaction, and performs no network access.
 
-Default reports, history, and other RAGScanner-owned state share one platform-native per-user data
-root. CLI-supplied output/database paths and `RAGSCANNER_DATA_DIR` remain explicit overrides.
+Default reports, history, jobs, source profiles, and local-administrator state share one
+platform-native machine data root. The Host Service runtime is installed outside user profiles and
+uses a service-owned temporary directory. Interactive disposable caches may use the signed-in
+user's platform cache directory. CLI-supplied output/database paths and `RAGSCANNER_DATA_DIR` remain
+explicit overrides for development and automation.
+
+## Optional AI report flow
+
+Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the
+deterministic report is built, the provider receives only a bounded, redacted summary of scores,
+coverage, and up to 25 findings; it never receives raw documents or finding evidence. Structured
+output is schema-validated and stored as an advisory section on the report. A model failure leaves
+the deterministic report complete and records a retryable analysis-unavailable state. Remote
+providers require HTTPS, an external credential reference, and explicit consent on that scan.
 
 ## OpenWebUI content flow
 
