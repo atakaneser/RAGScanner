@@ -1,3 +1,21 @@
+{% macro ai_fields(identifier) -%}
+<fieldset class="ai-options" data-ai-options>
+  <legend>AI-assisted analysis</legend>
+  <label class="switch-row"><input type="checkbox" name="ai_enabled" value="true" data-ai-toggle><span>Add AI analysis to this report</span></label>
+  <p class="field-note">The deterministic scan remains authoritative. AI adds a separate advisory interpretation.</p>
+  <div class="ai-fields hidden" data-ai-fields>
+    <label>Provider<select name="ai_provider" data-ai-provider>
+      {% for provider in ai_providers %}<option value="{{ provider.id }}" data-url="{{ provider.default_base_url }}" data-local="{{ 'true' if provider.local else 'false' }}" data-credential-required="{{ 'true' if provider.credential_required else 'false' }}">{{ provider.name }}{{ ' (local)' if provider.local else '' }}</option>{% endfor %}
+    </select></label>
+    <label>Model<input name="ai_model" maxlength="240" placeholder="llama3.1:8b" data-ai-model list="ai-models-{{ identifier }}"></label>
+    <datalist id="ai-models-{{ identifier }}" data-ai-model-list></datalist><button class="secondary full" type="button" data-load-ai-models>Detect available models</button>
+    <label>Endpoint<input name="ai_base_url" maxlength="2048" placeholder="http://127.0.0.1:11434" data-ai-url></label>
+    <label data-ai-credential-row>Credential reference<input name="ai_credential_ref" maxlength="500" placeholder="env:OPENROUTER_API_KEY"><small>The secret stays outside SQLite and the job payload.</small></label>
+    <p class="ai-privacy" data-ai-privacy>Local providers keep the redacted analysis context on this machine.</p>
+    <label class="consent-row hidden" data-ai-consent><input type="checkbox" name="ai_remote_consent" value="true">I approve sending the bounded, redacted findings summary to this remote provider.</label>
+  </div>
+</fieldset>
+{%- endmacro %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,6 +23,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RAGScanner · {{ page|replace('_', ' ')|title }}</title>
   <link rel="stylesheet" href="/dashboard-assets/dashboard.css">
+  <script defer src="/dashboard-assets/dashboard-i18n.js"></script>
   <script defer src="/dashboard-assets/dashboard.js"></script>
 </head>
 <body class="drawer-collapsed">
@@ -28,6 +47,7 @@
       <header class="topbar">
         <strong>{{ page|replace('_', ' ')|title }}</strong>
         <div class="topbar-actions">
+          <label class="language-picker"><span>Language</span><select data-language-picker aria-label="Language"><option value="en">English</option><option value="tr">Türkçe</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="zh-CN">简体中文</option><option value="it">Italiano</option></select></label>
           <a class="secondary" href="/reports">Search reports</a>
           <button class="primary" type="button" data-open-drawer>Create job</button>
         </div>
@@ -109,10 +129,11 @@
         {% elif page == 'report_detail' and selected_report %}
         <section class="page-heading split-heading"><div><a class="back-link" href="/reports">← Reports</a><h1>{{ selected_report.scan.get('source_name') or 'Scan report' }}</h1><p>Run {{ selected_report.generated_at|display_timestamp }} · {{ selected_report.scan.get('status', 'unknown')|replace('_', ' ') }}</p></div><a class="secondary" href="/reports?source={{ selected_report.scan.get('source_name', '')|urlencode }}">More from this source</a></section>
         <section class="report-summary">
-          <div class="score-block"><span>Overall score</span><strong>{{ selected_report.scores.get('overall') if selected_report.scores.get('overall') is not none else 'Not assessed' }}</strong></div>
+          <div class="score-block"><span>Overall score</span><strong>{{ selected_report.scores.get('overall')|round(1) if selected_report.scores.get('overall') is not none else 'Not assessed' }}</strong></div>
           {% for severity in ['critical', 'high', 'medium', 'low', 'informational'] %}<div><span>{{ severity|title }}</span><strong>{{ selected_report.severity_summary.get(severity, 0) }}</strong></div>{% endfor %}
         </section>
         {% if selected_report.ingestion_issues %}<p class="coverage-warning">{{ selected_report.ingestion_issues|length }} ingestion issue(s) reduced report coverage. Review them below.</p>{% endif %}
+        {% if selected_report.ai_analysis %}<section class="ai-report" aria-labelledby="ai-report-title"><div class="section-heading"><h2 id="ai-report-title">AI-assisted analysis</h2><span>{{ selected_report.ai_analysis.provider }} · {{ selected_report.ai_analysis.model }} · {{ 'Remote' if selected_report.ai_analysis.remote else 'Local' }}</span></div><h3>Executive summary</h3><p>{{ selected_report.ai_analysis.executive_summary }}</p>{% if selected_report.ai_analysis.risk_interpretation %}<h3>Risk interpretation</h3><p>{{ selected_report.ai_analysis.risk_interpretation }}</p>{% endif %}<div class="ai-report-columns"><div><h3>Priority actions</h3><ol>{% for item in selected_report.ai_analysis.priority_actions %}<li>{{ item }}</li>{% else %}<li>No additional action was proposed.</li>{% endfor %}</ol></div><div><h3>Questions for review</h3><ul class="review-questions">{% for item in selected_report.ai_analysis.review_questions %}<li>{{ item }}</li>{% else %}<li>No additional review question was proposed.</li>{% endfor %}</ul></div></div>{% if selected_report.ai_analysis.verification_steps %}<h3>Verification steps</h3><ol>{% for item in selected_report.ai_analysis.verification_steps %}<li>{{ item }}</li>{% endfor %}</ol>{% endif %}{% if selected_report.ai_analysis.limitations %}<div class="ai-limitations"><strong>Limitations</strong><ul>{% for item in selected_report.ai_analysis.limitations %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}<p class="ai-advisory">{{ selected_report.ai_analysis.disclaimer }} Deterministic findings remain authoritative.</p></section>{% elif selected_report.ai_analysis_error %}<section class="ai-report ai-unavailable"><h2>AI analysis unavailable</h2><p>{{ selected_report.ai_analysis_error }}</p></section>{% endif %}
         <section class="data-section"><div class="section-heading"><h2>Findings</h2><span>{{ selected_report.findings|length }} total</span></div><div class="finding-list">
         {% for finding in selected_report.findings %}<article class="finding"><div><span class="severity severity-{{ finding.severity.value }}">{{ finding.severity.value }}</span><h3>{{ finding.title }}</h3><p>{{ finding.impact }}</p></div><dl><dt>Rule</dt><dd>{{ finding.rule_id }}</dd><dt>Evidence</dt><dd>{{ finding.evidence }}</dd><dt>Recommendation</dt><dd>{{ finding.recommendation }}</dd></dl></article>
         {% else %}<p class="empty">No findings were detected within assessed coverage.</p>{% endfor %}</div></section>
@@ -127,7 +148,7 @@
 
         {% elif page == 'settings' %}
         <section class="page-heading"><h1>Settings</h1><p>Machine-local service, privacy, and connector configuration.</p></section>
-        <section class="settings-list"><div><h2>Service</h2><p>RAGScanner is running as a machine-wide local Host Service. Jobs continue while no desktop user is signed in.</p><span class="capability capability-scan_ready">Healthy</span></div><div><h2>Reports</h2><p>Reports are stored as redacted, versioned SQLite snapshots and viewed in this dashboard. CLI JSON output remains available for automation.</p></div><div><h2>Sources</h2><p>Connect more environments from the Sources page. Credential values are never stored in source profiles.</p><a class="secondary" href="/sources">Manage sources</a></div><div><h2>Discovery privacy</h2><p>Automatic discovery is manual, bounded, and metadata-only. Document content is read only by a scan job for a scan-ready connector.</p></div></section>
+        <section class="settings-list"><div><h2>Service</h2><p>RAGScanner is running as a machine-wide local Host Service. Jobs continue while no desktop user is signed in.</p><span class="capability capability-scan_ready">Healthy</span></div><div><h2>Reports</h2><p>Reports are stored as redacted, versioned SQLite snapshots and viewed in this dashboard. CLI JSON output remains available for automation.</p></div><div><h2>AI providers</h2><p>Choose local Ollama, LM Studio, LocalAI, or vLLM; or connect OpenRouter, OpenAI, NVIDIA NIM, Anthropic, Gemini, Groq, Mistral, Together AI, and custom OpenAI-compatible APIs per scan. Remote analysis is always opt-in.</p></div><div><h2>Sources</h2><p>Connect more environments from the Sources page. Credential values are never stored in source profiles.</p><a class="secondary" href="/sources">Manage sources</a></div><div><h2>Discovery privacy</h2><p>Automatic discovery is manual, bounded, and metadata-only. Document content is read only by a scan job for a scan-ready connector.</p></div></section>
         {% endif %}
       </div>
     </main>
@@ -139,11 +160,11 @@
       <div class="source-tabs" role="tablist"><button class="source-tab active" type="button" data-source="local">File or folder</button><button class="source-tab" type="button" data-source="openwebui">OpenWebUI</button></div>
       <form class="scan-form" method="post" action="/dashboard/scans/local" data-form="local">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="idempotency_key" value="dashboard-local-{{ request_id }}"><input type="hidden" name="scan_consent" value="true">
-        <label>Local path<input name="path" required placeholder="/srv/knowledge" autocomplete="off" data-local-path></label><p class="field-note">The path must be readable by the machine-wide service account.</p><button class="primary full" type="submit">Queue scan</button>
+        <label>Local path<input name="path" required placeholder="/srv/knowledge" autocomplete="off" data-local-path></label><p class="field-note">The path must be readable by the machine-wide service account.</p>{{ ai_fields('local') }}<button class="primary full" type="submit">Queue scan</button>
       </form>
       <form class="scan-form hidden" method="post" action="/dashboard/scans/openwebui" data-form="openwebui">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="idempotency_key" value="dashboard-openwebui-{{ request_id }}"><input type="hidden" name="content_consent" value="true">
-        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000" data-openwebui-url></label><label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label><button class="secondary full" type="button" data-load-knowledge-bases>Load knowledge bases</button><label>Knowledge base<select data-knowledge-bases><option value="">Load knowledge bases first</option></select></label><label>Knowledge ID<input name="knowledge_id" required data-knowledge-id></label><p class="field-note" data-discovery-status aria-live="polite"></p><button class="primary full" type="submit">Queue scan</button>
+        <label>Base URL<input name="base_url" required placeholder="http://127.0.0.1:3000" data-openwebui-url></label><label>Credential reference<input name="credential_ref" required placeholder="env:OPENWEBUI_API_KEY"></label><button class="secondary full" type="button" data-load-knowledge-bases>Load knowledge bases</button><label>Knowledge base<select data-knowledge-bases><option value="">Load knowledge bases first</option></select></label><label>Knowledge ID<input name="knowledge_id" required data-knowledge-id></label><p class="field-note" data-discovery-status aria-live="polite"></p>{{ ai_fields('openwebui') }}<button class="primary full" type="submit">Queue scan</button>
       </form>
     </aside>
   </div>

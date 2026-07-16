@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ragscanner.ai_analysis import AIProviderConfig
+from ragscanner.ai_analysis.service import enrich_report
 from ragscanner.application.jobs import JobCancellationRequested, JobCheckpoint, JobHandler
 from ragscanner.connectors import OpenWebUISourceConfig, OpenWebUISourceConnector
 from ragscanner.history import ScanHistoryRepository
@@ -22,6 +24,7 @@ from ragscanner.pipeline import (
     load_local_scan_config,
     run_static_pipeline,
 )
+from ragscanner.providers import ModelProviderError, create_analysis_provider
 from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
 from ragscanner.reporting.models import ReportDocument
 
@@ -38,6 +41,7 @@ class StaticScanJobPayload(BaseModel):
     openwebui_knowledge_id: str | None = Field(default=None, max_length=240)
     credential_ref: str | None = Field(default=None, max_length=500)
     content_consent: bool = False
+    ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
 
     @model_validator(mode="after")
     def validate_source(self) -> "StaticScanJobPayload":
@@ -94,6 +98,7 @@ class StaticScanApplicationService:
         *,
         config_path: Path | None = None,
         checkpoint: JobCheckpoint | None = None,
+        ai_config: AIProviderConfig | None = None,
     ) -> tuple[str, ReportDocument]:
         resolved_source = source_path.expanduser().resolve(strict=True)
         resolved_config = config_path.expanduser().resolve(strict=True) if config_path else None
@@ -118,6 +123,7 @@ class StaticScanApplicationService:
             show_absolute_paths=not config.show_relative_paths,
             maximum_findings=config.maximum_findings,
         )
+        report = self._enrich_sync(report, ai_config or AIProviderConfig())
         history_id = self.history_repository.save(report)
         if sink is not None and sink.cancellation_requested:
             raise JobCancellationRequested(f"history:{history_id}")
@@ -131,6 +137,7 @@ class StaticScanApplicationService:
         credential_ref: str,
         content_consent: bool,
         checkpoint: JobCheckpoint | None = None,
+        ai_config: AIProviderConfig | None = None,
     ) -> tuple[str, ReportDocument]:
         api_key = resolve_secret_reference(credential_ref)
         connector = OpenWebUISourceConnector(
@@ -143,7 +150,11 @@ class StaticScanApplicationService:
             api_key=api_key,
         )
         config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
-        return asyncio.run(self._run_openwebui_connector(config, connector, checkpoint=checkpoint))
+        return asyncio.run(
+            self._run_openwebui_connector(
+                config, connector, checkpoint=checkpoint, ai_config=ai_config or AIProviderConfig()
+            )
+        )
 
     async def _run_openwebui_connector(
         self,
@@ -151,6 +162,7 @@ class StaticScanApplicationService:
         connector: OpenWebUISourceConnector,
         *,
         checkpoint: JobCheckpoint | None,
+        ai_config: AIProviderConfig,
     ) -> tuple[str, ReportDocument]:
         try:
             pipeline_holder: dict[str, StaticScanPipeline] = {}
@@ -172,12 +184,39 @@ class StaticScanApplicationService:
                 show_absolute_paths=False,
                 maximum_findings=config.maximum_findings,
             )
+            report = await self._enrich_async(report, ai_config)
             history_id = self.history_repository.save(report)
             if sink is not None and sink.cancellation_requested:
                 raise JobCancellationRequested(f"history:{history_id}")
             return history_id, report
         finally:
             await connector.aclose()
+
+    @staticmethod
+    async def _enrich_async(report: ReportDocument, config: AIProviderConfig) -> ReportDocument:
+        if not config.enabled:
+            return report
+        try:
+            return await enrich_report(
+                report,
+                config,
+                provider_factory=lambda selected: create_analysis_provider(
+                    selected, secret_resolver=resolve_secret_reference
+                ),
+            )
+        except (ModelProviderError, OSError, ValueError):
+            return report.model_copy(
+                update={
+                    "ai_analysis_error": (
+                        "AI analysis was unavailable. The deterministic report is complete and "
+                        "can be reviewed or analyzed again without rescanning."
+                    )
+                }
+            )
+
+    @classmethod
+    def _enrich_sync(cls, report: ReportDocument, config: AIProviderConfig) -> ReportDocument:
+        return asyncio.run(cls._enrich_async(report, config)) if config.enabled else report
 
 
 class StaticScanJobHandler(JobHandler):
@@ -195,6 +234,7 @@ class StaticScanJobHandler(JobHandler):
                 Path(payload.path),
                 config_path=Path(payload.config_path) if payload.config_path else None,
                 checkpoint=checkpoint,
+                ai_config=payload.ai,
             )
         elif (
             payload.source_kind == "openwebui"
@@ -208,6 +248,7 @@ class StaticScanJobHandler(JobHandler):
                 credential_ref=payload.credential_ref,
                 content_consent=payload.content_consent,
                 checkpoint=checkpoint,
+                ai_config=payload.ai,
             )
         else:
             raise ValueError("Scan job source configuration is incomplete")

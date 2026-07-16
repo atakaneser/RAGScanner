@@ -36,8 +36,8 @@ The dashboard at `http://127.0.0.1:8000` offers the same consented local environ
 can transfer a discovered reachable OpenWebUI URL into its scan form, and can list knowledge bases
 using an `env:` credential reference. The key is resolved only in the local dashboard/worker process
 and is never sent to the browser, report, SQLite database, or job payload. The dashboard can process
-one already-consented queued job immediately. For normal use, install the per-user Local Agent once;
-it keeps the dashboard available and processes queued work automatically.
+one already-consented queued job immediately. Normal installation uses the machine-wide Host Service;
+it remains available and processes queued work without an interactive user session.
 
 Guided HTML reports are written to the platform-native RAGScanner data directory, never the shell's
 current directory. Run `ragscanner paths` to see the exact data, report, and history locations.
@@ -50,20 +50,14 @@ Use explicit commands for automation and advanced operation:
 ragscanner --version
 ragscanner doctor
 ragscanner paths
+ragscanner install
+ragscanner install --mode terminal
+ragscanner open
+ragscanner status
 ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner uninstall --purge-data --yes
-ragscanner agent install
-ragscanner agent status
-ragscanner agent uninstall
-ragscanner agent run
-ragscanner setup
-ragscanner site status
-ragscanner site register
-ragscanner host install
-ragscanner host status
-ragscanner host uninstall
 ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/one-large.pdf
 ragscanner scan ./knowledge-base --format html --output report.html
@@ -111,18 +105,16 @@ the `history.sqlite3` file shown by `ragscanner paths`; `--database` selects ano
 job. All default to the central `history.sqlite3` file shown by `ragscanner paths`; `--database`
 selects another file.
 
-`ragscanner agent install` enables the normal no-terminal experience for the current user. It uses a
-least-privilege Windows Scheduled Task, a macOS LaunchAgent, or a Linux systemd user service. It
-requires no administrator access and binds only to `127.0.0.1`. `ragscanner agent run` is the
-foreground form useful for diagnostics. `agent uninstall` removes only the automatic-start record.
+`ragscanner install` is the single elevated installation entry point. It creates the isolated
+machine runtime, registers `local.ragscanner.com` to `127.0.0.1`, starts the always-on Host Service,
+and opens the first-run local-administrator dashboard. The mapping is local to the machine; it does
+not use public DNS or expose the dashboard on the network. Use `--mode terminal` to complete initial
+source setup in the CLI or `--no-open-dashboard` for a headless installation. Running bare
+`ragscanner` or `ragscanner open` opens the dashboard; `ragscanner status` reports installation
+locations. `update`, `repair`, and `uninstall` manage the same installation.
 
-`ragscanner host install` is the elevated, machine-wide mode for always-on hosts such as Docker
-OpenWebUI. It registers `local.ragscanner.com` to `127.0.0.1` in the local hosts file, starts the
-Host Service, and opens a first-run local-administrator setup screen at the dashboard address. The
-mapping is local to the machine; it does not use public DNS or expose the dashboard on the network.
-Use `host status` for a read-only check and `host uninstall` to remove the service and hostname while
-preserving reports and history. `ragscanner setup` offers the dashboard or terminal path; browser
-guidance cannot silently obtain the administrator permission required for a Host Service.
+Legacy `agent`, `host`, `site`, and `setup` command groups remain hidden only for alpha compatibility
+and internal service-manager execution. They are not separate installation choices.
 
 `ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000` without a worker. `--port` changes the
 loopback port and `--history-db` selects another database. History reads are local; API scan/job
@@ -146,23 +138,35 @@ Windows paths such as `C:\...` must be used in Windows PowerShell. Container pat
 `/app/...` exist inside the relevant Linux/container filesystem and may not exist on the host.
 RAGScanner preserves Unicode filenames and supports multilingual document content.
 
-The default data root is `%LOCALAPPDATA%\RAGScanner` on Windows,
-`~/Library/Application Support/RAGScanner` on macOS, and `$XDG_DATA_HOME/RAGScanner` (or
-`~/.local/share/RAGScanner`) on Linux. `RAGSCANNER_DATA_DIR` overrides this root. Explicit
-`--output`, `--database`, and `--history-db` paths remain under user control.
+The persistent data root is `%ProgramData%\RAGScanner` on Windows,
+`/Library/Application Support/RAGScanner` on macOS, and `/var/lib/ragscanner` on Linux. Disposable
+interactive cache data uses the signed-in user's platform cache directory. `RAGSCANNER_DATA_DIR`
+remains an explicit development/automation override. Explicit `--output`, `--database`, and
+`--history-db` paths remain under user control.
 
 ## Installation maintenance
 
-- `ragscanner update` upgrades the installed uv tool environment and preserves local reports,
-  history, and Agent registration. Restarting the Agent loads the updated code.
-- `ragscanner repair` fully reinstalls that environment while retaining its source/settings.
-- `ragscanner uninstall` asks for confirmation and removes the Agent registration plus uv tool
-  environment, while preserving reports and history by default. Add `--purge-data` to permanently
-  delete the application-owned data directory. On Windows it
+- `ragscanner update` replaces the isolated machine runtime and restarts the Host Service while
+  preserving machine reports, history, and settings.
+- `ragscanner repair` fully reinstalls that machine runtime and restarts the Host Service.
+- `ragscanner uninstall` requires administrator permission and removes the Host Service, machine
+  runtime, hostname mapping, and bootstrap tool while preserving reports/history by default. Add
+  `--purge-data` to permanently delete the machine-owned data directory. On Windows it
   schedules the removal after the CLI launcher exits, avoiding locked-file access-denied failures.
 - `ragscanner uninstall --yes` is the non-interactive form.
 
-Maintenance commands invoke the resolved `uv` executable directly without a shell and preserve its
-exit status. Windows uninstall uses a short-lived generated command file solely to defer the same
-direct `uv tool uninstall ragscanner` invocation until the launcher has exited. They require an
-installation managed by `uv tool`.
+Machine installation uses an isolated `uv` tool directory outside user profiles. Windows uninstall
+uses short-lived cleanup command files only to defer locked executable removal until the launcher
+has exited.
+
+Add optional advisory analysis to a direct scan:
+
+```bash
+ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b
+ragscanner scan ./knowledge-base --ai-provider openrouter \
+  --ai-model openai/gpt-4.1-mini --ai-credential-ref env:OPENROUTER_API_KEY \
+  --consent-remote-ai --save-history
+```
+
+AI is off unless `--ai-provider` is supplied. Remote analysis requires HTTPS, an external credential
+reference, and `--consent-remote-ai`. Only a bounded redacted finding summary is transmitted.

@@ -13,16 +13,19 @@
 - Network-free `ragscanner doctor` and `ragscanner --version`
 - One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`, with
   deferred Windows removal that avoids self-locking executable-file failures
-- Per-user Local Agent that combines the localhost dashboard/API with one durable worker, plus
-  least-privilege Windows logon, macOS LaunchAgent, and Linux systemd-user installation commands
-- Elevated machine-local Host Service mode with a `local.ragscanner.com` loopback hosts-file mapping,
+- Retired per-user Agent installation path; always-on delivery uses the machine service
+- Elevated machine-local Host Service with an isolated machine runtime, machine-owned SQLite and
+  temporary storage, a `local.ragscanner.com` loopback hosts-file mapping,
   a first-run local administrator, and an authenticated local dashboard bootstrap
+- One visible `ragscanner install` entry point that installs the complete machine service and opens
+  the dashboard by default, with `--mode terminal` for CLI setup; legacy service groups are hidden
 - English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder
   discovery that excludes generic Documents/current-working-directory candidates,
   consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint
   discovery, and separately consented authenticated knowledge-base plus linked/standalone file
   metadata inventory with partial-result preservation and per-knowledge-base endpoint compatibility
-- Platform-native central per-user data, report, and history locations discoverable with
+- Platform-native central machine data, report, and history locations plus a separate per-user
+  disposable cache location discoverable with
   `ragscanner paths`; guided reports never default to the current working directory
 - Canonical English root README plus Turkish, German, French, Simplified Chinese, and Italian
   localized README pages
@@ -58,14 +61,19 @@
   one-job local worker action with same-origin CSRF protection
 - Full local product navigation for Sources, Jobs, Reports, and Settings; remembered non-secret
   source profiles; date/source report filtering; report detail; and coverage-aware comparison
+- Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
+  reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
+  Chinese, and Italian; English remains the fallback
 - Bounded Kubernetes service and common vector-platform localhost discovery in addition to
   Docker, Podman, nerdctl, and Finch metadata inventory
 - Guided local and OpenWebUI scans persist reports for dashboard viewing instead of creating a
   standalone HTML file by default; explicit CLI export formats remain available
 - HTML executive summary, assessment-coverage notice, and per-file ingestion remediation table
-- Opt-in detailed-report enrichment with a loopback Ollama model or explicitly consented HTTPS
-  OpenAI-compatible endpoint; it sends only bounded redacted finding summaries and validates
-  structured advisory output before writing a separate JSON or HTML artefact
+- Per-scan opt-in detailed-report enrichment for local Ollama, LM Studio, LocalAI, and vLLM or
+  explicitly consented OpenRouter, OpenAI, NVIDIA NIM, Anthropic, Gemini, Groq, Mistral, Together,
+  and custom endpoints; jobs persist only non-secret configuration and the provider receives only a
+  bounded redacted finding summary. Validated advisory output is shown in dashboard/exports, while
+  provider failure preserves the authoritative deterministic report
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage
 - pytest, Ruff, strict mypy, and GitHub Actions
 

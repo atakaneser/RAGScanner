@@ -67,10 +67,13 @@
         "schema_version": {"const": "1.0.0"},
         "provider": {"type": "string"}, "model": {"type": "string"}, "remote": {"type": "boolean"},
         "generated_at": {"type": "string", "format": "date-time"}, "prompt_version": {"type": "string"}, "disclaimer": {"type": "string"},
-        "executive_summary": {"type": "string"}, "priority_actions": {"$ref": "#/$defs/strings"},
-        "review_questions": {"$ref": "#/$defs/strings"}, "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"}
+        "executive_summary": {"type": "string"}, "risk_interpretation": {"type": "string"},
+        "priority_actions": {"$ref": "#/$defs/strings"},
+        "review_questions": {"$ref": "#/$defs/strings"}, "verification_steps": {"$ref": "#/$defs/strings"},
+        "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"}
       }
-    }
+    },
+    "ai_analysis_error": {"type": ["string", "null"]}
   },
   "$defs": {
     "strings": {"type": "array", "items": {"type": "string"}},

@@ -39,6 +39,88 @@ def test_doctor_is_local_and_offline() -> None:
     assert "no network request performed" in result.stdout
 
 
+def test_bare_command_opens_the_dashboard(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    opened: list[str] = []
+    monkeypatch.setattr("ragscanner.cli._machine_installation_present", lambda: True)
+    monkeypatch.setattr("ragscanner.cli.webbrowser.open", lambda url: opened.append(url) or True)
+
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 0
+    assert opened == ["http://local.ragscanner.com:8000"]
+    assert "Opening the RAGScanner dashboard" in result.stdout
+
+
+def test_bare_command_explains_how_to_install_when_machine_service_is_missing(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli._machine_installation_present", lambda: False)
+    monkeypatch.setattr(
+        "ragscanner.cli.webbrowser.open", lambda url: pytest.fail("browser must not open")
+    )
+
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 0
+    assert "ragscanner install" in result.stdout
+
+
+def test_help_exposes_one_install_surface_and_hides_internal_service_groups() -> None:
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "install" in result.stdout
+    assert "open" in result.stdout
+    assert "status" in result.stdout
+    assert "agent" not in result.stdout
+    assert "host" not in result.stdout
+    assert "site" not in result.stdout
+    assert "setup" not in result.stdout
+
+
+def test_install_configures_the_machine_service_and_opens_dashboard(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    calls: list[object] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr(
+        "ragscanner.cli.register_local_hostname", lambda path: calls.append(("hostname", path))
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.install_host_service", lambda: calls.append("service") or Path("service")
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.webbrowser.open", lambda url: calls.append(("browser", url)) or True
+    )
+    monkeypatch.setattr("ragscanner.cli._wait_for_dashboard", lambda: True)
+
+    result = runner.invoke(app, ["install", "--yes"])
+
+    assert result.exit_code == 0
+    assert calls[1:] == ["service", ("browser", "http://local.ragscanner.com:8000")]
+    assert "installation completed" in result.stdout
+
+
+def test_install_can_complete_setup_in_the_terminal(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    modes: list[str] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr("ragscanner.cli.register_local_hostname", lambda path: None)
+    monkeypatch.setattr("ragscanner.cli.install_host_service", lambda: Path("service"))
+    monkeypatch.setattr("ragscanner.cli.setup", lambda mode: modes.append(mode))
+
+    result = runner.invoke(app, ["install", "--yes", "--mode", "terminal"])
+
+    assert result.exit_code == 0
+    assert modes == ["terminal"]
+
+
+def test_install_requires_machine_administrator_permission(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: False)
+
+    result = runner.invoke(app, ["install", "--yes"])
+
+    assert result.exit_code == 2
+    assert "administrator permission" in result.output
+
+
 def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(
@@ -67,43 +149,27 @@ def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkey
     assert profiles[0].capability_status == "scan_ready"
 
 
-@pytest.mark.parametrize(
-    ("command", "expected_arguments", "success_message"),
-    [
-        ("update", ["/usr/bin/uv", "tool", "upgrade", "ragscanner"], "update completed"),
-        (
-            "repair",
-            ["/usr/bin/uv", "tool", "upgrade", "ragscanner", "--reinstall"],
-            "repair completed",
-        ),
-        (
-            "uninstall",
-            ["/usr/bin/uv", "tool", "uninstall", "ragscanner"],
-            "uninstall completed",
-        ),
-    ],
-)
-def test_maintenance_commands_use_uv_without_shell(
-    monkeypatch, command: str, expected_arguments: list[str], success_message: str
+@pytest.mark.parametrize(("command", "reinstall"), [("update", False), ("repair", True)])
+def test_machine_maintenance_replaces_runtime_and_restarts_service(
+    monkeypatch, command: str, reinstall: bool
 ) -> None:  # type: ignore[no-untyped-def]
-    calls: list[tuple[list[str], bool]] = []
+    calls: list[object] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr(
+        "ragscanner.cli.install_machine_runtime",
+        lambda **kwargs: calls.append(kwargs.get("reinstall", False)),
+    )
+    monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
 
-    def run(arguments: list[str], *, check: bool) -> subprocess.CompletedProcess[str]:
-        calls.append((arguments, check))
-        return subprocess.CompletedProcess(arguments, 0)
-
-    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "/usr/bin/uv")
-    monkeypatch.setattr("ragscanner.cli.subprocess.run", run)
-    arguments = [command, "--yes"] if command == "uninstall" else [command]
-
-    result = runner.invoke(app, arguments)
+    result = runner.invoke(app, [command])
 
     assert result.exit_code == 0
-    assert calls == [(expected_arguments, False)]
-    assert success_message in result.stdout
+    assert calls == [reinstall, "restart"]
+    assert f"{command} completed" in result.stdout
 
 
 def test_uninstall_can_be_cancelled_without_external_change(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr(
         "ragscanner.cli.subprocess.run",
         lambda *args, **kwargs: pytest.fail("subprocess must not run"),
@@ -125,6 +191,11 @@ def test_windows_uninstall_is_deferred_until_the_launcher_exits(
         return object()
 
     monkeypatch.setattr("ragscanner.cli.sys.platform", "win32")
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr("ragscanner.cli.remove_host_service", lambda: None)
+    monkeypatch.setattr("ragscanner.cli.unregister_local_hostname", lambda _path: None)
+    monkeypatch.setattr("ragscanner.cli.remove_machine_runtime", lambda: None)
+    monkeypatch.setattr("ragscanner.cli.remove_autostart", lambda _path: None)
     monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "C:\\Tools\\uv.exe")
     monkeypatch.setattr("ragscanner.cli.subprocess.Popen", popen)
     monkeypatch.setattr(
@@ -146,24 +217,15 @@ def test_windows_uninstall_is_deferred_until_the_launcher_exits(
     assert "ping 127.0.0.1 -n 3" in content
 
 
-def test_maintenance_command_reports_missing_uv_and_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: None)
-    missing = runner.invoke(app, ["update"])
-    assert missing.exit_code == 1
-    assert "uv was not found" in missing.stderr
-
-    monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "/usr/bin/uv")
-    monkeypatch.setattr(
-        "ragscanner.cli.subprocess.run",
-        lambda arguments, check: subprocess.CompletedProcess(arguments, 7),
-    )
-    failed = runner.invoke(app, ["repair"])
-    assert failed.exit_code == 7
-    assert "failed with exit code 7" in failed.stderr
+def test_maintenance_command_requires_administrator(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: False)
+    result = runner.invoke(app, ["update"])
+    assert result.exit_code != 0
+    assert "administrator permission" in result.output
 
 
-def test_bare_command_opens_english_onboarding_and_can_exit() -> None:
-    result = runner.invoke(app, input="3\n")
+def test_hidden_guided_scan_assistant_can_exit() -> None:
+    result = runner.invoke(app, ["guided"], input="3\n")
     assert result.exit_code == 0
     assert "What would you like to scan?" in result.stdout
     assert "No action was taken." in result.stdout
@@ -173,7 +235,7 @@ def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None
     source = tmp_path / "bilgi tabanı.txt"
     source.write_text("Güvenli ve yerel örnek bilgi.", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, input=f"1\n{source}\nn\n")
+    result = runner.invoke(app, ["guided"], input=f"1\n{source}\nn\n")
     assert result.exit_code == 0
     assert "RAGScanner scan:" in result.stdout
     assert "bilgi tabanı.txt" in result.stdout
@@ -190,7 +252,7 @@ def test_guided_scan_uses_local_history_without_creating_an_html_file(
     monkeypatch.chdir(working_directory)
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(data_dir))
 
-    result = runner.invoke(app, input=f"1\n{source}\n")
+    result = runner.invoke(app, ["guided"], input=f"1\n{source}\n")
 
     assert result.exit_code == 0
     assert (data_dir / "history.sqlite3").is_file()
@@ -334,14 +396,14 @@ def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # ty
         return []
 
     monkeypatch.setattr("ragscanner.cli.discover_openwebui_services", fail_if_called)
-    result = runner.invoke(app, input="2\nn\n")
+    result = runner.invoke(app, ["guided"], input="2\nn\n")
     assert result.exit_code == 0
     assert called is False
     assert "in-session scan" in result.stdout
 
 
 def test_guided_menu_only_offers_supported_scan_routes() -> None:
-    result = runner.invoke(app, input="3\n")
+    result = runner.invoke(app, ["guided"], input="3\n")
 
     assert result.exit_code == 0
     assert "1. A local file or folder" in result.stdout
@@ -387,7 +449,7 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
         ],
     )
 
-    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\nn\n")
+    result = runner.invoke(app, ["guided"], input="2\ny\ny\nsynthetic-api-key\nn\n")
 
     assert result.exit_code == 0
     assert "http://127.0.0.1:49152" in result.stdout
@@ -421,7 +483,7 @@ def test_guided_openwebui_can_select_and_start_a_consented_content_scan(
         lambda selected, knowledge_id, api_key: started.append((selected, knowledge_id, api_key)),
     )
 
-    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\ny\n1\ny\n")
+    result = runner.invoke(app, ["guided"], input="2\ny\ny\nsynthetic-api-key\ny\n1\ny\n")
 
     assert result.exit_code == 0
     assert "Knowledge base to scan" in result.stdout
@@ -454,7 +516,7 @@ def test_guided_openwebui_keeps_knowledge_results_when_file_inventory_fails(
 
     monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", fail_inventory)
 
-    result = runner.invoke(app, input="2\ny\ny\nsynthetic-api-key\n")
+    result = runner.invoke(app, ["guided"], input="2\ny\ny\nsynthetic-api-key\n")
 
     assert result.exit_code == 0
     assert "Engineering (kb-1)" in result.stdout

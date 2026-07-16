@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RAGScanner · Local setup</title><link rel="stylesheet" href="/dashboard-assets/dashboard.css"><script defer src="/dashboard-assets/dashboard.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RAGScanner · Local setup</title><link rel="stylesheet" href="/dashboard-assets/dashboard.css"><script defer src="/dashboard-assets/dashboard-i18n.js"></script><script defer src="/dashboard-assets/dashboard.js"></script></head>
 <body>
   <div class="setup-layout">
     <aside class="setup-rail"><a class="wordmark" href="/"><span>RAG</span>Scanner</a><ol><li>Administrator</li><li class="active">Interface</li><li>First source</li><li>Review</li></ol></aside>
     <main class="setup-main">
+      <label class="language-picker setup-language"><span>Language</span><select data-language-picker aria-label="Language"><option value="en">English</option><option value="tr">Türkçe</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="zh-CN">简体中文</option><option value="it">Italiano</option></select></label>
       <h1>Create the local administrator and workspace</h1>
       <p>Everything stays on this machine. This account does not create an online identity.</p>
       {% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}

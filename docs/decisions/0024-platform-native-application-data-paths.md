@@ -1,6 +1,6 @@
 # ADR-0024: Platform-native application data paths
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0029
 - **Date:** 2026-07-15
 
 ## Context
@@ -28,3 +28,9 @@ there; inspection commands do not create it.
 - Existing relative `.ragscanner` data is not migrated automatically; users can keep using it with
   `RAGSCANNER_DATA_DIR` or move it explicitly.
 - Portable installations can select their own root through the environment override.
+
+## Supersession
+
+ADR-0029 replaces the per-user default with machine-wide state for the Host Service. User-local
+storage is now limited to disposable cache data; explicit `RAGSCANNER_DATA_DIR` overrides remain
+available for development and portable execution.

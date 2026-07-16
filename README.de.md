@@ -31,7 +31,7 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Prüfungen der Chunk-Qualität | Verfügbar |
 | Terminal-, JSON- und eigenständige HTML-Berichte | Verfügbar |
 | Offline ausgeführte statische Scans | Standardverhalten |
-| Englischsprachige geführte Einrichtung | Mit einfachem `ragscanner` verfügbar |
+| Einheitliche Maschineninstallation und Dashboard-Start | `ragscanner install`; einfaches `ragscanner` öffnet das Dashboard |
 | Zustimmungsbasierte Container-OpenWebUI-Erkennung und KB-/Dateimetadateninventar | Verfügbar |
 | OCR und semantische Duplikatanalyse | Noch nicht verfügbar |
 | Optionaler SQLite-Verlauf und abdeckungsbewusster Vergleich | Über die CLI verfügbar |
@@ -41,12 +41,12 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Lokales Übersichts- und Warteschlangen-Dashboard | Mit `ragscanner serve` verfügbar |
 | Dashboard-Berichtsarchiv mit Datums-/Quellenfiltern, Details und Vergleich | Verfügbar |
 | Dauerhafte, nicht geheime Quellenprofile und Sources-/Settings-Verwaltung | Verfügbar |
-| Lokaler Agent pro Benutzer für ein stets bereites Dashboard und dauerhafte Job-Verarbeitung | Verfügbar |
+| Lokaler Agent pro Benutzer | Eingestellt; durch den Maschinendienst ersetzt |
 | Maschinenlokaler Host Service mit lokaler Administrator-Ersteinrichtung | Verfügbar |
 | Metadatenerkennung für Docker, Podman, nerdctl, Finch, Kubernetes und localhost | Verfügbar |
 | Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
 | Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
-| ModelProvider-/BYOM-Integration | Noch nicht verfügbar |
+| Lokale/entfernte KI-gestützte Berichtsanalyse pro Scan | Verfügbar und standardmäßig aus |
 | CLI für aktive Endpoint-Scans | Nicht verfügbar; nur Core-Verträge |
 
 `ragscanner scan` führt die lokale Pipeline Erkennung → Parsing → Normalisierung → Chunking →
@@ -61,11 +61,13 @@ Installieren Sie die Alpha direkt von GitHub:
 ```powershell
 uv tool install git+https://github.com/atakaneser/RAGScanner.git
 ragscanner doctor
-ragscanner
+ragscanner install
 ```
 
-Der einfache Befehl öffnet eine englische Einführung. Sie fragt nach der verwendeten Quelle und
-kann einen Scan starten. Die automatische Erkennung schlägt nur unmittelbare Ordner mit
+`ragscanner install` installiert den Maschinendienst, die isolierte Laufzeit und die lokale
+Dashboard-Adresse in einem Schritt und öffnet standardmäßig das Dashboard. Mit
+`ragscanner install --mode terminal` wird die Einrichtung in der CLI abgeschlossen. Spätere
+Aufrufe von `ragscanner` öffnen immer das Dashboard. Die automatische Erkennung schlägt nur unmittelbare Ordner mit
 RAG-orientierten Namen vor und behandelt allgemeine Ordner wie Documents nicht als RAG-Quellen. Nach ausdrücklicher
 Zustimmung prüft die OpenWebUI-Erkennung begrenzte Metadaten verfügbarer Docker-, Podman-, nerdctl-
 oder Finch-Runtimes sowie übliche Loopback-Adressen. Ein separat angegebener, nur im Speicher
@@ -80,20 +82,31 @@ Verwalten oder entfernen Sie die Installation mit einem RAGScanner-Befehl:
 ragscanner update
 ragscanner repair
 ragscanner uninstall
-ragscanner agent install
-ragscanner host install
+ragscanner status
+ragscanner open
 ```
 
-`uninstall` verlangt eine Bestätigung. Automatisierungen können `ragscanner uninstall --yes`
-verwenden. Diese Befehle delegieren ohne Shell an die offizielle `uv tool`-Umgebung; `repair` führt
-eine vollständige Neuinstallation unter Beibehaltung der ursprünglichen Quelle und Einstellungen aus.
-Unter Windows plant `uninstall` die Entfernung nach dem Beenden des Starters, damit gesperrte Dateien
-keinen Zugriffsfehler verursachen.
+Diese Befehle benötigen Administratorrechte. `update` und `repair` ersetzen die Maschinenlaufzeit
+und starten den Host Service neu. Automatisierung kann `ragscanner uninstall --yes` verwenden.
+`uninstall` bewahrt Maschinenberichte und Verlauf, sofern
+`--purge-data` nicht angegeben wird.
 
 Nach einer PyPI-Veröffentlichung erfolgt die Installation mit `uv tool install ragscanner`. Bisher
 wurde weder ein PyPI-Paket noch ein Release-Tag veröffentlicht.
 
 ## Direkte Scans
+
+Die KI-gestützte Analyse kann für jeden direkten Scan oder Dashboard-Job einzeln gewählt werden.
+Lokale Anbieter sind Ollama, LM Studio, LocalAI und vLLM. Entfernte Optionen umfassen OpenRouter,
+OpenAI, NVIDIA NIM, Anthropic, Google Gemini, Groq, Mistral AI, Together AI und benutzerdefinierte
+OpenAI-kompatible Endpunkte. KI ist standardmäßig deaktiviert; entfernte Nutzung erfordert die
+ausdrückliche Zustimmung für diesen Scan. Nur eine begrenzte, redigierte Berichtszusammenfassung
+wird übertragen; Rohdokumente und Befundnachweise bleiben lokal. Anbieterfehler beeinträchtigen den
+deterministischen Bericht nicht.
+
+```bash
+ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b
+```
 
 Setzen Sie Pfade mit Leerzeichen, Klammern oder anderen Shell-Sonderzeichen in Anführungszeichen.
 
@@ -145,6 +158,121 @@ Bearer-authentifizierte Scan-Erstellung und Job-Steuerung über die API zu aktiv
 bindet ausschließlich an `127.0.0.1`.
 
 RAGScanner überschreibt standardmäßig keine vorhandene Ausgabedatei.
+
+## Vollständige CLI-Befehlsreferenz
+
+`ragscanner COMMAND --help` zeigt die verbindliche Syntax der installierten Version. Dies ist die
+vollständige öffentliche Oberfläche; interne Kompatibilitätsbefehle bleiben verborgen.
+
+### Aufruf und Diagnose
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner` | Öffnet nach der Installation das Dashboard, andernfalls wird der Installationsbefehl angezeigt. |
+| `ragscanner --version` | Zeigt die installierte CLI-Version. |
+| `ragscanner --help` / `ragscanner COMMAND --help` | Zeigt globale oder befehlsspezifische Hilfe, ohne den Rechnerzustand zu ändern. |
+| `ragscanner --install-completion` / `--show-completion` | Installiert Shell-Vervollständigung oder zeigt das von Typer unterstützte Skript. |
+| `ragscanner doctor` | Prüft Installation, Pfade, Konfiguration, Parser und Laufzeit offline. |
+| `ragscanner paths` | Zeigt betriebssystemspezifische Maschinen-, Daten-, Berichts-, temporäre und Legacy-Pfade. |
+
+### Maschineninstallation und Lebenszyklus
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner install` | Installiert isolierte Laufzeit und Systemdienst, richtet `local.ragscanner.com` und Maschinendaten ein und öffnet das Dashboard. Fordert nötige Administratorrechte an. |
+| `ragscanner install --yes` | Bestätigt normale Fragen für unbeaufsichtigte Installation; Betriebssystemrechte können weiter nötig sein. |
+| `ragscanner install --mode terminal` | Verwendet Terminal-Einrichtung statt Dashboard. Gültig sind `dashboard` und `terminal`. |
+| `ragscanner install --no-open-dashboard` | Installiert vollständig, ohne danach den Browser zu öffnen. |
+| `ragscanner open` | Öffnet das installierte Dashboard, ohne einen zweiten Vordergrundserver zu starten. |
+| `ragscanner status` | Zeigt Zustand von Installation, Dienst, Dashboard, Laufzeit und Datenpfaden. |
+| `ragscanner update` | Ersetzt die isolierte Laufzeit und startet den Maschinendienst neu; Administratorrechte erforderlich. |
+| `ragscanner repair` | Repariert Laufzeit, Dienst, Hostnamen, Verzeichnisse und Konfiguration; Administratorrechte erforderlich. |
+| `ragscanner uninstall` | Entfernt nach Bestätigung Dienst, Laufzeit und Hostnamenzuordnung, behält aber Berichte und Verlauf. |
+| `ragscanner uninstall --yes --purge-data` | Entfernt unbeaufsichtigt auch Konfiguration, Berichtsverlauf und verwaltete Daten. Dies ist destruktiv. |
+
+### Direkte lokale Scans
+
+```text
+ragscanner scan PATH [OPTIONS]
+```
+
+`PATH` ist eine unterstützte Datei oder ein Verzeichnis. Pfade mit Leerzeichen oder Shell-Zeichen
+müssen in Anführungszeichen stehen. AI-Anreicherung ist ohne ausdrückliche Auswahl deaktiviert.
+
+| Option | Ausführliche Verwendung |
+| --- | --- |
+| `--format terminal|json|html`, `--output PATH` | Wählt Terminal oder expliziten JSON/HTML-Export. Exporte benötigen einen Pfad und überschreiben keine Datei. |
+| `--include GLOB`, `--exclude GLOB` | Begrenzt die Verzeichnissuche mit wiederholbaren Glob-Mustern. |
+| `--recursive` / `--no-recursive` | Schaltet Unterverzeichnisse ein oder aus; standardmäßig aktiv. |
+| `--max-file-size BYTES`, `--max-files COUNT` | Setzt positive Sicherheitsgrenzen für Größe und Dateizahl. |
+| `--category NAME`, `--exclude-rule ID` | Nimmt Kategorien auf oder Regeln aus; für mehrere Werte wiederholen. |
+| `--include-pii` / `--no-include-pii` | Schaltet PII-Regeln der wirksamen Scanrichtlinie ein oder aus. |
+| `--min-severity LEVEL`, `--fail-on LEVEL`, `--max-findings COUNT` | Filtert Anzeige, bestimmt den fehlerhaften Exit-Level und begrenzt Befunde. |
+| `--config FILE` | Lädt eine explizite Scanrichtlinie zusätzlich zu Standard- und Maschinenkonfiguration. |
+| `--security-only`, `--quality-only` | Führt nur Sicherheit oder nur Qualität aus; nicht kombinieren. |
+| `--quiet`, `--verbose`, `--no-color` | Steuert Terminaldetails und ANSI-Farbe, nicht das Scanergebnis. |
+| `--save-history`, `--history-db FILE` | Speichert einen versionierten Bericht und wählt optional eine andere SQLite-Datenbank. |
+| `--ai-provider NAME`, `--ai-model NAME`, `--ai-base-url URL` | Aktiviert Berichtsanreicherung mit Anbieter, Modell und optionalem kompatiblem Endpunkt. |
+| `--ai-credential-ref REF`, `--consent-remote-ai` | Löst Secrets extern auf, etwa `env:OPENROUTER_API_KEY`, und erteilt nötige Remote-Zustimmung. |
+
+### AI-Berichtsanreicherung
+
+| Befehl oder Option | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner analyze-report REPORT_FILE --model MODEL --output FILE` | Reichert einen vorhandenen unterstützten Bericht an; Modell und Ausgabedatei sind Pflicht. |
+| `--provider NAME` | Wählt den Anbieter, standardmäßig `ollama`; lokale und entfernte kompatible Anbieter sind konfigurierbar. |
+| `--base-url URL`, `--credential-ref REF` | Überschreibt den Endpunkt und löst das Secret außerhalb von Bericht/Verlauf auf. |
+| `--consent-remote` | Erlaubt ausdrücklich die Übertragung einer begrenzten, redigierten Zusammenfassung; Rohdokumente und Belege bleiben lokal. |
+
+### Dauerhafte Aufträge und Worker
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner jobs enqueue-scan PATH` | Stellt einen Datei-/Ordnerscan ein; unterstützt `--database`, `--config`, `--idempotency-key`, `--max-attempts` und AI-Optionen. |
+| `ragscanner jobs enqueue-openwebui` | Stellt einen OpenWebUI-Scan ein. `--base-url`, `--knowledge-id`, `--credential-ref`, `--consent-content` sind Pflicht; Datenbank-, Idempotenz-, Retry- und AI-Optionen sind möglich. |
+| `ragscanner jobs list` | Listet Aufträge mit `--database`, `--limit` (1–200), `--offset` und `--format`. |
+| `ragscanner jobs show JOB_ID` | Zeigt Versuche, Zeiten, Ergebnisreferenz und Fehler; `--database` wählt den Speicher. |
+| `ragscanner jobs cancel JOB_ID` | Bricht einen noch nicht endgültigen Auftrag ab; `--database` wählt den Speicher. |
+| `ragscanner jobs retry JOB_ID` | Erstellt einen neuen Versuch für einen geeigneten fehlgeschlagenen/abgebrochenen Auftrag. |
+| `ragscanner worker` | Least und verarbeitet dauerhaft Aufträge aus der Maschinendatenbank. |
+| `ragscanner worker --once` | Verarbeitet verfügbare Arbeit einmal und beendet sich. |
+| `--database FILE`, `--poll-interval SECONDS`, `--lease-seconds SECONDS`, `--worker-id ID` | Steuert Speicher, Polling (0,1–60), Lease (5–3600) und Worker-Identität. |
+
+### Gespeicherter Berichtsverlauf
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner history list` | Listet Scans mit `--database`, `--limit` (1–200), `--offset` und `--format`. |
+| `ragscanner history show SCAN_ID` | Rendert einen Bericht mit `--database`, `--format` und optionalem `--verbose`. |
+| `ragscanner history compare BASELINE_ID CANDIDATE_ID` | Vergleicht neue, gelöste und unveränderte Befunde; akzeptiert `--database` und `--format`. |
+| `ragscanner history delete SCAN_ID` | Löscht nach Bestätigung. `--yes` nur bewusst automatisiert verwenden; `--database` wählt den Speicher. |
+
+### Rendering und Vordergrunddienst
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner report SCAN_RESULT` | Rendert neu mit `--format`, `--output`, `--verbose`, Befundfiltern, `--max-findings`, `--include-info`/`--exclude-info` und optional `--show-absolute-paths`. |
+| `ragscanner serve` | Startet Dashboard/API für Entwicklung oder Diagnose im Vordergrund auf Loopback; installiert wird der Maschinendienst genutzt. |
+| `ragscanner serve --port PORT --history-db FILE` | Wählt Loopback-Port (1–65535) und alternative Verlaufsdatenbank. |
+
+### Spezialisierte Scanner
+
+| Befehl | Ausführliche Verwendung |
+| --- | --- |
+| `ragscanner security scan PATH` | Führt Sicherheitsregeln aus; unterstützt Regel-/Kategorie-/Schwerefilter, `--format`, `--fail-on`, `--max-findings`, `--include-pii`, `--offline`/`--no-offline`; offline ist Standard. |
+| `ragscanner quality scan PATH` | Prüft exakte/nahe Duplikate und Chunk-Qualität mit Einzelschaltern, `--similarity-threshold` (0,5–1,0), Token-Grenzen, `--fail-on` und `--format`. |
+
+### Betriebsregeln
+
+| Regel | Bedeutung |
+| --- | --- |
+| Exit-Status | Ungültige Eingabe, Betriebsfehler oder Befund ab `--fail-on` erzeugen einen CI-tauglichen Exit ungleich null. |
+| Zustimmung | OpenWebUI-Inhaltszugriff und Remote-AI benötigen ausdrückliche Schalter; Metadatensuche gewährt keinen Inhaltszugriff. |
+| Zugangsdaten | Secrets extern speichern und nur eine Zugangsdatenreferenz übergeben. |
+| Speicher | Nicht angegebene Pfade werden auf die von `ragscanner paths` gezeigten Maschinenorte aufgelöst. |
+| Dienste | Dashboard/Worker sind maschinenweit; `serve` und `worker` im Vordergrund dienen der Diagnose. |
+| Ausgabesicherheit | Dateien werden nicht überschrieben, absolute Pfade sind standardmäßig verborgen, Belege begrenzt und escaped. |
+| Kompatibilität | Optionen und Befehlsausgabe sind Englisch; RAG-Inhalt bleibt in jeder unterstützten Sprache Unicode-nativ. |
 
 ## Mehrsprachige Eingaben
 

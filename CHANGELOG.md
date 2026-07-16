@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Added a complete public CLI reference to the canonical English README and full Turkish, German,
+  French, Simplified Chinese, and Italian equivalents, including lifecycle, scan, AI, job, history,
+  reporting, service, specialist-scanner, consent, credential, storage, and exit behavior.
+
+- Consolidated installation into `ragscanner install`: it prepares the isolated machine runtime,
+  service, machine data, loopback dashboard name, and opens the dashboard by default. Bare
+  `ragscanner` now opens the dashboard, CLI setup remains available through `--mode terminal`, and
+  legacy agent/host/site/setup command surfaces are hidden from normal help.
+
+- Added a persistent dashboard language selector for English, Turkish, German, French, Simplified
+  Chinese, and Italian across setup, sign-in, navigation, jobs, sources, reports, settings, and
+  dynamic discovery/model status messages. English remains the default fallback.
+
+- Replaced the per-user background agent with an administrator-installed machine-wide Host Service,
+  machine-wide runtime and SQLite state, service-owned temporary storage, and user-local cache only.
+- Expanded opt-in AI-assisted reports to Ollama, LM Studio, LocalAI, vLLM, OpenRouter, OpenAI,
+  NVIDIA NIM, Anthropic, Gemini, Groq, Mistral, Together AI, and custom OpenAI-compatible APIs.
+  Manual and queued scans choose AI independently, secrets remain external references, and remote
+  providers require explicit consent.
+
 - Replace the duplicate discovery/content menu paths with a minimal local-file or direct OpenWebUI
   API scan menu, and close OpenWebUI clients on the same asyncio event loop that performed the scan.
 
