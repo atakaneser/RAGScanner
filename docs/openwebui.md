@@ -32,5 +32,10 @@ mutate OpenWebUI, retrieve model credentials, scan chat endpoints, provide incre
 detection, or automatically include every standalone/chat attachment. Container metadata
 discovery and content retrieval remain separate consent boundaries.
 
+In the guided CLI, option 3 lists accessible knowledge bases first. The user can then choose one
+and explicitly consent to an immediate local content scan; the supplied API key exists only in that
+process memory and is removed when the scan completes. Durable job commands remain available for
+automation and workers.
+
 See [OPENWEBUI_INTEGRATION.md](../OPENWEBUI_INTEGRATION.md) and
 [ADR-0023](decisions/0023-consent-gated-openwebui-content-source.md).

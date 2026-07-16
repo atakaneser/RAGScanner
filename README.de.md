@@ -65,8 +65,9 @@ RAG-orientierten Namen vor und behandelt allgemeine Ordner wie Documents nicht a
 Zustimmung prüft die OpenWebUI-Erkennung begrenzte Metadaten verfügbarer Docker-, Podman-, nerdctl-
 oder Finch-Runtimes sowie übliche Loopback-Adressen. Ein separat angegebener, nur im Speicher
 gehaltener API-Schlüssel kann zugängliche Knowledge Bases sowie verknüpfte und eigenständige/Chat-
-Dateimetadaten inventarisieren. Ein separater ausdrücklich genehmigter Job kann zugängliche Dateien
-aus einer ausgewählten OpenWebUI-Wissensbasis abrufen und die statische Pipeline ausführen.
+Dateimetadaten inventarisieren. Option 3 lässt den Benutzer eine aufgeführte OpenWebUI-Wissensbasis
+auswählen und nach einer separaten ausdrücklichen Inhaltszustimmung die statische Pipeline im selben
+lokalen Prozess ausführen.
 
 Verwalten oder entfernen Sie die Installation mit einem RAGScanner-Befehl:
 

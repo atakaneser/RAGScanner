@@ -307,7 +307,7 @@ def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # ty
     result = runner.invoke(app, input="3\nn\n")
     assert result.exit_code == 0
     assert called is False
-    assert "jobs enqueue-openwebui" in result.stdout
+    assert "in-session scan" in result.stdout
 
 
 def test_automatic_discovery_lists_supported_and_detected_environment_types(
@@ -388,7 +388,7 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
         ],
     )
 
-    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\n")
+    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\nn\n")
 
     assert result.exit_code == 0
     assert "http://127.0.0.1:49152" in result.stdout
@@ -397,6 +397,36 @@ def test_guided_openwebui_discovery_lists_container_service_and_knowledge_bases(
     assert "1 knowledge-linked, 1 standalone" in result.stdout
     assert "synthetic-api-key" not in result.stdout
     assert "Metadata inventory does not retrieve document content" in result.stdout
+
+
+def test_guided_openwebui_can_select_and_start_a_consented_content_scan(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    service = ServiceCandidate(
+        base_url="http://127.0.0.1:3000",
+        health_path="/health",
+        discovery_source="container_runtime",
+        runtime="docker",
+    )
+    started: list[tuple[ServiceCandidate, str, str]] = []
+    monkeypatch.setattr("ragscanner.cli.discover_openwebui_services", lambda **kwargs: [service])
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_openwebui_knowledge_bases",
+        lambda base_url, api_key: [
+            KnowledgeBaseCandidate(id="kb-1", name="Engineering", description="Synthetic")
+        ],
+    )
+    monkeypatch.setattr("ragscanner.cli.discover_openwebui_files", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        "ragscanner.cli._guided_openwebui_content_scan",
+        lambda selected, knowledge_id, api_key: started.append((selected, knowledge_id, api_key)),
+    )
+
+    result = runner.invoke(app, input="3\ny\ny\nsynthetic-api-key\ny\n1\ny\n")
+
+    assert result.exit_code == 0
+    assert "Knowledge base to scan" in result.stdout
+    assert started == [(service, "kb-1", "synthetic-api-key")]
 
 
 def test_guided_openwebui_keeps_knowledge_results_when_file_inventory_fails(

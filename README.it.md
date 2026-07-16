@@ -63,9 +63,9 @@ scansione. La scoperta automatica suggerisce solo cartelle immediate con nomi or
 tratta cartelle generiche come Documents come fonti RAG. Dopo consenso esplicito, la scoperta OpenWebUI
 ispeziona metadata limitati dei runtime Docker, Podman, nerdctl o Finch disponibili e gli indirizzi
 loopback comuni. Una chiave API fornita separatamente e mantenuta solo in memoria può elencare i
-metadata delle knowledge base accessibili e dei file collegati o autonomi/di chat. Un job separato
-con consenso esplicito può recuperare i file accessibili da una knowledge base OpenWebUI selezionata
-ed eseguire la pipeline statica.
+metadata delle knowledge base accessibili e dei file collegati o autonomi/di chat. L’opzione 3
+consente all’utente di selezionare una knowledge base OpenWebUI elencata e, dopo un consenso esplicito
+separato al contenuto, di eseguire la pipeline statica nello stesso processo locale.
 
 Gestisci o rimuovi l’installazione con un singolo comando RAGScanner:
 
