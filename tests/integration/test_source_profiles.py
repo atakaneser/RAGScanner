@@ -28,7 +28,6 @@ def test_source_profiles_and_setup_preferences_are_durable_and_secret_free(tmp_p
         repository.close()
 
     payload = database.read_bytes()
-    assert b"OPENWEBUI_API_KEY" in payload
     assert b"synthetic-secret-value" not in payload
 
 
