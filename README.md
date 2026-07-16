@@ -63,7 +63,7 @@ scan. Automatic discovery only suggests immediate folders with RAG-oriented name
 treat general folders such as Documents as RAG sources. After explicit consent, OpenWebUI discovery inspects
 bounded metadata from available Docker, Podman, nerdctl, or Finch runtimes plus common loopback
 addresses. A separately supplied in-memory API key can inventory accessible knowledge bases plus
-knowledge-linked and standalone/chat files. Option 3 then lets the user select one listed OpenWebUI
+knowledge-linked and standalone/chat files. Option 2 then lets the user select one listed OpenWebUI
 knowledge base and, after separate explicit content consent, run the static pipeline in the same
 local process.
 

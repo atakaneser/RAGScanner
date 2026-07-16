@@ -46,7 +46,6 @@ from ragscanner.normalization import DocumentNormalizer
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
     ServiceCandidate,
-    discover_local_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
@@ -341,100 +340,35 @@ def _guided_local_source_scan() -> None:
 def _guided_onboarding() -> None:
     typer.echo("Welcome to RAGScanner.")
     typer.echo("What would you like to scan?")
-    typer.echo("  1. Automatically discover local RAG environments")
-    typer.echo("  2. A local file or folder")
-    typer.echo("  3. An OpenWebUI knowledge base")
-    typer.echo("  4. Another RAG platform or vector store")
-    typer.echo("  5. Exit")
-    choice = _prompt_choice("Your choice", {"1", "2", "3", "4", "5"}, default="1")
-    if choice == "5":
+    typer.echo("  1. A local file or folder")
+    typer.echo("  2. An OpenWebUI knowledge base (API)")
+    typer.echo("  3. Exit")
+    choice = _prompt_choice("Your choice", {"1", "2", "3"}, default="1")
+    if choice == "3":
         typer.echo("No action was taken.")
         return
     if choice == "1":
-        typer.echo("RAGScanner requires consent before inspecting local service metadata.")
-        if not typer.confirm("Inspect local container runtimes and common loopback addresses?"):
-            typer.echo("Automatic discovery was not run.")
-            return
-        environments = discover_local_rag_environments(include_container_runtimes=True)
-        if environments:
-            typer.echo("Local RAG environment candidates:")
-            for environment in environments:
-                origin = f" via {environment.runtime}" if environment.runtime else ""
-                capability = (
-                    "knowledge-base metadata available"
-                    if environment.metadata_inventory_supported
-                    else "connector not available yet"
-                )
+        _guided_local_source_scan()
+        return
+    typer.echo("RAGScanner requires separate consent before accessing document content.")
+    service_candidates = []
+    if typer.confirm("Inspect local OpenWebUI API services?"):
+        service_candidates = discover_openwebui_services(include_container_runtimes=True)
+        if service_candidates:
+            typer.echo("Available OpenWebUI API services:")
+            for service_candidate in service_candidates:
+                origin = f" via {service_candidate.runtime}" if service_candidate.runtime else ""
                 typer.echo(
-                    f"- {environment.platform} at {environment.base_url} "
-                    f"({environment.discovery_status}{origin}; {capability})"
+                    f"- {service_candidate.base_url} "
+                    f"({service_candidate.health_path} responded{origin})"
                 )
         else:
-            typer.echo("No local RAG service candidate was found.")
-        local_candidates = discover_local_sources(Path.cwd())
-        if local_candidates:
-            typer.echo("Name-based local RAG source candidates (not content-verified):")
-            for local_candidate in local_candidates[:5]:
-                typer.echo(
-                    f"- {local_candidate.path} "
-                    f"({local_candidate.supported_file_count} supported files)"
-                )
-        openwebui_services = [
-            environment
-            for environment in environments
-            if environment.platform == "openwebui" and environment.discovery_status == "reachable"
-        ]
-        if openwebui_services:
-            _guided_openwebui_metadata(
-                [
-                    ServiceCandidate(
-                        base_url=item.base_url,
-                        health_path="/health",
-                        discovery_source="container_runtime" if item.runtime else "common_loopback",
-                        runtime=item.runtime,
-                        container_name=item.container_name,
-                        image=item.image,
-                    )
-                    for item in openwebui_services
-                ]
-            )
-        typer.echo("Automatic discovery does not retrieve document content.")
-        typer.echo(
-            "For an OpenWebUI content scan, select a knowledge base in the dashboard or use "
-            "`ragscanner jobs enqueue-openwebui --help`, then run `ragscanner worker`."
-        )
-        return
-    if choice == "3":
-        typer.echo("RAGScanner requires separate consent before accessing document content.")
-        service_candidates = []
-        if typer.confirm("Inspect local container runtimes and common loopback addresses?"):
-            service_candidates = discover_openwebui_services(include_container_runtimes=True)
-            if service_candidates:
-                typer.echo("Possible OpenWebUI services:")
-                for service_candidate in service_candidates:
-                    origin = (
-                        f" via {service_candidate.runtime}" if service_candidate.runtime else ""
-                    )
-                    typer.echo(
-                        f"- {service_candidate.base_url} "
-                        f"({service_candidate.health_path} responded{origin})"
-                    )
-            else:
-                typer.echo("No responsive OpenWebUI candidate was found on loopback.")
-        _guided_openwebui_metadata(service_candidates, offer_content_scan=True)
-        typer.echo(
-            "Metadata inventory does not retrieve document content unless you explicitly select "
-            "and consent to an in-session scan."
-        )
-        return
-    if choice == "4":
-        typer.echo(
-            "Other connectors are not implemented yet. Each source type will use the same safe "
-            "SourceConnector contract."
-        )
-        return
-
-    _guided_local_source_scan()
+            typer.echo("No responsive local OpenWebUI API service was found.")
+    _guided_openwebui_metadata(service_candidates, offer_content_scan=True)
+    typer.echo(
+        "Metadata inventory does not retrieve document content unless you explicitly select "
+        "and consent to an in-session scan."
+    )
 
 
 @app.callback()

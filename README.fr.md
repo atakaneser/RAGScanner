@@ -65,7 +65,7 @@ RAG et ne traite pas les dossiers généraux tels que Documents comme des source
 découverte OpenWebUI inspecte des métadonnées limitées des runtimes Docker, Podman, nerdctl ou Finch
 disponibles ainsi que les adresses loopback courantes. Une clé API fournie séparément et conservée
 uniquement en mémoire peut inventorier les bases de connaissances accessibles ainsi que les
-métadonnées des fichiers liés ou autonomes/de chat. L’option 3 permet à l’utilisateur de sélectionner
+métadonnées des fichiers liés ou autonomes/de chat. L’option 2 permet à l’utilisateur de sélectionner
 une base de connaissances OpenWebUI listée puis, après un consentement explicite distinct pour le
 contenu, d’exécuter le pipeline statique dans le même processus local.
 

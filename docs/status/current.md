@@ -48,6 +48,7 @@
   response limits, HTTPS outside loopback, and external `env:` credential resolution
 - Guided OpenWebUI selection and immediate one-knowledge-base content scan after separate explicit
   consent, using a process-memory-only API key and a central HTML report output
+- Minimal guided menu with only local file/folder and direct OpenWebUI API scan routes
 - Browser-tested local Jinja dashboard for scan posture, recent history, durable jobs, local and
   OpenWebUI enqueue, cancellation, retry, consented environment/knowledge-base discovery, and a
   one-job local worker action with same-origin CSRF protection

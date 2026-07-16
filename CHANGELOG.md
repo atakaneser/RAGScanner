@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replace the duplicate discovery/content menu paths with a minimal local-file or direct OpenWebUI
+  API scan menu, and close OpenWebUI clients on the same asyncio event loop that performed the scan.
+
 - Let guided OpenWebUI option 3 select a discovered knowledge base and start a separately consented
   immediate local content scan, instead of ending after metadata inventory.
 

@@ -1,3 +1,6 @@
+import asyncio
+import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ragscanner.application import (
@@ -5,6 +8,15 @@ from ragscanner.application import (
     JobApplicationService,
     StaticScanApplicationService,
     StaticScanJobHandler,
+)
+from ragscanner.domain import (
+    SourceCapabilities,
+    SourceContent,
+    SourceDescriptor,
+    SourceHealth,
+    SourceHealthStatus,
+    SourceItem,
+    SourcePage,
 )
 from ragscanner.jobs import JobKind, JobStatus
 from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
@@ -44,3 +56,76 @@ def test_local_scan_job_runs_pipeline_and_persists_report(tmp_path: Path) -> Non
     finally:
         history.close()
         jobs.close()
+
+
+def test_openwebui_scan_closes_its_client_on_the_pipeline_event_loop(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    class LoopBoundConnector:
+        instance: "LoopBoundConnector | None" = None
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+            self.content_loop: int | None = None
+            self.closed_loop: int | None = None
+            type(self).instance = self
+            self.item = SourceItem(
+                id="file-1",
+                source_id="openwebui:kb-1",
+                external_id="file-1",
+                name="guide.md",
+                path="guide.md",
+                mime_type="text/markdown",
+            )
+
+        async def describe(self) -> SourceDescriptor:
+            return SourceDescriptor(
+                id="openwebui:kb-1",
+                name="openwebui",
+                source_type="openwebui.knowledge",
+                display_name="OpenWebUI knowledge base",
+                description="Synthetic",
+                capabilities=SourceCapabilities(
+                    discover_documents=True, read_document_content=True, read_metadata=True
+                ),
+            )
+
+        async def health_check(self) -> SourceHealth:
+            return SourceHealth(status=SourceHealthStatus.HEALTHY, checked_at=datetime.now(UTC))
+
+        async def list_items(self, cursor: object, limit: int) -> SourcePage:
+            del cursor, limit
+            return SourcePage(items=[self.item], has_more=False)
+
+        async def get_content(self, item_id: str, max_bytes: int) -> SourceContent:
+            del item_id, max_bytes
+            self.content_loop = id(asyncio.get_running_loop())
+            return SourceContent(
+                item=self.item,
+                content_bytes=b"# Guide\n\nSafe content.",
+                content_type="text/markdown",
+                retrieved_at=datetime.now(UTC),
+            )
+
+        async def aclose(self) -> None:
+            self.closed_loop = id(asyncio.get_running_loop())
+
+    monkeypatch.setattr(
+        "ragscanner.application.static_scan.OpenWebUISourceConnector", LoopBoundConnector
+    )
+    database = tmp_path / "ragscanner.sqlite3"
+    history = SQLiteScanHistoryRepository(database)
+    os.environ["OPENWEBUI_TEST_KEY"] = "synthetic-key"
+    try:
+        StaticScanApplicationService(history).run_openwebui(
+            base_url="http://127.0.0.1:3000",
+            knowledge_id="kb-1",
+            credential_ref="env:OPENWEBUI_TEST_KEY",
+            content_consent=True,
+        )
+    finally:
+        os.environ.pop("OPENWEBUI_TEST_KEY", None)
+        history.close()
+
+    assert LoopBoundConnector.instance is not None
+    assert LoopBoundConnector.instance.content_loop == LoopBoundConnector.instance.closed_loop
