@@ -85,6 +85,48 @@ async def test_local_api_uses_stable_bounded_errors_without_existence_details(
 
 
 @pytest.mark.anyio
+async def test_local_api_accepts_the_explicit_machine_local_dashboard_hostname(
+    tmp_path: Path,
+) -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(tmp_path / "history.sqlite3")),
+        base_url="http://local.ragscanner.com",
+    ) as client:
+        response = await client.get("/health")
+
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_path: Path) -> None:
+    app = create_app(
+        tmp_path / "history.sqlite3", local_administrator_data_dir=tmp_path / "host-data"
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://local.ragscanner.com",
+        follow_redirects=False,
+    ) as client:
+        initial = await client.get("/")
+        setup = await client.get("/setup")
+        protected_history = await client.get("/api/v1/history")
+        created = await client.post(
+            "/setup", data={"username": "host-admin", "password": "a long local-only password"}
+        )
+        dashboard = await client.get("/")
+
+    assert initial.status_code == 303
+    assert initial.headers["location"] == "/setup"
+    assert setup.status_code == 200
+    assert "Create the local administrator" in setup.text
+    assert protected_history.status_code == 401
+    assert protected_history.json()["error"]["code"] == "setup_required"
+    assert created.status_code == 303
+    assert dashboard.status_code == 200
+    assert "Overview" in dashboard.text
+
+
+@pytest.mark.anyio
 async def test_local_api_openapi_is_versioned_with_authenticated_job_control(
     tmp_path: Path,
 ) -> None:

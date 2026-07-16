@@ -39,6 +39,7 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Scoped authenticated asynchronous scan/job API | Available on loopback |
 | Local overview and queue dashboard | Available with `ragscanner serve` |
 | Per-user Local Agent for an always-ready dashboard and durable job processing | Available |
+| Machine-local Host Service with local administrator bootstrap | Available |
 | Consent-gated OpenWebUI knowledge content connector | Available |
 | Scheduler and vector-store content connectors | Not available yet |
 | ModelProvider/BYOM integration | Not available yet |
@@ -75,6 +76,7 @@ ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner agent install
+ragscanner host install
 ```
 
 `uninstall` asks for confirmation and preserves reports/history unless `--purge-data` is explicitly

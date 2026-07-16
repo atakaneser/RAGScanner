@@ -22,6 +22,7 @@ from ragscanner.application import (
     resolve_secret_reference,
 )
 from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
+from ragscanner.local_auth import LocalAdministratorStore
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
     discover_local_rag_environments,
@@ -42,8 +43,87 @@ def _display_timestamp(value: datetime | None) -> str:
 templates.env.filters["display_timestamp"] = _display_timestamp
 
 
-def register_dashboard(app: FastAPI, database_path: Path) -> None:
+def register_dashboard(
+    app: FastAPI,
+    database_path: Path,
+    *,
+    administrator_store: LocalAdministratorStore | None = None,
+) -> None:
     """Register localhost-only HTML routes without exposing API credentials to the browser."""
+
+    @app.middleware("http")
+    async def local_dashboard_login(request: Request, call_next):  # type: ignore[no-untyped-def]
+        if administrator_store is not None and _requires_local_administrator(request):
+            session = request.cookies.get("ragscanner_session", "")
+            if not administrator_store.configured:
+                if request.url.path.startswith("/api/"):
+                    return JSONResponse({"error": {"code": "setup_required"}}, status_code=401)
+                return RedirectResponse("/setup", status_code=303)
+            if not administrator_store.valid_session(session):
+                if request.url.path.startswith("/api/"):
+                    return JSONResponse(
+                        {"error": {"code": "local_administrator_required"}}, status_code=401
+                    )
+                return RedirectResponse("/login", status_code=303)
+        return await call_next(request)
+
+    @app.get("/setup", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+    async def setup_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+        if administrator_store is None:
+            return RedirectResponse("/", status_code=303)
+        if administrator_store.configured:
+            return RedirectResponse("/login", status_code=303)
+        return templates.TemplateResponse(request, "setup.html", {"error": ""})
+
+    @app.post("/setup", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+    async def create_local_administrator(
+        request: Request,
+        username: Annotated[str, Form(min_length=3, max_length=80)],
+        password: Annotated[str, Form(min_length=14, max_length=512)],
+    ) -> HTMLResponse | RedirectResponse:
+        if administrator_store is None:
+            return RedirectResponse("/", status_code=303)
+        try:
+            administrator_store.create(username, password)
+            session = administrator_store.issue_session(username.strip())
+        except ValueError as error:
+            return templates.TemplateResponse(request, "setup.html", {"error": str(error)})
+        response = RedirectResponse("/", status_code=303)
+        _set_session_cookie(response, session)
+        return response
+
+    @app.get("/login", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+    async def login_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+        if administrator_store is None:
+            return RedirectResponse("/", status_code=303)
+        if not administrator_store.configured:
+            return RedirectResponse("/setup", status_code=303)
+        return templates.TemplateResponse(request, "login.html", {"error": ""})
+
+    @app.post("/login", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+    async def login_local_administrator(
+        request: Request,
+        username: Annotated[str, Form(min_length=3, max_length=80)],
+        password: Annotated[str, Form(min_length=1, max_length=512)],
+    ) -> HTMLResponse | RedirectResponse:
+        if administrator_store is None or not administrator_store.verify(
+            username.strip(), password
+        ):
+            return templates.TemplateResponse(
+                request,
+                "login.html",
+                {"error": "Username or password is invalid."},
+                status_code=401,
+            )
+        response = RedirectResponse("/", status_code=303)
+        _set_session_cookie(response, administrator_store.issue_session(username.strip()))
+        return response
+
+    @app.post("/logout", include_in_schema=False)
+    async def logout_dashboard() -> RedirectResponse:
+        response = RedirectResponse("/login", status_code=303)
+        response.delete_cookie("ragscanner_session")
+        return response
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard(request: Request) -> HTMLResponse:
@@ -74,6 +154,7 @@ def register_dashboard(app: FastAPI, database_path: Path) -> None:
                 "csrf_token": csrf_token,
                 "request_id": secrets.token_hex(16),
                 "notice": request.query_params.get("notice", ""),
+                "host_auth_enabled": administrator_store is not None,
             },
         )
         response.set_cookie(
@@ -237,6 +318,24 @@ def _validate_csrf(request: Request, form_token: str) -> None:
     cookie_token = request.cookies.get("ragscanner_csrf", "")
     if not cookie_token or not hmac.compare_digest(cookie_token, form_token):
         raise HTTPException(status_code=403, detail="Dashboard form token is invalid.")
+
+
+def _requires_local_administrator(request: Request) -> bool:
+    path = request.url.path
+    if path in {"/setup", "/login"} or path.startswith("/dashboard-assets/"):
+        return False
+    return path == "/" or path.startswith("/dashboard/") or path.startswith("/api/v1/history")
+
+
+def _set_session_cookie(response: RedirectResponse, session: str) -> None:
+    response.set_cookie(
+        "ragscanner_session",
+        session,
+        httponly=True,
+        samesite="strict",
+        secure=False,
+        max_age=8 * 60 * 60,
+    )
 
 
 def _coverage(values: Mapping[str, object]) -> int:

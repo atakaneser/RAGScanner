@@ -40,6 +40,7 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Bereichsgebundene authentifizierte asynchrone Scan-/Job-API | Auf Loopback verfügbar |
 | Lokales Übersichts- und Warteschlangen-Dashboard | Mit `ragscanner serve` verfügbar |
 | Lokaler Agent pro Benutzer für ein stets bereites Dashboard und dauerhafte Job-Verarbeitung | Verfügbar |
+| Maschinenlokaler Host Service mit lokaler Administrator-Ersteinrichtung | Verfügbar |
 | Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
 | Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
 | ModelProvider-/BYOM-Integration | Noch nicht verfügbar |
@@ -77,6 +78,7 @@ ragscanner update
 ragscanner repair
 ragscanner uninstall
 ragscanner agent install
+ragscanner host install
 ```
 
 `uninstall` verlangt eine Bestätigung. Automatisierungen können `ragscanner uninstall --yes`

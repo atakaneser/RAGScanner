@@ -24,7 +24,10 @@
     <main class="workspace" id="overview">
       <header class="topbar">
         <strong>Overview</strong>
-        <button class="primary" type="button" data-open-drawer>New scan</button>
+        <div class="topbar-actions">
+          {% if host_auth_enabled %}<form method="post" action="/logout"><button class="secondary small" type="submit">Sign out</button></form>{% endif %}
+          <button class="primary" type="button" data-open-drawer>New scan</button>
+        </div>
       </header>
       <div class="content">
         <section class="page-heading">
