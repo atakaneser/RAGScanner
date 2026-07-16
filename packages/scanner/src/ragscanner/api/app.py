@@ -4,6 +4,7 @@ import os
 import re
 from collections.abc import AsyncIterator, Iterator, Mapping
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -199,8 +200,17 @@ def create_app(
         service: Service,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        source: Annotated[str | None, Query(max_length=500)] = None,
     ) -> ScanHistoryPage:
-        return service.list(limit=limit, offset=offset)
+        return service.list(
+            limit=limit,
+            offset=offset,
+            created_after=created_after,
+            created_before=created_before,
+            source=source,
+        )
 
     @app.get("/api/v1/history/{history_id}", response_model=ReportDocument, tags=["history"])
     async def history_detail(

@@ -1,5 +1,7 @@
 """Use cases for scan history, detail, deletion, and comparison."""
 
+from datetime import datetime
+
 from ragscanner.history import ScanComparison, ScanHistoryPage, ScanHistoryRepository, compare_scans
 from ragscanner.reporting.models import ReportDocument
 
@@ -18,8 +20,24 @@ class HistoryApplicationService:
     def __init__(self, repository: ScanHistoryRepository) -> None:
         self.repository = repository
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> ScanHistoryPage:
-        return self.repository.list(limit=limit, offset=offset)
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        source: str | None = None,
+    ) -> ScanHistoryPage:
+        if created_after is None and created_before is None and source is None:
+            return self.repository.list(limit=limit, offset=offset)
+        return self.repository.list(
+            limit=limit,
+            offset=offset,
+            created_after=created_after,
+            created_before=created_before,
+            source=source,
+        )
 
     def get(self, history_id: str) -> ReportDocument:
         report = self.repository.get(history_id)

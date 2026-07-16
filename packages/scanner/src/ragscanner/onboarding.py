@@ -28,6 +28,7 @@ OPENWEBUI_LOOPBACK_ENDPOINTS = (
     "http://127.0.0.1:3000",
 )
 CONTAINER_RUNTIME_NAMES = ("docker", "podman", "nerdctl", "finch")
+KUBERNETES_RUNTIME_NAME = "kubectl"
 MAX_RUNTIME_OUTPUT_BYTES = 1_000_000
 MAX_OPENWEBUI_RESPONSE_BYTES = 1_000_000
 _OPENWEBUI_HINTS = ("open-webui", "open_webui", "openwebui")
@@ -50,6 +51,14 @@ _RAG_PLATFORM_PORTS = {
 _PUBLISHED_PORT = re.compile(
     r"(?P<host>\[[0-9a-fA-F:]+\]|[0-9a-fA-F:.]+|localhost):"
     r"(?P<host_port>\d+)->(?P<container_port>\d+)/(?:tcp|TCP)"
+)
+_LOOPBACK_PLATFORM_PROBES = (
+    ("openwebui", "http://127.0.0.1:3000", "/health"),
+    ("openwebui", "http://127.0.0.1:8080", "/health"),
+    ("qdrant", "http://127.0.0.1:6333", "/healthz"),
+    ("chroma", "http://127.0.0.1:8000", "/api/v2/heartbeat"),
+    ("weaviate", "http://127.0.0.1:8080", "/v1/.well-known/ready"),
+    ("milvus", "http://127.0.0.1:9091", "/healthz"),
 )
 
 
@@ -253,11 +262,119 @@ def discover_container_openwebui_endpoints(
     }
 
 
+def discover_kubernetes_rag_environments(
+    *, timeout_seconds: float = 3.0
+) -> list[RAGEnvironmentCandidate]:
+    """Classify bounded service metadata from the active kubectl context."""
+    executable = shutil.which(KUBERNETES_RUNTIME_NAME)
+    if executable is None:
+        return []
+    try:
+        result = subprocess.run(  # noqa: S603
+            [
+                executable,
+                "get",
+                "services",
+                "--all-namespaces",
+                "--output=json",
+                f"--request-timeout={timeout_seconds}s",
+            ],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=timeout_seconds + 1,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0 or len(result.stdout.encode("utf-8")) > MAX_RUNTIME_OUTPUT_BYTES:
+        return []
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    candidates: list[RAGEnvironmentCandidate] = []
+    for item in items[:500] if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        metadata = item.get("metadata")
+        spec = item.get("spec")
+        if not isinstance(metadata, dict) or not isinstance(spec, dict):
+            continue
+        name = str(metadata.get("name", ""))[:253]
+        namespace = str(metadata.get("namespace", "default"))[:253]
+        labels = metadata.get("labels", {})
+        identity = f"{name} {json.dumps(labels, ensure_ascii=True)[:2000]}".casefold()
+        platform = next(
+            (
+                key
+                for key, hints in _RAG_PLATFORM_HINTS.items()
+                if any(hint in identity for hint in hints)
+            ),
+            None,
+        )
+        if platform is None:
+            continue
+        raw_ports = spec.get("ports", [])
+        ports = raw_ports[:50] if isinstance(raw_ports, list) else []
+        port = next(
+            (
+                value
+                for entry in ports
+                if isinstance(entry, dict)
+                for value in [entry.get("port")]
+                if isinstance(value, int) and 1 <= value <= 65535
+            ),
+            None,
+        )
+        if not name or port is None:
+            continue
+        candidates.append(
+            RAGEnvironmentCandidate(
+                platform=platform,
+                base_url=f"http://{name}.{namespace}.svc.cluster.local:{port}",
+                discovery_status="connection_required",
+                runtime="kubernetes",
+                container_name=f"{namespace}/{name}",
+                metadata_inventory_supported=platform == "openwebui",
+            )
+        )
+    return sorted(candidates, key=lambda item: (item.platform, item.base_url))
+
+
+def discover_loopback_rag_environments(
+    *, timeout_seconds: float = 0.6
+) -> list[RAGEnvironmentCandidate]:
+    """Probe a fixed list of common loopback health endpoints without following links."""
+    found: dict[tuple[str, str], RAGEnvironmentCandidate] = {}
+    with httpx.Client(
+        timeout=httpx.Timeout(timeout_seconds), follow_redirects=False, trust_env=False
+    ) as client:
+        for platform, base_url, health_path in _LOOPBACK_PLATFORM_PROBES:
+            try:
+                with client.stream("GET", f"{base_url}{health_path}") as response:
+                    if response.status_code != 200:
+                        continue
+            except httpx.HTTPError:
+                continue
+            found[(platform, base_url)] = RAGEnvironmentCandidate(
+                platform=platform,
+                base_url=base_url,
+                discovery_status="reachable",
+                runtime="localhost",
+                metadata_inventory_supported=platform == "openwebui",
+            )
+    return sorted(found.values(), key=lambda item: (item.platform, item.base_url))
+
+
 def discover_local_rag_environments(
-    *, include_container_runtimes: bool = False
+    *, include_container_runtimes: bool = False, include_kubernetes: bool = True
 ) -> list[RAGEnvironmentCandidate]:
     """Discover supported local RAG service candidates after caller-controlled consent."""
     environments = discover_container_rag_environments() if include_container_runtimes else []
+    if include_kubernetes:
+        environments.extend(discover_kubernetes_rag_environments())
+    environments.extend(discover_loopback_rag_environments())
     openwebui_services = discover_openwebui_services(
         include_container_runtimes=include_container_runtimes,
     )
@@ -273,10 +390,10 @@ def discover_local_rag_environments(
         )
         for service in openwebui_services
     }
-    for candidate in environments:
-        if candidate.platform != "openwebui":
-            confirmed.setdefault(candidate.base_url, candidate)
-    return sorted(confirmed.values(), key=lambda item: (item.platform, item.base_url))
+    combined = {(item.platform, item.base_url): item for item in environments}
+    for candidate in confirmed.values():
+        combined[(candidate.platform, candidate.base_url)] = candidate
+    return sorted(combined.values(), key=lambda item: (item.platform, item.base_url))
 
 
 def discover_openwebui_services(

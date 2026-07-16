@@ -9,14 +9,17 @@ from ragscanner.onboarding import (
     KnowledgeBaseCandidate,
     OpenWebUIDiscoveryError,
     OpenWebUIFileCandidate,
+    RAGEnvironmentCandidate,
     ServiceCandidate,
     discover_container_openwebui_endpoints,
     discover_container_rag_environments,
+    discover_kubernetes_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
     discover_openwebui_services,
 )
+from ragscanner.storage import SQLiteSourceProfileRepository
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -34,6 +37,34 @@ def test_doctor_is_local_and_offline() -> None:
     assert result.exit_code == 0
     assert "OK configuration" in result.stdout
     assert "no network request performed" in result.stdout
+
+
+def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "ragscanner.cli.discover_local_rag_environments",
+        lambda **kwargs: [
+            RAGEnvironmentCandidate(
+                platform="openwebui",
+                base_url="http://127.0.0.1:3000",
+                discovery_status="reachable",
+                runtime="docker",
+                metadata_inventory_supported=True,
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["setup", "--mode", "terminal"], input="1\n\n\n\n")
+
+    repository = SQLiteSourceProfileRepository(tmp_path / "history.sqlite3")
+    try:
+        profiles = repository.list()
+        assert repository.setting("interface_mode") == "cli"
+    finally:
+        repository.close()
+    assert result.exit_code == 0
+    assert profiles[0].base_url == "http://127.0.0.1:3000"
+    assert profiles[0].capability_status == "scan_ready"
 
 
 @pytest.mark.parametrize(
@@ -148,7 +179,7 @@ def test_guided_local_scan_runs_existing_pipeline(tmp_path, monkeypatch) -> None
     assert "bilgi tabanı.txt" in result.stdout
 
 
-def test_guided_html_report_uses_the_single_configured_data_directory(
+def test_guided_scan_uses_local_history_without_creating_an_html_file(
     tmp_path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     source = tmp_path / "knowledge.txt"
@@ -159,13 +190,13 @@ def test_guided_html_report_uses_the_single_configured_data_directory(
     monkeypatch.chdir(working_directory)
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(data_dir))
 
-    result = runner.invoke(app, input=f"1\n{source}\ny\n")
+    result = runner.invoke(app, input=f"1\n{source}\n")
 
     assert result.exit_code == 0
-    reports = list((data_dir / "reports").glob("ragscanner-report-*.html"))
-    assert len(reports) == 1
+    assert (data_dir / "history.sqlite3").is_file()
+    assert not list((data_dir / "reports").glob("ragscanner-report-*.html"))
     assert not list(working_directory.glob("ragscanner-report*.html"))
-    assert str(reports[0]) in result.stdout
+    assert "The report is available in the local dashboard" in result.stdout
 
 
 def test_paths_command_reports_locations_without_creating_them(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -571,6 +602,52 @@ def test_container_environment_inventory_classifies_known_vector_platforms(monke
     assert [
         (item.platform, item.base_url, item.metadata_inventory_supported) for item in candidates
     ] == [("qdrant", "http://127.0.0.1:6333", False)]
+
+
+def test_kubernetes_discovery_reads_bounded_service_metadata_without_secrets(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    calls: list[list[str]] = []
+    payload = {
+        "items": [
+            {
+                "metadata": {
+                    "name": "open-webui",
+                    "namespace": "rag",
+                    "labels": {"app": "open-webui"},
+                },
+                "spec": {"ports": [{"port": 3000}]},
+            },
+            {
+                "metadata": {"name": "ordinary-service", "namespace": "default"},
+                "spec": {"ports": [{"port": 80}]},
+            },
+        ]
+    }
+    monkeypatch.setattr(
+        "ragscanner.onboarding.shutil.which",
+        lambda name: "/usr/bin/kubectl" if name == "kubectl" else None,
+    )
+
+    def run(arguments: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(arguments)
+        return subprocess.CompletedProcess(arguments, 0, stdout=json.dumps(payload), stderr="")
+
+    monkeypatch.setattr("ragscanner.onboarding.subprocess.run", run)
+
+    candidates = discover_kubernetes_rag_environments(timeout_seconds=2)
+
+    assert calls == [
+        [
+            "/usr/bin/kubectl",
+            "get",
+            "services",
+            "--all-namespaces",
+            "--output=json",
+            "--request-timeout=2s",
+        ]
+    ]
+    assert len(candidates) == 1
+    assert candidates[0].base_url == "http://open-webui.rag.svc.cluster.local:3000"
+    assert candidates[0].discovery_status == "connection_required"
 
 
 def test_openwebui_knowledge_discovery_is_bounded_paginated_and_secret_safe(

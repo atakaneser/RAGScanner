@@ -1,6 +1,7 @@
 """SQLAlchemy schema owned by the storage adapter, not scanner Core."""
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Float,
@@ -99,3 +100,38 @@ jobs = Table(
 )
 Index("ix_jobs_claim", jobs.c.status, jobs.c.available_at, jobs.c.lease_expires_at)
 Index("ix_jobs_created_at", jobs.c.created_at)
+
+source_profiles = Table(
+    "source_profiles",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("name", String(160), nullable=False),
+    Column("kind", String(40), nullable=False),
+    Column("base_url", String(2048)),
+    Column("local_path", String(4096)),
+    Column("credential_ref", String(500)),
+    Column("discovery_origin", String(80), nullable=False),
+    Column("capability_status", String(40), nullable=False),
+    Column("enabled", Boolean, nullable=False, default=True),
+    Column("created_at", String(40), nullable=False),
+    Column("updated_at", String(40), nullable=False),
+    CheckConstraint(
+        "kind IN ('openwebui', 'filesystem', 'qdrant', 'chroma', 'weaviate', "
+        "'milvus', 'pgvector', 'generic')",
+        name="ck_source_profiles_kind",
+    ),
+    CheckConstraint(
+        "capability_status IN ('scan_ready', 'metadata_only', 'connection_required')",
+        name="ck_source_profiles_capability_status",
+    ),
+)
+Index("ix_source_profiles_kind", source_profiles.c.kind)
+Index("ix_source_profiles_updated_at", source_profiles.c.updated_at)
+
+app_settings = Table(
+    "app_settings",
+    metadata,
+    Column("key", String(120), primary_key=True),
+    Column("value", String(2048), nullable=False),
+    Column("updated_at", String(40), nullable=False),
+)

@@ -39,7 +39,10 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | Jobs d’analyse statique SQLite durables et worker | Disponible |
 | API asynchrone authentifiée avec scopes pour analyses/jobs | Disponible sur loopback |
 | Dashboard local d’aperçu et de file d’attente | Disponible avec `ragscanner serve` |
+| Archive de rapports avec filtres date/source, détail et comparaison | Disponible |
+| Profils de sources persistants sans secrets et gestion Sources/Settings | Disponible |
 | Agent local par utilisateur pour un dashboard toujours disponible et le traitement durable des tâches | Disponible |
+| Découverte des métadonnées Docker, Podman, nerdctl, Finch, Kubernetes et localhost | Disponible |
 | Service hôte local à la machine avec initialisation d’un administrateur local | Disponible |
 | Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
 | Scheduler et connecteurs de contenu vector store | Pas encore disponible |
@@ -229,7 +232,7 @@ La séquence immédiate est :
 1. Travaux restants de récupération de persistance et d’historique/comparaison à l’échelle API
 2. Connecteurs SharePoint, web, SaaS, Git, object store et vector store par niveau de capacité
 3. Compatibilité OpenWebUI, détection incrémentale, identité des sources et fournisseurs de secrets
-4. Détails/comparaison des analyses, paramètres de connecteurs et validation d’accessibilité du dashboard
+4. Planification, rétention, tâches récurrentes et localisation de l’interface des rapports
 5. Scheduler, rétention et notifications
 6. Renforcement du packaging et du déploiement
 

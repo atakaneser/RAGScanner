@@ -90,28 +90,47 @@ class SQLiteScanHistoryRepository:
             ).scalar_one_or_none()
         return ReportDocument.model_validate_json(payload) if payload is not None else None
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> ScanHistoryPage:
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        source: str | None = None,
+    ) -> ScanHistoryPage:
         if not 1 <= limit <= 200:
             raise ValueError("limit must be between 1 and 200")
         if offset < 0:
             raise ValueError("offset must be non-negative")
+        conditions = []
+        if created_after is not None:
+            conditions.append(scans.c.created_at >= created_after.isoformat())
+        if created_before is not None:
+            conditions.append(scans.c.created_at <= created_before.isoformat())
+        if source:
+            conditions.append(scans.c.source_name == source)
         with self.engine.connect() as connection:
-            total = connection.execute(select(func.count()).select_from(scans)).scalar_one()
+            count_query = select(func.count()).select_from(scans)
+            rows_query = select(
+                scans.c.id,
+                scans.c.scan_id,
+                scans.c.scan_type,
+                scans.c.status,
+                scans.c.source_name,
+                scans.c.started_at,
+                scans.c.completed_at,
+                scans.c.overall_score,
+                scans.c.finding_count,
+                scans.c.report_schema_version,
+                scans.c.created_at,
+            )
+            if conditions:
+                count_query = count_query.where(*conditions)
+                rows_query = rows_query.where(*conditions)
+            total = connection.execute(count_query).scalar_one()
             rows = connection.execute(
-                select(
-                    scans.c.id,
-                    scans.c.scan_id,
-                    scans.c.scan_type,
-                    scans.c.status,
-                    scans.c.source_name,
-                    scans.c.started_at,
-                    scans.c.completed_at,
-                    scans.c.overall_score,
-                    scans.c.finding_count,
-                    scans.c.report_schema_version,
-                    scans.c.created_at,
-                )
-                .order_by(scans.c.created_at.desc(), scans.c.id.desc())
+                rows_query.order_by(scans.c.created_at.desc(), scans.c.id.desc())
                 .limit(limit)
                 .offset(offset)
             ).mappings()

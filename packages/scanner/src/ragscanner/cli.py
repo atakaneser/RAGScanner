@@ -62,6 +62,7 @@ from ragscanner.normalization import DocumentNormalizer
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
     ServiceCandidate,
+    discover_local_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
@@ -114,7 +115,12 @@ from ragscanner.security import (
     StaticScanConfig,
     StaticSecurityScanner,
 )
-from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
+from ragscanner.storage import (
+    SourceProfile,
+    SQLiteJobRepository,
+    SQLiteScanHistoryRepository,
+    SQLiteSourceProfileRepository,
+)
 from ragscanner.storage.database import StorageError
 from ragscanner.version import __version__
 
@@ -200,10 +206,9 @@ def _schedule_windows_uninstall(uv: str) -> None:
         raise
 
 
-def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
+def _run_guided_local_scan(path: Path, *, html_report: bool = False) -> None:
+    """Run a guided scan into local history; HTML is retained only for compatibility."""
     output = new_report_path(get_settings().data_dir) if html_report else None
-    if output is not None:
-        output.parent.mkdir(parents=True, exist_ok=True)
     unified_scan(
         path=path,
         output_format="html" if html_report else "terminal",
@@ -225,7 +230,7 @@ def _run_guided_local_scan(path: Path, *, html_report: bool) -> None:
         quiet=False,
         verbose=False,
         no_color=False,
-        save_history=False,
+        save_history=not html_report,
         history_db=None,
     )
 
@@ -245,19 +250,16 @@ def _guided_openwebui_content_scan(
 ) -> None:
     """Run one consented OpenWebUI scan without persisting the supplied API key."""
     secret_name = f"RAGSCANNER_GUIDED_OPENWEBUI_KEY_{uuid4().hex}"
-    output = new_report_path(get_settings().data_dir)
     history_repository: SQLiteScanHistoryRepository | None = None
     os.environ[secret_name] = api_key
     try:
         history_repository = SQLiteScanHistoryRepository(_history_database(None))
-        _, report = StaticScanApplicationService(history_repository).run_openwebui(
+        history_id, _report = StaticScanApplicationService(history_repository).run_openwebui(
             base_url=service.base_url,
             knowledge_id=knowledge_base_id,
             credential_ref=f"env:{secret_name}",
             content_consent=True,
         )
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(HtmlReporter().render(report), encoding="utf-8")
     except (OSError, StorageError, ValueError) as error:
         typer.echo(f"OpenWebUI content scan failed: {error}", err=True)
         return
@@ -265,7 +267,10 @@ def _guided_openwebui_content_scan(
         os.environ.pop(secret_name, None)
         if history_repository is not None:
             history_repository.close()
-    typer.echo(f"OpenWebUI content scan completed. Report written: {output}")
+    typer.echo(
+        f"OpenWebUI content scan completed. View report {history_id} at "
+        f"{dashboard_url()}/reports/{history_id}"
+    )
 
 
 def _guided_openwebui_metadata(
@@ -355,8 +360,8 @@ def _guided_local_source_scan() -> None:
     path = Path(value).expanduser()
     if not path.exists():
         raise typer.BadParameter(f"path not found: {path}")
-    html_report = typer.confirm("Create a standalone HTML report?", default=True)
-    _run_guided_local_scan(path, html_report=html_report)
+    _run_guided_local_scan(path)
+    typer.echo(f"The report is available in the local dashboard: {dashboard_url()}/reports")
 
 
 def _guided_onboarding() -> None:
@@ -690,7 +695,82 @@ def setup(
         webbrowser.open(url)
         return
     if selected == "terminal":
-        typer.echo("Terminal setup will configure sources and scheduling in a later step.")
+        typer.echo("Choose your first source:")
+        typer.echo("  1. OpenWebUI")
+        typer.echo("  2. Another RAG environment")
+        typer.echo("  3. Temporary file or folder scan")
+        source_choice = _prompt_choice("Your choice", {"1", "2", "3"}, default="1")
+        if source_choice == "3":
+            _guided_local_source_scan()
+            return
+        environments = discover_local_rag_environments(
+            include_container_runtimes=True, include_kubernetes=True
+        )
+        matching = [
+            item for item in environments if source_choice != "1" or item.platform == "openwebui"
+        ]
+        if matching:
+            typer.echo("Discovered local environments:")
+            for index, item in enumerate(matching, start=1):
+                typer.echo(
+                    f"  {index}. {item.platform} at {item.base_url} "
+                    f"({item.discovery_status} via {item.runtime or 'localhost'})"
+                )
+            choice = int(
+                _prompt_choice(
+                    "Environment",
+                    {str(index) for index in range(1, len(matching) + 1)},
+                    default="1",
+                )
+            )
+            selected_environment = matching[choice - 1]
+            kind = selected_environment.platform
+            location = selected_environment.base_url
+            origin = selected_environment.runtime or "localhost"
+        else:
+            typer.echo("No matching local environment was found. Enter one manually.")
+            kind = "openwebui" if source_choice == "1" else "generic"
+            location = str(typer.prompt("Service URL")).strip()
+            origin = "manual"
+        name = str(typer.prompt("Source name", default=kind)).strip()
+        credential_ref = None
+        if kind == "openwebui":
+            value = str(
+                typer.prompt(
+                    "Credential reference (leave empty to configure later)",
+                    default="",
+                    show_default=False,
+                )
+            ).strip()
+            credential_ref = value or None
+        repository = SQLiteSourceProfileRepository(_history_database(None))
+        try:
+            repository.set_setting("interface_mode", "cli")
+            repository.set_setting(
+                "initial_source_mode", "openwebui" if source_choice == "1" else "environment"
+            )
+            repository.save(
+                SourceProfile(
+                    name=name,
+                    kind=kind
+                    if kind in {"openwebui", "qdrant", "chroma", "weaviate", "milvus", "pgvector"}
+                    else "generic",
+                    base_url=location,
+                    credential_ref=credential_ref,
+                    discovery_origin=origin,
+                    capability_status=(
+                        "scan_ready"
+                        if kind == "openwebui"
+                        and selected_environment.discovery_status == "reachable"
+                        else "metadata_only"
+                    )
+                    if matching
+                    else ("scan_ready" if kind == "openwebui" else "metadata_only"),
+                )
+            )
+        finally:
+            repository.close()
+        typer.echo("Source profile saved. Use `ragscanner host install` for continuous jobs.")
         return
     raise typer.BadParameter("mode must be dashboard or terminal")
 

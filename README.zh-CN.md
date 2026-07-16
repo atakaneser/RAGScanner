@@ -37,8 +37,11 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 持久 SQLite 静态扫描作业和 worker | 可用 |
 | 具有作用域身份验证的异步扫描/作业 API | 可在回环地址使用 |
 | 本地概览和队列仪表板 | 可通过 `ragscanner serve` 使用 |
+| 支持日期/来源筛选、详情和比较的仪表板报告存档 | 可用 |
+| 不含密钥的持久来源配置及 Sources/Settings 管理 | 可用 |
 | 每用户本地 Agent，提供随时可用的仪表板和持久任务处理 | 可用 |
 | 具有本地管理员初始化的机器本地 Host Service | 可用 |
+| Docker、Podman、nerdctl、Finch、Kubernetes 和 localhost 元数据发现 | 可用 |
 | 经明确同意的 OpenWebUI 知识内容连接器 | 可用 |
 | 调度器和向量存储内容连接器 | 尚不可用 |
 | ModelProvider/BYOM 集成 | 尚不可用 |
@@ -214,7 +217,7 @@ uv build
 1. 剩余的持久化恢复和 API 规模历史记录/比较工作
 2. 按能力分级的 SharePoint、Web、SaaS、Git、对象存储和向量连接器
 3. OpenWebUI 兼容性、增量变更检测、源身份和密钥提供程序
-4. 仪表板扫描详情、比较、连接器设置和无障碍验收
+4. 调度、保留策略、周期任务和报告界面本地化
 5. 调度器、保留策略和通知
 6. 打包和部署加固
 

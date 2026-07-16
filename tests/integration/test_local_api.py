@@ -1,10 +1,11 @@
+import re
 from pathlib import Path
 
 import httpx
 import pytest
 from ragscanner.api import API_VERSION, create_app
 from ragscanner.api.auth import SlidingWindowRateLimiter
-from ragscanner.storage import SQLiteScanHistoryRepository
+from ragscanner.storage import SQLiteScanHistoryRepository, SQLiteSourceProfileRepository
 
 
 def _test_bearer(suffix: str) -> str:
@@ -109,9 +110,16 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     ) as client:
         initial = await client.get("/")
         setup = await client.get("/setup")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert csrf is not None
         protected_history = await client.get("/api/v1/history")
         created = await client.post(
-            "/setup", data={"username": "host-admin", "password": "a long local-only password"}
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": csrf.group(1),
+            },
         )
         dashboard = await client.get("/")
 
@@ -124,6 +132,45 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     assert created.status_code == 303
     assert dashboard.status_code == 200
     assert "Overview" in dashboard.text
+
+
+@pytest.mark.anyio
+async def test_host_setup_persists_interface_and_first_source_profile(tmp_path: Path) -> None:
+    database = tmp_path / "history.sqlite3"
+    app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://local.ragscanner.com",
+        follow_redirects=False,
+    ) as client:
+        setup = await client.get("/setup")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert csrf is not None
+        response = await client.post(
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": csrf.group(1),
+                "interface_mode": "web",
+                "source_mode": "openwebui",
+                "source_name": "Product knowledge",
+                "source_location": "http://127.0.0.1:3000",
+                "credential_ref": "env:OPENWEBUI_API_KEY",
+            },
+        )
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        profiles = repository.list()
+        assert repository.setting("interface_mode") == "web"
+        assert repository.setting("initial_source_mode") == "openwebui"
+    finally:
+        repository.close()
+    assert response.status_code == 303
+    assert len(profiles) == 1
+    assert profiles[0].name == "Product knowledge"
+    assert profiles[0].credential_ref == "env:OPENWEBUI_API_KEY"
 
 
 @pytest.mark.anyio

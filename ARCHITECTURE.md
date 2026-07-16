@@ -76,7 +76,9 @@ The current storage slices persist redacted report snapshots, normalized finding
 durable job control metadata behind database-independent ports. A separate `history_id` identifies
 an execution snapshot; the deterministic Core `scan.id` remains a configuration identity.
 Persistence is opt-in, retention is explicit, and an older database is backed up before a forward
-migration. Connector, schedule, document/chunk, and artifact-reference tables remain planned.
+migration. Non-secret source profiles and local setup preferences are persisted; credential values
+remain external and only `env:` references may be stored. Schedule, document/chunk, and
+artifact-reference tables remain planned.
 
 ## Durable jobs
 
@@ -142,11 +144,20 @@ inventory failure does not discard an already successful KB result. Content acce
 explicit-consent job.
 
 The CLI and dashboard share a consent-gated local environment inventory. It classifies bounded
-running-container name, image, and published loopback-port metadata for OpenWebUI and selected vector
-platform families. Only OpenWebUI currently has a metadata/content source connector; all other
+running-container name, image, and published loopback-port metadata from Docker, Podman, nerdctl,
+and Finch; bounded service metadata from the active Kubernetes context; and a fixed set of common
+loopback health endpoints. Only OpenWebUI currently has a metadata/content source connector; all other
 classifications remain detected-only hints and cannot imply RAG access or assessment coverage. The
 dashboard resolves an `env:` credential reference only in its local process to list OpenWebUI
 knowledge bases, then persists only the reference in a consented job.
+
+## Dashboard report flow
+
+Guided and asynchronous scans persist a redacted `ReportDocument` snapshot in SQLite. The dashboard
+renders overview, job, source, report archive, report detail, and coverage-aware comparison pages
+from application services. Date/source filtering is performed by the history port. Dashboard work
+does not create a standalone HTML report artifact; explicit CLI HTML/JSON exports remain separate
+delivery adapters.
 
 ## Active-security flow
 

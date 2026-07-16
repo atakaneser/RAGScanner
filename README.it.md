@@ -38,8 +38,11 @@ telemetria, non segue link e non esegue mai i comandi rilevati.
 | Job durevoli SQLite di scansione statica e worker | Disponibile |
 | API asincrona autenticata con scope per scansioni/job | Disponibile su loopback |
 | Dashboard locale di panoramica e coda | Disponibile con `ragscanner serve` |
+| Archivio report con filtri data/fonte, dettaglio e confronto | Disponibile |
+| Profili fonte persistenti senza secret e gestione Sources/Settings | Disponibile |
 | Agent locale per utente per un dashboard sempre pronto e l’elaborazione durevole dei job | Disponibile |
 | Host Service locale alla macchina con inizializzazione di un amministratore locale | Disponibile |
+| Scoperta metadata Docker, Podman, nerdctl, Finch, Kubernetes e localhost | Disponibile |
 | Connettore di contenuti knowledge OpenWebUI con consenso | Disponibile |
 | Scheduler e connettori di contenuti vector store | Non ancora disponibile |
 | Integrazione ModelProvider/BYOM | Non ancora disponibile |
@@ -224,7 +227,7 @@ La sequenza immediata è:
 1. Lavori rimanenti su recupero della persistenza e cronologia/confronto su scala API
 2. Connettori SharePoint, web, SaaS, Git, object store e vector store per capacità
 3. Compatibilità OpenWebUI, rilevamento incrementale, identità delle fonti e provider di secret
-4. Dettagli/confronto scansioni, impostazioni dei connettori e accettazione accessibilità del dashboard
+4. Pianificazione, conservazione, job ricorrenti e localizzazione dell’interfaccia report
 5. Scheduler, conservazione e notifiche
 6. Rafforzamento di packaging e deployment
 

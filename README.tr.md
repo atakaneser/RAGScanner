@@ -38,8 +38,11 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Dayanıklı SQLite statik tarama işleri ve worker | Mevcut |
 | Kapsam yetkili kimlik doğrulamalı asenkron tarama/iş API’si | Loopback üzerinde mevcut |
 | Yerel genel bakış ve kuyruk dashboard’u | `ragscanner serve` ile mevcut |
+| Tarih/kaynak filtreli dashboard rapor arşivi, ayrıntı ve karşılaştırma | Mevcut |
+| Gizli bilgi içermeyen kalıcı kaynak profilleri ve Sources/Settings yönetimi | Mevcut |
 | Her zaman hazır dashboard ve kalıcı iş yürütme için kullanıcı başına Yerel Agent | Mevcut |
 | Yerel yönetici ilk kurulumu olan makine-geneli Host Service | Mevcut |
+| Docker, Podman, nerdctl, Finch, Kubernetes ve localhost metadata keşfi | Mevcut |
 | Açık onaylı OpenWebUI bilgi tabanı içerik connector’ı | Mevcut |
 | Scheduler ve vector store içerik connector’ları | Henüz mevcut değil |
 | ModelProvider/BYOM entegrasyonu | Henüz mevcut değil |
@@ -224,7 +227,7 @@ Yakın dönem sıralaması şöyledir:
 1. Kalan kalıcılık kurtarma ve API ölçeğinde geçmiş/karşılaştırma işleri
 2. Yetenek katmanlı SharePoint, web, SaaS, Git, object store ve vector connector’ları
 3. OpenWebUI uyumluluğu, artımlı değişiklik algılama, kaynak kimliği ve secret sağlayıcıları
-4. Dashboard tarama ayrıntısı, karşılaştırma, connector ayarları ve erişilebilirlik kabulü
+4. Zamanlama, saklama politikası, yinelenen işler ve rapor arayüzü yerelleştirmesi
 5. Scheduler, saklama ve bildirimler
 6. Paketleme ve dağıtım sağlamlaştırması
 
