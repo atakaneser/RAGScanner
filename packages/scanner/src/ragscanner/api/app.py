@@ -204,13 +204,16 @@ def create_app(
         created_before: datetime | None = None,
         source: Annotated[str | None, Query(max_length=500)] = None,
     ) -> ScanHistoryPage:
-        return service.list(
-            limit=limit,
-            offset=offset,
-            created_after=created_after,
-            created_before=created_before,
-            source=source,
-        )
+        try:
+            return service.list(
+                limit=limit,
+                offset=offset,
+                created_after=created_after,
+                created_before=created_before,
+                source=source,
+            )
+        except ValueError as error:
+            raise RequestValidationError([]) from error
 
     @app.get("/api/v1/history/{history_id}", response_model=ReportDocument, tags=["history"])
     async def history_detail(

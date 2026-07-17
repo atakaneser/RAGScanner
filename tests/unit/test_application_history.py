@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+
+import pytest
 from ragscanner.application import HistoryApplicationService, HistoryNotFoundError
 from ragscanner.history.models import ScanHistoryPage, ScanHistorySummary
 
@@ -12,7 +15,15 @@ class InMemoryHistoryRepository:
     def get(self, history_id):  # type: ignore[no-untyped-def]
         return self.reports.get(history_id)
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> ScanHistoryPage:
+    def list(  # type: ignore[no-untyped-def]
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        created_after=None,
+        created_before=None,
+        source=None,
+    ) -> ScanHistoryPage:
         items = [
             ScanHistorySummary(
                 history_id=history_id,
@@ -25,6 +36,7 @@ class InMemoryHistoryRepository:
                 created_at=report.generated_at,
             )
             for history_id, report in sorted(self.reports.items())
+            if source is None or report.scan.get("source_name") == source
         ]
         return ScanHistoryPage(
             items=items[offset : offset + limit], total=len(items), limit=limit, offset=offset
@@ -67,3 +79,20 @@ def test_application_service_reports_all_missing_comparison_records(report) -> N
         assert error.history_ids == ("a" * 32, "b" * 32)
     else:
         raise AssertionError("missing history must fail")
+
+
+@pytest.mark.parametrize(
+    ("created_after", "created_before"),
+    [
+        (datetime(2026, 7, 14), None),
+        (None, datetime(2026, 7, 14)),
+        (datetime(2026, 7, 15, tzinfo=UTC), datetime(2026, 7, 14, tzinfo=UTC)),
+    ],
+)
+def test_application_service_rejects_ambiguous_or_reversed_history_ranges(
+    created_after: datetime | None, created_before: datetime | None
+) -> None:
+    service = HistoryApplicationService(InMemoryHistoryRepository({}))  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError):
+        service.list(created_after=created_after, created_before=created_before)

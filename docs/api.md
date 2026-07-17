@@ -49,6 +49,12 @@ requests per minute. Restarting the process resets authentication and rate-limit
 | `GET` | `/openapi.json` | Local only | OpenAPI document with Bearer security schemes |
 | `GET` | `/docs` | Local only | Interactive OpenAPI documentation |
 
+History listing accepts bounded `limit` (1–200) and non-negative `offset` query parameters. It can
+also filter by exact `source` name and inclusive `created_after` / `created_before` timestamps.
+Timestamp filters must be ISO 8601 values with an explicit UTC offset, and the lower bound cannot be
+later than the upper bound. Filtering and pagination are applied in SQLite before report payloads
+are read.
+
 Every scan-create request requires an `Idempotency-Key` header of 8–160 characters. Reusing a key
 with the same payload returns the existing job; reusing it for different work returns a conflict.
 
