@@ -568,12 +568,18 @@ def status() -> None:
 
 @app.command()
 def update() -> None:
-    """Update the installed RAGScanner service and runtime."""
+    """Download the latest GitHub main branch and update the machine installation."""
     if not is_elevated():
         raise typer.BadParameter("machine-wide update requires administrator permission")
     typer.echo("Updating the machine-wide RAGScanner runtime...")
-    install_machine_runtime()
-    restart_host_service()
+    try:
+        launcher = install_machine_runtime(upgrade=True)
+        if sys.platform == "win32":
+            install_host_service(launcher=launcher)
+        else:
+            restart_host_service()
+    except OSError as error:
+        raise typer.BadParameter(f"RAGScanner update failed: {error}") from error
     typer.echo("RAGScanner update completed. The Host Service was restarted.")
 
 
@@ -584,7 +590,7 @@ def repair() -> None:
         raise typer.BadParameter("machine-wide repair requires administrator permission")
     typer.echo("Repairing the machine-wide RAGScanner runtime...")
     try:
-        launcher = install_machine_runtime(reinstall=True)
+        launcher = install_machine_runtime(reinstall=True, upgrade=True)
         register_local_hostname(hosts_file_path())
         install_host_service(launcher=launcher)
     except OSError as error:

@@ -139,6 +139,12 @@ system `LaunchDaemon` on macOS. The Windows launcher is a console application, s
 not registered directly with Service Control Manager; Task Scheduler provides boot execution and
 restart-on-failure without requiring an interactive user session.
 
+`ragscanner update` and `ragscanner repair` resolve the official GitHub `main` branch unless an
+explicit `RAGSCANNER_INSTALL_SOURCE` override is configured. Windows installs each replacement into
+a new machine-owned runtime generation, atomically updates the active-generation pointer, hands the
+Task Scheduler definition to the new launcher, and only then attempts best-effort cleanup. This
+avoids asking a running Windows executable to overwrite its own locked environment.
+
 ## Optional AI report flow
 
 Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the

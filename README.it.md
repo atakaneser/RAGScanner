@@ -183,8 +183,8 @@ copre l’interfaccia pubblica completa; i comandi interni di compatibilità res
 | `ragscanner install --no-open-dashboard` | Installa tutto senza aprire il browser al termine. |
 | `ragscanner open` | Apre la dashboard installata senza avviare un secondo server in primo piano. |
 | `ragscanner status` | Mostra stato di installazione, servizio, dashboard, runtime e percorsi dati. |
-| `ragscanner update` | Sostituisce il runtime isolato e riavvia il servizio macchina; richiede privilegi amministrativi. |
-| `ragscanner repair` | Ripristina runtime, servizio, hostname, directory e configurazione; richiede privilegi amministrativi. |
+| `ragscanner update` | Scarica l’ultima versione del ramo `main` dal repository GitHub ufficiale, la installa nel runtime isolato e trasferisce il servizio; richiede privilegi amministrativi. Non serve un comando `uv tool install` separato. |
+| `ragscanner repair` | Scarica e reinstalla l’ultimo ramo `main`, quindi ripristina runtime, servizio, hostname, directory e configurazione; richiede privilegi amministrativi. Non serve un comando `uv tool install` separato. |
 | `ragscanner uninstall` | Dopo conferma rimuove servizio, runtime e hostname conservando report e cronologia. |
 | `ragscanner uninstall --yes --purge-data` | Rimuove senza interazione anche configurazione, cronologia e dati gestiti. È distruttivo. |
 

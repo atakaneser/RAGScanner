@@ -69,20 +69,27 @@
 
         {% if page == 'overview' %}
         <section class="page-heading"><h1>Overview</h1><p>Your local RAG security and content-quality workspace.</p></section>
+        <section class="service-banner" aria-label="Service status">
+          <span class="service-check" aria-hidden="true">✓</span>
+          <div><strong>RAGScanner service is running</strong><p>Scans, reports, and scheduled work are available on this machine.</p></div>
+          <a href="/settings">View settings</a>
+        </section>
         <section class="status-band" aria-label="Current scan posture">
           <div class="status-item"><span>Latest findings</span><strong>{{ latest.finding_count if latest else 0 }}</strong><small>{{ latest.source_name if latest else 'No scans yet' }}</small></div>
           <div class="status-item"><span>Assessment coverage</span><strong>{{ coverage }}%</strong><small>Assessed and partially assessed checks</small></div>
           <div class="status-item"><span>Sources</span><strong>{{ profiles|length }}</strong><small>{{ profiles|selectattr('enabled')|list|length }} enabled profile(s)</small></div>
           <div class="status-item"><span>Queued work</span><strong>{{ jobs|selectattr('status.value', 'equalto', 'queued')|list|length }}</strong><small>The Host Service processes jobs continuously</small></div>
         </section>
-        <section class="data-section">
+        <div class="overview-grid">
+        <section class="data-section overview-panel">
           <div class="section-heading"><h2>Recent reports</h2><a href="/reports">View all {{ scan_total }}</a></div>
           {% include 'report_rows.html' %}
         </section>
-        <section class="data-section">
+        <section class="data-section overview-panel">
           <div class="section-heading"><h2>Recent jobs</h2><a href="/jobs">View all {{ job_total }}</a></div>
           {% include 'job_rows.html' %}
         </section>
+        </div>
 
         {% elif page == 'sources' %}
         <section class="page-heading split-heading"><div><h1>Sources</h1><p>Remember environments without storing secret values.</p></div><button class="secondary" type="button" data-discover-environments>Scan local environment</button></section>

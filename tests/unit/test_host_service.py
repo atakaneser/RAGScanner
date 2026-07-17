@@ -1,8 +1,11 @@
+from pathlib import Path
 from subprocess import CompletedProcess
 
 import pytest
 from ragscanner.host_service import (
+    DEFAULT_UPDATE_SOURCE,
     install_host_service,
+    install_machine_runtime,
     machine_launcher_path,
     restart_host_service,
     service_definition_path,
@@ -67,7 +70,7 @@ def test_windows_host_uses_boot_task_running_as_local_system(tmp_path, monkeypat
     assert "runtime &amp; tools" in contents
     assert "machine &amp; data" in contents
     task_calls = [call for call in calls if call[0].endswith("schtasks.exe")]
-    assert [call[1] for call in task_calls] == ["/Create", "/Run", "/Query"]
+    assert [call[1] for call in task_calls] == ["/Create", "/End", "/Run", "/Query"]
     assert [call[1] for call in calls[:2]] == ["stop", "delete"]
 
 
@@ -96,6 +99,59 @@ def test_windows_host_registration_failure_stops_before_start(tmp_path, monkeypa
 
     assert [call[1] for call in calls] == ["stop", "delete", "/Create"]
     assert not definition.exists()
+
+
+def test_windows_runtime_upgrade_installs_a_new_generation_from_github(
+    tmp_path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    runtime = tmp_path / "runtime"
+    calls: list[tuple[list[str], dict[str, str]]] = []
+
+    def run(arguments, **kwargs):  # type: ignore[no-untyped-def]
+        environment = kwargs["env"]
+        calls.append((arguments, environment))
+        launcher = Path(environment["UV_TOOL_BIN_DIR"]) / "ragscanner.exe"
+        launcher.parent.mkdir(parents=True, exist_ok=True)
+        launcher.touch()
+        return CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr("ragscanner.host_service.system_runtime_dir", lambda **kwargs: runtime)
+    monkeypatch.setattr("ragscanner.host_service.shutil.which", lambda name: "uv")
+    monkeypatch.setattr("ragscanner.host_service.subprocess.run", run)
+    monkeypatch.setattr(
+        "ragscanner.host_service.uuid4", lambda: type("ID", (), {"hex": "a" * 32})()
+    )
+
+    launcher = install_machine_runtime(platform="win32", upgrade=True)
+
+    assert launcher == runtime / "generations" / ("a" * 32) / "bin" / "ragscanner.exe"
+    assert machine_launcher_path(platform="win32") == launcher
+    assert calls[0][0] == ["uv", "tool", "install", "--force", "--upgrade", DEFAULT_UPDATE_SOURCE]
+    assert calls[0][1]["UV_TOOL_DIR"] == str(launcher.parent.parent / "tools")
+
+
+def test_windows_runtime_failure_keeps_current_generation(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    runtime = tmp_path / "runtime"
+    current = "b" * 32
+    (runtime / "generations" / current / "bin").mkdir(parents=True)
+    existing_launcher = runtime / "generations" / current / "bin" / "ragscanner.exe"
+    existing_launcher.touch()
+    (runtime / "current-generation.txt").write_text(current, encoding="ascii")
+    monkeypatch.setattr("ragscanner.host_service.system_runtime_dir", lambda **kwargs: runtime)
+    monkeypatch.setattr("ragscanner.host_service.shutil.which", lambda name: "uv")
+    monkeypatch.setattr(
+        "ragscanner.host_service.subprocess.run",
+        lambda *args, **kwargs: CompletedProcess(args[0], 1),
+    )
+    monkeypatch.setattr(
+        "ragscanner.host_service.uuid4", lambda: type("ID", (), {"hex": "c" * 32})()
+    )
+
+    with pytest.raises(OSError, match="runtime installation failed"):
+        install_machine_runtime(platform="win32", upgrade=True)
+
+    assert machine_launcher_path(platform="win32") == existing_launcher
+    assert not (runtime / "generations" / ("c" * 32)).exists()
 
 
 def test_windows_host_restart_uses_the_machine_task(monkeypatch) -> None:  # type: ignore[no-untyped-def]

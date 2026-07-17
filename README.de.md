@@ -185,8 +185,8 @@ vollständige öffentliche Oberfläche; interne Kompatibilitätsbefehle bleiben 
 | `ragscanner install --no-open-dashboard` | Installiert vollständig, ohne danach den Browser zu öffnen. |
 | `ragscanner open` | Öffnet das installierte Dashboard, ohne einen zweiten Vordergrundserver zu starten. |
 | `ragscanner status` | Zeigt Zustand von Installation, Dienst, Dashboard, Laufzeit und Datenpfaden. |
-| `ragscanner update` | Ersetzt die isolierte Laufzeit und startet den Maschinendienst neu; Administratorrechte erforderlich. |
-| `ragscanner repair` | Repariert Laufzeit, Dienst, Hostnamen, Verzeichnisse und Konfiguration; Administratorrechte erforderlich. |
+| `ragscanner update` | Lädt den neuesten Stand des offiziellen GitHub-Branches `main`, installiert ihn in die isolierte Maschinenlaufzeit und übergibt den Dienst; Administratorrechte erforderlich. Ein separater `uv tool install`-Befehl ist nicht nötig. |
+| `ragscanner repair` | Lädt den neuesten `main`-Stand erneut und repariert Laufzeit, Dienst, Hostnamen, Verzeichnisse und Konfiguration; Administratorrechte erforderlich. Ein separater `uv tool install`-Befehl ist nicht nötig. |
 | `ragscanner uninstall` | Entfernt nach Bestätigung Dienst, Laufzeit und Hostnamenzuordnung, behält aber Berichte und Verlauf. |
 | `ragscanner uninstall --yes --purge-data` | Entfernt unbeaufsichtigt auch Konfiguration, Berichtsverlauf und verwaltete Daten. Dies ist destruktiv. |
 
