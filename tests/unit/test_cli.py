@@ -121,6 +121,29 @@ def test_install_requires_machine_administrator_permission(monkeypatch) -> None:
     assert "administrator permission" in result.output
 
 
+def test_failed_install_rolls_back_a_new_hostname_mapping(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    calls: list[str] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr("ragscanner.cli.local_hostname_is_registered", lambda path: False)
+    monkeypatch.setattr(
+        "ragscanner.cli.register_local_hostname", lambda path: calls.append("register")
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.unregister_local_hostname", lambda path: calls.append("unregister")
+    )
+
+    def fail_install() -> Path:
+        raise OSError("registration failed")
+
+    monkeypatch.setattr("ragscanner.cli.install_host_service", fail_install)
+
+    result = runner.invoke(app, ["install", "--yes"])
+
+    assert result.exit_code == 2
+    assert calls == ["register", "unregister"]
+    assert "registration failed" in result.output
+
+
 def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(
@@ -149,10 +172,7 @@ def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkey
     assert profiles[0].capability_status == "scan_ready"
 
 
-@pytest.mark.parametrize(("command", "reinstall"), [("update", False), ("repair", True)])
-def test_machine_maintenance_replaces_runtime_and_restarts_service(
-    monkeypatch, command: str, reinstall: bool
-) -> None:  # type: ignore[no-untyped-def]
+def test_machine_update_replaces_runtime_and_restarts_service(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     calls: list[object] = []
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr(
@@ -161,11 +181,38 @@ def test_machine_maintenance_replaces_runtime_and_restarts_service(
     )
     monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
 
-    result = runner.invoke(app, [command])
+    result = runner.invoke(app, ["update"])
 
     assert result.exit_code == 0
-    assert calls == [reinstall, "restart"]
-    assert f"{command} completed" in result.stdout
+    assert calls == [False, "restart"]
+    assert "update completed" in result.stdout
+
+
+def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    launcher = Path("machine/ragscanner")
+    calls: list[object] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr(
+        "ragscanner.cli.install_machine_runtime",
+        lambda **kwargs: calls.append(("runtime", kwargs)) or launcher,
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.register_local_hostname", lambda path: calls.append("hostname")
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.install_host_service",
+        lambda **kwargs: calls.append(("service", kwargs)),
+    )
+
+    result = runner.invoke(app, ["repair"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        ("runtime", {"reinstall": True}),
+        "hostname",
+        ("service", {"launcher": launcher}),
+    ]
+    assert "registered and started" in result.stdout
 
 
 def test_uninstall_can_be_cancelled_without_external_change(monkeypatch) -> None:  # type: ignore[no-untyped-def]

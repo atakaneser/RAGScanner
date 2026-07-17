@@ -180,7 +180,7 @@ couvre toute l’interface publique ; les commandes internes de compatibilité r
 
 | Commande | Utilisation détaillée |
 | --- | --- |
-| `ragscanner install` | Installe runtime isolé et service système, configure `local.ragscanner.com`, initialise les données machine et ouvre le dashboard. Demande l’élévation si nécessaire. |
+| `ragscanner install` | Installe le runtime isolé et le superviseur Host (tâche de démarrage Windows sous `SYSTEM`, systemd Linux ou LaunchDaemon macOS), configure `local.ragscanner.com`, initialise les données machine et ouvre le dashboard. Demande l’élévation si nécessaire. |
 | `ragscanner install --yes` | Accepte les invites courantes pour une installation automatisée ; l’élévation peut rester nécessaire. |
 | `ragscanner install --mode terminal` | Utilise la configuration terminal au lieu du dashboard. Modes valides : `dashboard` et `terminal`. |
 | `ragscanner install --no-open-dashboard` | Installe tout sans ouvrir le navigateur à la fin. |

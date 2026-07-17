@@ -179,7 +179,7 @@ vollständige öffentliche Oberfläche; interne Kompatibilitätsbefehle bleiben 
 
 | Befehl | Ausführliche Verwendung |
 | --- | --- |
-| `ragscanner install` | Installiert isolierte Laufzeit und Systemdienst, richtet `local.ragscanner.com` und Maschinendaten ein und öffnet das Dashboard. Fordert nötige Administratorrechte an. |
+| `ragscanner install` | Installiert isolierte Laufzeit und Host-Supervisor (Windows-Startaufgabe unter `SYSTEM`, Linux systemd oder macOS LaunchDaemon), richtet `local.ragscanner.com` und Maschinendaten ein und öffnet das Dashboard. Fordert nötige Administratorrechte an. |
 | `ragscanner install --yes` | Bestätigt normale Fragen für unbeaufsichtigte Installation; Betriebssystemrechte können weiter nötig sein. |
 | `ragscanner install --mode terminal` | Verwendet Terminal-Einrichtung statt Dashboard. Gültig sind `dashboard` und `terminal`. |
 | `ragscanner install --no-open-dashboard` | Installiert vollständig, ohne danach den Browser zu öffnen. |

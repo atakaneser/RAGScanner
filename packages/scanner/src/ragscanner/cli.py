@@ -524,10 +524,17 @@ def install(
     ):
         typer.echo("Installation cancelled. No changes were made.")
         return
+    hostname_path = hosts_file_path()
+    hostname_was_registered = local_hostname_is_registered(hostname_path)
     try:
-        register_local_hostname(hosts_file_path())
+        register_local_hostname(hostname_path)
         definition = install_host_service()
     except OSError as error:
+        if not hostname_was_registered:
+            try:
+                unregister_local_hostname(hostname_path)
+            except OSError:
+                pass
         raise typer.BadParameter(f"RAGScanner installation failed: {error}") from error
     typer.echo("RAGScanner installation completed.")
     typer.echo(f"Machine data: {system_data_dir()}")
@@ -574,9 +581,10 @@ def repair() -> None:
     if not is_elevated():
         raise typer.BadParameter("machine-wide repair requires administrator permission")
     typer.echo("Repairing the machine-wide RAGScanner runtime...")
-    install_machine_runtime(reinstall=True)
-    restart_host_service()
-    typer.echo("RAGScanner repair completed. The Host Service was restarted.")
+    launcher = install_machine_runtime(reinstall=True)
+    register_local_hostname(hosts_file_path())
+    install_host_service(launcher=launcher)
+    typer.echo("RAGScanner repair completed. The Host Service was registered and started.")
 
 
 @app.command()

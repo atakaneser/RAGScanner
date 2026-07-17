@@ -113,6 +113,10 @@ source setup in the CLI or `--no-open-dashboard` for a headless installation. Ru
 `ragscanner` or `ragscanner open` opens the dashboard; `ragscanner status` reports installation
 locations. `update`, `repair`, and `uninstall` manage the same installation.
 
+On Windows, the Host process is a boot-triggered Task Scheduler task running under `SYSTEM`; it does
+not depend on an interactive sign-in and is configured to restart after failure. Linux uses a system
+`systemd` unit and macOS uses a system `LaunchDaemon`.
+
 Legacy `agent`, `host`, `site`, and `setup` command groups remain hidden only for alpha compatibility
 and internal service-manager execution. They are not separate installation choices.
 
@@ -148,7 +152,8 @@ remains an explicit development/automation override. Explicit `--output`, `--dat
 
 - `ragscanner update` replaces the isolated machine runtime and restarts the Host Service while
   preserving machine reports, history, and settings.
-- `ragscanner repair` fully reinstalls that machine runtime and restarts the Host Service.
+- `ragscanner repair` fully reinstalls the machine runtime and re-registers/starts the Host
+  supervisor, so it also repairs a missing Windows task, systemd unit, or LaunchDaemon.
 - `ragscanner uninstall` requires administrator permission and removes the Host Service, machine
   runtime, hostname mapping, and bootstrap tool while preserving reports/history by default. Add
   `--purge-data` to permanently delete the machine-owned data directory. On Windows it

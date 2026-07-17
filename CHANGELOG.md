@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Replaced the invalid Windows Service Control Manager registration of the console launcher with a
+  boot-triggered Task Scheduler Host process under `SYSTEM`, including restart-on-failure, explicit
+  create/start/query error handling, failed-install cleanup, and complete service re-registration
+  during `ragscanner repair`.
+
 - Added a complete public CLI reference to the canonical English README and full Turkish, German,
   French, Simplified Chinese, and Italian equivalents, including lifecycle, scan, AI, job, history,
   reporting, service, specialist-scanner, consent, credential, storage, and exit behavior.

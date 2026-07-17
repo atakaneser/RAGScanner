@@ -175,7 +175,7 @@ arayüzün tamamıdır; dahili uyumluluk komutları bilerek gizlenmiştir.
 
 | Komut | Ayrıntılı kullanım |
 | --- | --- |
-| `ragscanner install` | Yalıtılmış makine çalışma zamanını ve sistem servisini kurar, `local.ragscanner.com` adresini yapılandırır, makine verisini başlatır ve dashboard'u açar. Gerektiğinde yönetici yükseltmesi ister. |
+| `ragscanner install` | Yalıtılmış makine çalışma zamanını ve Host yöneticisini (Windows `SYSTEM` başlangıç görevi, Linux systemd veya macOS LaunchDaemon) kurar, `local.ragscanner.com` adresini yapılandırır, makine verisini başlatır ve dashboard'u açar. Gerektiğinde yönetici yükseltmesi ister. |
 | `ragscanner install --yes` | Katılımsız kurulum için olağan istemleri kabul eder; işletim sistemi yükseltmesi yine gerekebilir. |
 | `ragscanner install --mode terminal` | Varsayılan dashboard kurulumu yerine terminal kurulumunu tamamlar. Geçerli modlar `dashboard` ve `terminal` değerleridir. |
 | `ragscanner install --no-open-dashboard` | Her şeyi kurar ancak tamamlanınca tarayıcı açmaz. |
