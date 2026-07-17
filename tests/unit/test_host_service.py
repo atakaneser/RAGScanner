@@ -61,7 +61,7 @@ def test_windows_host_uses_boot_task_running_as_local_system(tmp_path, monkeypat
     assert contents.startswith('<?xml version="1.0" encoding="UTF-16"?>\r\n')
     assert "<BootTrigger>" in contents
     assert "<UserId>S-1-5-18</UserId>" in contents
-    assert "<LogonType>ServiceAccount</LogonType>" in contents
+    assert "<LogonType>" not in contents
     assert "<RestartOnFailure>" in contents
     assert "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>" in contents
     assert "runtime &amp; tools" in contents

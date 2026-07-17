@@ -581,9 +581,12 @@ def repair() -> None:
     if not is_elevated():
         raise typer.BadParameter("machine-wide repair requires administrator permission")
     typer.echo("Repairing the machine-wide RAGScanner runtime...")
-    launcher = install_machine_runtime(reinstall=True)
-    register_local_hostname(hosts_file_path())
-    install_host_service(launcher=launcher)
+    try:
+        launcher = install_machine_runtime(reinstall=True)
+        register_local_hostname(hosts_file_path())
+        install_host_service(launcher=launcher)
+    except OSError as error:
+        raise typer.BadParameter(f"RAGScanner repair failed: {error}") from error
     typer.echo("RAGScanner repair completed. The Host Service was registered and started.")
 
 

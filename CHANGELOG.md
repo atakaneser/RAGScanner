@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed Windows Host task registration by relying on the LocalSystem SID without emitting the
+  unsupported `ServiceAccount` text in the Task Scheduler XML `LogonType` element. `repair` now
+  reports lifecycle failures as concise CLI errors instead of Python tracebacks.
 - Fixed Windows Task Scheduler registration by writing the Host task XML as deterministic
   BOM-prefixed UTF-16LE, avoiding the `unable to switch the encoding` parser failure from
   `schtasks.exe`.

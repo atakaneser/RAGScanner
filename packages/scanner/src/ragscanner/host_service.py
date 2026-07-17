@@ -112,7 +112,7 @@ def _windows_task_definition(launcher: Path, data_dir: Path) -> str:
         "<Description>RAGScanner machine-local Host Service</Description></RegistrationInfo>\n"
         "  <Triggers><BootTrigger><Enabled>true</Enabled></BootTrigger></Triggers>\n"
         '  <Principals><Principal id="System"><UserId>S-1-5-18</UserId>'
-        "<LogonType>ServiceAccount</LogonType><RunLevel>HighestAvailable</RunLevel>"
+        "<RunLevel>HighestAvailable</RunLevel>"
         "</Principal></Principals>\n"
         "  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>"
         "<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>"

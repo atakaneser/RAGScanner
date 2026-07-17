@@ -215,6 +215,24 @@ def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) 
     assert "registered and started" in result.stdout
 
 
+def test_machine_repair_reports_service_registration_failure_without_traceback(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr(
+        "ragscanner.cli.install_machine_runtime", lambda **kwargs: Path("machine/ragscanner")
+    )
+    monkeypatch.setattr("ragscanner.cli.register_local_hostname", lambda path: None)
+    monkeypatch.setattr(
+        "ragscanner.cli.install_host_service",
+        lambda **kwargs: (_ for _ in ()).throw(OSError("synthetic registration failure")),
+    )
+
+    result = runner.invoke(app, ["repair"])
+
+    assert result.exit_code == 2
+    assert "RAGScanner repair failed: synthetic registration failure" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_uninstall_can_be_cancelled_without_external_change(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr(
