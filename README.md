@@ -198,8 +198,8 @@ are the complete public interface; internal compatibility commands are intention
 | `ragscanner install --no-open-dashboard` | Installs everything without launching a browser after completion. |
 | `ragscanner open` | Opens the installed dashboard in the default browser. It does not start a second foreground server. |
 | `ragscanner status` | Displays the machine installation, service, dashboard, runtime, and data-path state. |
-| `ragscanner update` | Replaces the isolated runtime with the current package version and restarts the machine service; administrator permission is required. |
-| `ragscanner repair` | Reconciles missing runtime, service, hostname, directories, and configuration components; administrator permission is required. |
+| `ragscanner update` | Downloads the latest `main` branch from the official GitHub repository, installs it into the isolated machine runtime, and hands the service to it; administrator permission is required. No separate `uv tool install` command is needed. |
+| `ragscanner repair` | Downloads and reinstalls the latest `main` branch, then reconciles the runtime, service, hostname, directories, and configuration; administrator permission is required. No separate `uv tool install` command is needed. |
 | `ragscanner uninstall` | Removes the service, runtime, and hostname mapping after confirmation while preserving reports and history. |
 | `ragscanner uninstall --yes --purge-data` | Performs non-interactive removal and also deletes machine configuration, report history, and managed data. This is destructive. |
 

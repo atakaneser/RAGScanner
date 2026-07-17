@@ -126,7 +126,8 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     assert initial.status_code == 303
     assert initial.headers["location"] == "/setup"
     assert setup.status_code == 200
-    assert "Create the local administrator" in setup.text
+    assert "Set up this machine" in setup.text
+    assert "Do not paste the API key." in setup.text
     assert "/dashboard-assets/dashboard-i18n.js?v=" in setup.text
     assert 'data-language-picker aria-label="Language"' in setup.text
     assert protected_history.status_code == 401

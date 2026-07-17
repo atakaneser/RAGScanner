@@ -11,6 +11,7 @@ import sys
 from codecs import BOM_UTF16_LE
 from importlib import metadata
 from pathlib import Path
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 from ragscanner.paths import system_data_dir
@@ -19,6 +20,8 @@ from ragscanner.version import __version__
 SERVICE_NAME = "ragscanner-host"
 WINDOWS_SERVICE_NAME = "RAGScannerHost"
 WINDOWS_TASK_NAME = "RAGScannerHost"
+DEFAULT_UPDATE_SOURCE = "git+https://github.com/atakaneser/RAGScanner.git@main"
+WINDOWS_GENERATION_POINTER = "current-generation.txt"
 
 
 def system_runtime_dir(*, platform: str | None = None) -> Path:
@@ -33,7 +36,20 @@ def system_runtime_dir(*, platform: str | None = None) -> Path:
 def machine_launcher_path(*, platform: str | None = None) -> Path:
     selected = platform or sys.platform
     suffix = ".exe" if selected == "win32" else ""
-    return system_runtime_dir(platform=selected) / "bin" / f"ragscanner{suffix}"
+    runtime = system_runtime_dir(platform=selected)
+    if selected == "win32":
+        pointer = runtime / WINDOWS_GENERATION_POINTER
+        try:
+            generation = pointer.read_text(encoding="ascii").strip()
+        except OSError:
+            generation = ""
+        if len(generation) == 32 and all(
+            character in "0123456789abcdef" for character in generation
+        ):
+            generated_launcher = runtime / "generations" / generation / "bin" / "ragscanner.exe"
+            if generated_launcher.is_file():
+                return generated_launcher
+    return runtime / "bin" / f"ragscanner{suffix}"
 
 
 def _program(name: str) -> str:
@@ -58,27 +74,71 @@ def _installation_source() -> str:
     return f"ragscanner=={__version__}"
 
 
-def install_machine_runtime(*, platform: str | None = None, reinstall: bool = False) -> Path:
+def latest_installation_source() -> str:
+    """Return the explicit override or the canonical latest main-branch source."""
+
+    return os.environ.get("RAGSCANNER_INSTALL_SOURCE", "").strip() or DEFAULT_UPDATE_SOURCE
+
+
+def install_machine_runtime(
+    *, platform: str | None = None, reinstall: bool = False, upgrade: bool = False
+) -> Path:
     """Install an isolated executable runtime outside every user profile."""
 
     selected = platform or sys.platform
     runtime = system_runtime_dir(platform=selected)
-    bin_dir = runtime / "bin"
-    tool_dir = runtime / "tools"
+    generation = uuid4().hex if selected == "win32" else ""
+    installation_root = runtime / "generations" / generation if generation else runtime
+    bin_dir = installation_root / "bin"
+    tool_dir = installation_root / "tools"
     bin_dir.mkdir(parents=True, exist_ok=True)
     tool_dir.mkdir(parents=True, exist_ok=True)
     uv = shutil.which("uv")
     if uv is None:
+        if generation:
+            shutil.rmtree(installation_root, ignore_errors=True)
         raise OSError("uv is required to create the machine-wide RAGScanner runtime")
-    arguments = [uv, "tool", "install", "--force", _installation_source()]
+    source = latest_installation_source() if upgrade else _installation_source()
+    arguments = [uv, "tool", "install", "--force", source]
+    if upgrade:
+        arguments.insert(-1, "--upgrade")
     if reinstall:
         arguments.insert(-1, "--reinstall")
     environment = os.environ.copy()
     environment.update({"UV_TOOL_DIR": str(tool_dir), "UV_TOOL_BIN_DIR": str(bin_dir)})
     result = subprocess.run(arguments, check=False, env=environment)  # noqa: S603
-    if result.returncode != 0 or not machine_launcher_path(platform=selected).is_file():
+    installed_launcher = bin_dir / ("ragscanner.exe" if selected == "win32" else "ragscanner")
+    if result.returncode != 0 or not installed_launcher.is_file():
+        if generation:
+            shutil.rmtree(installation_root, ignore_errors=True)
         raise OSError("machine-wide RAGScanner runtime installation failed")
-    return machine_launcher_path(platform=selected)
+    if generation:
+        pointer = runtime / WINDOWS_GENERATION_POINTER
+        temporary_pointer = pointer.with_suffix(".tmp")
+        temporary_pointer.write_text(generation, encoding="ascii")
+        os.replace(temporary_pointer, pointer)
+    return installed_launcher
+
+
+def prune_machine_runtime_generations(
+    active_launcher: Path, *, platform: str | None = None
+) -> None:
+    """Best-effort cleanup of inactive Windows runtimes after service handover."""
+
+    selected = platform or sys.platform
+    if selected != "win32":
+        return
+    active_generation = active_launcher.parent.parent
+    generations = system_runtime_dir(platform=selected) / "generations"
+    if active_generation.parent != generations:
+        return
+    try:
+        candidates = list(generations.iterdir())
+    except OSError:
+        return
+    for candidate in candidates:
+        if candidate != active_generation and candidate.is_dir():
+            shutil.rmtree(candidate, ignore_errors=True)
 
 
 def service_definition_path(*, platform: str | None = None) -> Path:
@@ -192,6 +252,7 @@ def install_host_service(*, platform: str | None = None, launcher: Path | None =
                 ],
                 action="Windows Host task registration",
             )
+            _run_ignored([_program("schtasks.exe"), "/End", "/TN", WINDOWS_TASK_NAME])
             _run_checked(
                 [_program("schtasks.exe"), "/Run", "/TN", WINDOWS_TASK_NAME],
                 action="Windows Host task start",
@@ -200,6 +261,7 @@ def install_host_service(*, platform: str | None = None, launcher: Path | None =
                 [_program("schtasks.exe"), "/Query", "/TN", WINDOWS_TASK_NAME],
                 action="Windows Host task verification",
             )
+            prune_machine_runtime_generations(installed_launcher, platform=selected)
         except OSError:
             definition.unlink(missing_ok=True)
             raise

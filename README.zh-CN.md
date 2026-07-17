@@ -173,8 +173,8 @@ Bearer 身份验证扫描创建和作业控制。服务器仅绑定到 `127.0.0.
 | `ragscanner install --no-open-dashboard` | 完整安装，但结束后不打开浏览器。 |
 | `ragscanner open` | 在默认浏览器打开已安装 dashboard，不启动第二个前台服务器。 |
 | `ragscanner status` | 显示机器安装、服务、dashboard、运行时和数据路径状态。 |
-| `ragscanner update` | 替换隔离运行时并重启机器服务；需要管理员权限。 |
-| `ragscanner repair` | 修复缺失的运行时、服务、主机名、目录和配置；需要管理员权限。 |
+| `ragscanner update` | 从官方 GitHub 仓库下载最新的 `main` 分支，将其安装到隔离的机器运行时并切换服务；需要管理员权限，无需另行运行 `uv tool install`。 |
+| `ragscanner repair` | 下载并重新安装最新的 `main` 分支，然后修复运行时、服务、主机名、目录和配置；需要管理员权限，无需另行运行 `uv tool install`。 |
 | `ragscanner uninstall` | 确认后删除服务、运行时和主机名映射，同时保留报告与历史。 |
 | `ragscanner uninstall --yes --purge-data` | 无交互删除，并清除机器配置、报告历史和托管数据；此操作具有破坏性。 |
 

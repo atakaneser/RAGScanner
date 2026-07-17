@@ -186,8 +186,8 @@ couvre toute l’interface publique ; les commandes internes de compatibilité r
 | `ragscanner install --no-open-dashboard` | Installe tout sans ouvrir le navigateur à la fin. |
 | `ragscanner open` | Ouvre le dashboard installé sans démarrer un second serveur au premier plan. |
 | `ragscanner status` | Affiche l’état de l’installation, du service, du dashboard, du runtime et des chemins. |
-| `ragscanner update` | Remplace le runtime isolé et redémarre le service machine ; droits administrateur requis. |
-| `ragscanner repair` | Réconcilie runtime, service, nom d’hôte, dossiers et configuration ; droits administrateur requis. |
+| `ragscanner update` | Télécharge la dernière version de la branche `main` du dépôt GitHub officiel, l’installe dans le runtime isolé et lui transfère le service ; droits administrateur requis. Aucune commande `uv tool install` séparée n’est nécessaire. |
+| `ragscanner repair` | Télécharge et réinstalle la dernière branche `main`, puis répare runtime, service, nom d’hôte, dossiers et configuration ; droits administrateur requis. Aucune commande `uv tool install` séparée n’est nécessaire. |
 | `ragscanner uninstall` | Après confirmation, retire service, runtime et nom d’hôte tout en conservant rapports et historique. |
 | `ragscanner uninstall --yes --purge-data` | Retire sans interaction également configuration, historique et données gérées. Opération destructive. |
 

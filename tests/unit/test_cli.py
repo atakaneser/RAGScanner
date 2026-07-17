@@ -177,15 +177,53 @@ def test_machine_update_replaces_runtime_and_restarts_service(monkeypatch) -> No
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr(
         "ragscanner.cli.install_machine_runtime",
-        lambda **kwargs: calls.append(kwargs.get("reinstall", False)),
+        lambda **kwargs: calls.append(("runtime", kwargs)) or Path("machine/ragscanner"),
     )
     monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
 
     result = runner.invoke(app, ["update"])
 
     assert result.exit_code == 0
-    assert calls == [False, "restart"]
+    assert calls == [("runtime", {"upgrade": True}), "restart"]
     assert "update completed" in result.stdout
+
+
+def test_windows_machine_update_hands_the_service_to_the_new_generation(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    launcher = Path("machine/generations/new/bin/ragscanner.exe")
+    calls: list[object] = []
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr("ragscanner.cli.sys.platform", "win32")
+    monkeypatch.setattr(
+        "ragscanner.cli.install_machine_runtime",
+        lambda **kwargs: calls.append(("runtime", kwargs)) or launcher,
+    )
+    monkeypatch.setattr(
+        "ragscanner.cli.install_host_service",
+        lambda **kwargs: calls.append(("service", kwargs)),
+    )
+    monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
+
+    result = runner.invoke(app, ["update"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        ("runtime", {"upgrade": True}),
+        ("service", {"launcher": launcher}),
+    ]
+
+
+def test_machine_update_reports_install_failure_without_traceback(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
+    monkeypatch.setattr(
+        "ragscanner.cli.install_machine_runtime",
+        lambda **kwargs: (_ for _ in ()).throw(OSError("synthetic download failure")),
+    )
+
+    result = runner.invoke(app, ["update"])
+
+    assert result.exit_code == 2
+    assert "RAGScanner update failed: synthetic download failure" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -208,7 +246,7 @@ def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) 
 
     assert result.exit_code == 0
     assert calls == [
-        ("runtime", {"reinstall": True}),
+        ("runtime", {"reinstall": True, "upgrade": True}),
         "hostname",
         ("service", {"launcher": launcher}),
     ]

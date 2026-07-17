@@ -181,8 +181,8 @@ arayüzün tamamıdır; dahili uyumluluk komutları bilerek gizlenmiştir.
 | `ragscanner install --no-open-dashboard` | Her şeyi kurar ancak tamamlanınca tarayıcı açmaz. |
 | `ragscanner open` | Kurulu dashboard'u varsayılan tarayıcıda açar. İkinci bir ön plan sunucusu başlatmaz. |
 | `ragscanner status` | Makine kurulumu, servis, dashboard, çalışma zamanı ve veri yolu durumunu gösterir. |
-| `ragscanner update` | Yalıtılmış çalışma zamanını geçerli paket sürümüyle değiştirir ve makine servisini yeniden başlatır; yönetici izni gerekir. |
-| `ragscanner repair` | Eksik çalışma zamanı, servis, ana bilgisayar adı, dizin ve yapılandırma bileşenlerini düzeltir; yönetici izni gerekir. |
+| `ragscanner update` | Resmî GitHub deposundaki en güncel `main` dalını indirir, yalıtılmış makine çalışma zamanına kurar ve servisi yeni sürüme geçirir; yönetici izni gerekir. Ayrı bir `uv tool install` komutu gerekmez. |
+| `ragscanner repair` | En güncel `main` dalını indirip yeniden kurar; ardından çalışma zamanı, servis, ana bilgisayar adı, dizinler ve yapılandırmayı düzeltir; yönetici izni gerekir. Ayrı bir `uv tool install` komutu gerekmez. |
 | `ragscanner uninstall` | Onaydan sonra servis, çalışma zamanı ve ana bilgisayar adı eşlemesini kaldırır; raporları ve geçmişi korur. |
 | `ragscanner uninstall --yes --purge-data` | Etkileşimsiz kaldırma yapar ve makine yapılandırmasını, rapor geçmişini ve yönetilen veriyi de siler. Bu işlem geri alınamaz. |
 

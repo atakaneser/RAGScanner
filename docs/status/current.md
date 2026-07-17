@@ -11,8 +11,11 @@
 - Python 3.12+ src-layout package locked with `uv`
 - Typer CLI, Pydantic environment configuration, and structured logging
 - Network-free `ragscanner doctor` and `ragscanner --version`
-- One-command `ragscanner update`, `ragscanner repair`, and confirmed `ragscanner uninstall`, with
-  deferred Windows removal that avoids self-locking executable-file failures
+- One-command `ragscanner update` and `ragscanner repair` pull the latest official GitHub `main`
+  branch without a separate bootstrap command; Windows upgrades use atomic runtime generations so
+  the running executable never overwrites its locked installation directory
+- Confirmed `ragscanner uninstall`, with deferred Windows removal that avoids self-locking
+  executable-file failures
 - Retired per-user Agent installation path; always-on delivery uses the machine service
 - Elevated machine-local Host Service with an isolated machine runtime, machine-owned SQLite and
   temporary storage, a `local.ragscanner.com` loopback hosts-file mapping,

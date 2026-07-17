@@ -50,6 +50,7 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert "RAGScanner" in dashboard.text
     assert "Recent reports" in dashboard.text
     assert "Recent jobs" in dashboard.text
+    assert "RAGScanner service is running" in dashboard.text
     assert "Create job" in dashboard.text
     assert "Add AI analysis to this report" in dashboard.text
     assert "NVIDIA NIM" in dashboard.text
