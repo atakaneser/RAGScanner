@@ -25,8 +25,10 @@ temporary files use a service-owned `temp` directory; disposable interactive CLI
 use the signed-in user's platform cache directory. Windows runs the console Host executable as a
 boot-triggered Task Scheduler task under `SYSTEM`, with restart-on-failure and no execution time
 limit. Its task definition is written as BOM-prefixed UTF-16LE because `schtasks.exe` does not
-reliably accept a BOM-less UTF-8 task file. Linux uses a system `systemd` unit and macOS uses a
-system `LaunchDaemon`. Update and repair
+reliably accept a BOM-less UTF-8 task file. The principal uses the LocalSystem SID and omits the
+optional XML `LogonType`; the Task Scheduler XML enumeration does not accept the `ServiceAccount`
+API constant as a text value. Linux uses a system `systemd` unit and macOS uses a system
+`LaunchDaemon`. Update and repair
 replace the isolated runtime and restart or re-register the platform supervisor. Uninstall removes
 the supervisor registration and runtime while preserving machine data unless `--purge-data` is
 supplied.
