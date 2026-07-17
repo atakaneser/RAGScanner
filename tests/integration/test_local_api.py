@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 
@@ -127,7 +128,8 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     assert initial.headers["location"] == "/setup"
     assert setup.status_code == 200
     assert "Set up this machine" in setup.text
-    assert "Do not paste the API key." in setup.text
+    assert 'name="api_key"' in setup.text
+    assert "never stored in SQLite, reports, or scan jobs" in setup.text
     assert "/dashboard-assets/dashboard-i18n.js?v=" in setup.text
     assert 'data-language-picker aria-label="Language"' in setup.text
     assert protected_history.status_code == 401
@@ -210,6 +212,47 @@ async def test_host_setup_rejects_raw_api_key_without_echoing_or_persisting_it(
     assert submitted_value not in response.text
     assert f'name="csrf_token" value="{csrf.group(1)}"' in response.text
     assert not database.exists() or submitted_value.encode() not in database.read_bytes()
+
+
+@pytest.mark.anyio
+async def test_host_setup_accepts_api_key_in_memory_without_persisting_it(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    submitted_value = "synthetic-setup-api-key"
+    app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://local.ragscanner.com",
+        follow_redirects=False,
+    ) as client:
+        setup = await client.get("/setup")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert csrf is not None
+        response = await client.post(
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": csrf.group(1),
+                "source_mode": "openwebui",
+                "source_name": "Product knowledge",
+                "source_location": "http://127.0.0.1:3000",
+                "api_key": submitted_value,
+            },
+        )
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        profile = repository.list()[0]
+    finally:
+        repository.close()
+
+    assert response.status_code == 303
+    assert profile.credential_ref == f"env:RAGSCANNER_SOURCE_{profile.id.upper()}_API_KEY"
+    assert submitted_value.encode() not in database.read_bytes()
+    assert os.environ[profile.credential_ref.removeprefix("env:")] == submitted_value
+    monkeypatch.delenv(profile.credential_ref.removeprefix("env:"), raising=False)
 
 
 @pytest.mark.anyio
