@@ -67,6 +67,8 @@
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback
+- Secret-safe setup credential guidance in all dashboard languages, with strict external
+  `env:VARIABLE_NAME` references, no submitted-value echo, and a connect-later state
 - Bounded Kubernetes service and common vector-platform localhost discovery in addition to
   Docker, Podman, nerdctl, and Finch metadata inventory
 - Guided local and OpenWebUI scans persist reports for dashboard viewing instead of creating a

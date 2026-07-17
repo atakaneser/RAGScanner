@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replaced the raw Pydantic error shown for an invalid setup credential with bounded guidance that
+  never echoes the submitted value, preserved the CSRF token for retry, strictly validates
+  `env:VARIABLE_NAME` references, and lets OpenWebUI setup finish in `connection_required` state
+  when credentials will be connected later.
 - Fixed Windows Host task registration by relying on the LocalSystem SID without emitting the
   unsupported `ServiceAccount` text in the Task Scheduler XML `LogonType` element. `repair` now
   reports lifecycle failures as concise CLI errors instead of Python tracebacks.

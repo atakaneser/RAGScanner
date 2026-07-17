@@ -127,7 +127,7 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     assert initial.headers["location"] == "/setup"
     assert setup.status_code == 200
     assert "Create the local administrator" in setup.text
-    assert "/dashboard-assets/dashboard-i18n.js" in setup.text
+    assert "/dashboard-assets/dashboard-i18n.js?v=" in setup.text
     assert 'data-language-picker aria-label="Language"' in setup.text
     assert protected_history.status_code == 401
     assert protected_history.json()["error"]["code"] == "setup_required"
@@ -173,6 +173,80 @@ async def test_host_setup_persists_interface_and_first_source_profile(tmp_path: 
     assert len(profiles) == 1
     assert profiles[0].name == "Product knowledge"
     assert profiles[0].credential_ref == "env:OPENWEBUI_API_KEY"
+
+
+@pytest.mark.anyio
+async def test_host_setup_rejects_raw_api_key_without_echoing_or_persisting_it(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    submitted_value = "synthetic-raw-credential-value"
+    app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://local.ragscanner.com",
+        follow_redirects=False,
+    ) as client:
+        setup = await client.get("/setup")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert csrf is not None
+        response = await client.post(
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": csrf.group(1),
+                "interface_mode": "web",
+                "source_mode": "openwebui",
+                "source_name": "Product knowledge",
+                "source_location": "http://127.0.0.1:3000",
+                "credential_ref": submitted_value,
+            },
+        )
+
+    assert response.status_code == 400
+    assert "not the API key itself" in response.text
+    assert submitted_value not in response.text
+    assert f'name="csrf_token" value="{csrf.group(1)}"' in response.text
+    assert not database.exists() or submitted_value.encode() not in database.read_bytes()
+
+
+@pytest.mark.anyio
+async def test_host_setup_allows_openwebui_connection_to_be_completed_later(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://local.ragscanner.com",
+        follow_redirects=False,
+    ) as client:
+        setup = await client.get("/setup")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert csrf is not None
+        response = await client.post(
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": csrf.group(1),
+                "interface_mode": "web",
+                "source_mode": "openwebui",
+                "source_name": "Product knowledge",
+                "source_location": "http://127.0.0.1:3000",
+                "credential_ref": "",
+            },
+        )
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        profiles = repository.list()
+    finally:
+        repository.close()
+    assert response.status_code == 303
+    assert profiles[0].credential_ref is None
+    assert profiles[0].capability_status == "connection_required"
 
 
 @pytest.mark.anyio

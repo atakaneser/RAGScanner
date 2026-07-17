@@ -97,6 +97,32 @@
     "Language": "Lingua", "Report": "Rapporto", "Source": "Origine", "Run date": "Data esecuzione", "Score": "Punteggio", "Job": "Attività", "No scans yet": "Nessuna analisi", "Assessed and partially assessed checks": "Controlli valutati e parzialmente valutati", "The Host Service processes jobs continuously": "Host Service elabora continuamente le attività", "No reports match this view.": "Nessun rapporto corrisponde a questa vista.", "No jobs yet.": "Nessuna attività.", "View all": "Mostra tutto", "enabled profile(s)": "profili attivi", "total": "totale", "Select": "Seleziona", "Use details": "Usa dettagli", "Scanning bounded local service metadata…": "Analisi limitata dei metadati dei servizi locali…", "environment candidate(s) found.": "ambienti candidati trovati.", "No supported local environment candidate was found.": "Nessun ambiente locale supportato trovato.", "Discovery failed.": "Rilevamento non riuscito.", "Enter an OpenWebUI URL and credential reference first.": "Inserisci prima l’URL OpenWebUI e il riferimento credenziali.", "Loading accessible OpenWebUI knowledge bases…": "Caricamento delle basi di conoscenza OpenWebUI accessibili…", "Select a knowledge base": "Seleziona una base di conoscenza", "knowledge base(s) loaded.": "basi di conoscenza caricate.", "Knowledge-base discovery failed.": "Rilevamento delle basi di conoscenza non riuscito.", "Local providers keep the bounded, redacted analysis context on this machine.": "I provider locali mantengono su questa macchina il contesto di analisi limitato e oscurato.", "Remote providers receive only a bounded, redacted findings summary—never raw documents or finding evidence.": "I provider remoti ricevono solo un riepilogo limitato e oscurato, mai documenti grezzi o evidenze.", "Detecting models…": "Rilevamento modelli…", "model(s) found": "modelli trovati", "No models found": "Nessun modello trovato", "Model discovery failed": "Rilevamento modelli non riuscito", "The request could not be completed.": "Impossibile completare la richiesta.",
   });
 
+  Object.assign(catalogs.tr, {
+    "Credential environment-variable reference (optional)": "Kimlik bilgisi ortam değişkeni referansı (isteğe bağlı)",
+    "Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.": "API anahtarının kendisini değil env:OPENWEBUI_API_KEY gibi bir referans girin. Bu alanı boş bırakıp daha sonra da bağlanabilirsiniz.",
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key itself. You can leave this field blank and connect the source later.": "API anahtarının kendisini değil env:OPENWEBUI_API_KEY gibi bir ortam değişkeni referansı girin. Bu alanı boş bırakıp kaynağı daha sonra bağlayabilirsiniz.",
+  });
+  Object.assign(catalogs.de, {
+    "Credential environment-variable reference (optional)": "Umgebungsvariablen-Referenz für Anmeldedaten (optional)",
+    "Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.": "Geben Sie eine Referenz wie env:OPENWEBUI_API_KEY ein, nicht den API-Schlüssel selbst. Sie können das Feld auch leer lassen und die Verbindung später herstellen.",
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key itself. You can leave this field blank and connect the source later.": "Geben Sie eine Umgebungsvariablen-Referenz wie env:OPENWEBUI_API_KEY ein, nicht den API-Schlüssel selbst. Sie können das Feld leer lassen und die Quelle später verbinden.",
+  });
+  Object.assign(catalogs.fr, {
+    "Credential environment-variable reference (optional)": "Référence de variable d’environnement pour les identifiants (facultatif)",
+    "Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.": "Saisissez une référence telle que env:OPENWEBUI_API_KEY, et non la clé API elle-même. Vous pouvez aussi laisser ce champ vide et vous connecter plus tard.",
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key itself. You can leave this field blank and connect the source later.": "Saisissez une référence de variable d’environnement telle que env:OPENWEBUI_API_KEY, et non la clé API elle-même. Vous pouvez laisser ce champ vide et connecter la source plus tard.",
+  });
+  Object.assign(catalogs["zh-CN"], {
+    "Credential environment-variable reference (optional)": "凭据环境变量引用（可选）",
+    "Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.": "请输入 env:OPENWEBUI_API_KEY 之类的引用，而不是 API 密钥本身。也可以留空并稍后连接。",
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key itself. You can leave this field blank and connect the source later.": "请输入 env:OPENWEBUI_API_KEY 之类的环境变量引用，而不是 API 密钥本身。可以留空并稍后连接该数据源。",
+  });
+  Object.assign(catalogs.it, {
+    "Credential environment-variable reference (optional)": "Riferimento alla variabile d’ambiente delle credenziali (facoltativo)",
+    "Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.": "Inserisci un riferimento come env:OPENWEBUI_API_KEY, non la chiave API stessa. Puoi anche lasciare vuoto il campo e connetterti in seguito.",
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key itself. You can leave this field blank and connect the source later.": "Inserisci un riferimento a una variabile d’ambiente come env:OPENWEBUI_API_KEY, non la chiave API stessa. Puoi lasciare vuoto il campo e collegare l’origine in seguito.",
+  });
+
   const cookieLocale = document.cookie.split("; ").find((item) => item.startsWith("ragscanner_locale="))?.split("=")[1];
   const browserLocale = navigator.language === "zh-CN" || navigator.language === "zh-SG" ? "zh-CN" : navigator.language.split("-")[0];
   const locale = languages[cookieLocale] ? cookieLocale : (languages[browserLocale] ? browserLocale : "en");

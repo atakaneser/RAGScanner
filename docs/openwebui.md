@@ -12,6 +12,12 @@ credential value is resolved only in worker memory and is not written to the job
 report. Non-loopback endpoints require HTTPS; HTTP is accepted only for loopback development.
 Redirects and environment proxies are disabled, and metadata/content responses are bounded.
 
+During dashboard setup, enter an environment-variable reference such as
+`env:OPENWEBUI_API_KEY`—never paste the API key itself into the source profile. The field may be
+left blank to finish setup and connect OpenWebUI later; that profile remains
+`connection_required` until a valid external reference is configured. Invalid input produces a
+bounded message that never echoes or persists the submitted value.
+
 Knowledge-base discovery accepts both current paginated responses and older list responses. If an
 installation rejects the optional pagination parameter, RAGScanner retries the same read-only list
 request once without it. An HTTP 400 message includes the bounded, redacted server diagnostic when
