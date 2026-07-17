@@ -18,7 +18,8 @@
   temporary storage, a `local.ragscanner.com` loopback hosts-file mapping,
   a first-run local administrator, and an authenticated local dashboard bootstrap
 - Windows Host supervision through a boot-triggered Task Scheduler task under `SYSTEM`, with
-  restart-on-failure, explicit registration diagnostics, and no interactive-logon dependency
+  restart-on-failure, explicit registration diagnostics, BOM-prefixed UTF-16LE task XML, and no
+  interactive-logon dependency
 - One visible `ragscanner install` entry point that installs the complete machine service and opens
   the dashboard by default, with `--mode terminal` for CLI setup; legacy service groups are hidden
 - English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder

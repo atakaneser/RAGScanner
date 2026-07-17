@@ -55,7 +55,10 @@ def test_windows_host_uses_boot_task_running_as_local_system(tmp_path, monkeypat
 
     assert install_host_service(platform="win32") == definition
 
-    contents = definition.read_text(encoding="utf-8")
+    raw_definition = definition.read_bytes()
+    assert raw_definition.startswith(b"\xff\xfe")
+    contents = raw_definition.decode("utf-16")
+    assert contents.startswith('<?xml version="1.0" encoding="UTF-16"?>\r\n')
     assert "<BootTrigger>" in contents
     assert "<UserId>S-1-5-18</UserId>" in contents
     assert "<LogonType>ServiceAccount</LogonType>" in contents

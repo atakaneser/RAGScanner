@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed Windows Task Scheduler registration by writing the Host task XML as deterministic
+  BOM-prefixed UTF-16LE, avoiding the `unable to switch the encoding` parser failure from
+  `schtasks.exe`.
 - Replaced the invalid Windows Service Control Manager registration of the console launcher with a
   boot-triggered Task Scheduler Host process under `SYSTEM`, including restart-on-failure, explicit
   create/start/query error handling, failed-install cleanup, and complete service re-registration
