@@ -24,7 +24,9 @@ machine-level macOS Application Support directory). Persistent SQLite state is s
 temporary files use a service-owned `temp` directory; disposable interactive CLI/browser caches may
 use the signed-in user's platform cache directory. Windows runs the console Host executable as a
 boot-triggered Task Scheduler task under `SYSTEM`, with restart-on-failure and no execution time
-limit. Linux uses a system `systemd` unit and macOS uses a system `LaunchDaemon`. Update and repair
+limit. Its task definition is written as BOM-prefixed UTF-16LE because `schtasks.exe` does not
+reliably accept a BOM-less UTF-8 task file. Linux uses a system `systemd` unit and macOS uses a
+system `LaunchDaemon`. Update and repair
 replace the isolated runtime and restart or re-register the platform supervisor. Uninstall removes
 the supervisor registration and runtime while preserving machine data unless `--purge-data` is
 supplied.

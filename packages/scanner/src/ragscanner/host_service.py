@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+from codecs import BOM_UTF16_LE
 from importlib import metadata
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -105,7 +106,7 @@ def _windows_task_definition(launcher: Path, data_dir: Path) -> str:
     command = escape(str(launcher))
     arguments = escape(f'host run --data-dir "{data_dir}"')
     return (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<?xml version="1.0" encoding="UTF-16"?>\n'
         '<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
         "  <RegistrationInfo><Author>RAGScanner</Author>"
         "<Description>RAGScanner machine-local Host Service</Description></RegistrationInfo>\n"
@@ -174,10 +175,9 @@ def install_host_service(*, platform: str | None = None, launcher: Path | None =
         _run_ignored([_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME])
         _run_ignored([_program("sc.exe"), "delete", WINDOWS_SERVICE_NAME])
         (data_dir / "service-command.txt").unlink(missing_ok=True)
-        definition.write_text(
-            _windows_task_definition(installed_launcher, data_dir),
-            encoding="utf-8",
-            newline="\r\n",
+        task_xml = _windows_task_definition(installed_launcher, data_dir).replace("\n", "\r\n")
+        definition.write_bytes(
+            BOM_UTF16_LE + task_xml.encode("utf-16-le"),
         )
         try:
             _run_checked(
