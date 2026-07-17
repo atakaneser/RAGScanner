@@ -88,6 +88,14 @@ Bu komutlar yönetici izni gerektirir. `update` ve `repair` makine runtime'ını
 yeniden başlatır. Otomasyon `ragscanner uninstall --yes` kullanabilir. `uninstall`, `--purge-data`
 verilmedikçe makine raporlarını ve geçmişini korur.
 
+Kurulum ve onarım, `%ProgramFiles%\RAGScanner\command` dizinini Windows makine `PATH` değişkenine
+kaydeder. Sabit `ragscanner.cmd` yönlendiricisi etkin runtime neslini izlediği için yeni terminaller,
+kullanıcı profilindeki eski `uv` aracını değil makine kurulumunu kullanır. Güncellenmiş makine `PATH`
+değerinin alınması için ilk kurulum veya onarımdan sonra terminalleri yeniden açın.
+Makine yönlendiricisinden önce oluşturulan kurulumlarda, yönetici terminalinden tek geçiş gerekebilir:
+`uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main ragscanner repair`.
+Bu komut kullanıcı profiline başka bir araç kurmadan güncel onarım kodunu çalıştırır ve tekrarlanmaz.
+
 PyPI sürümünden sonra kurulum `uv tool install ragscanner` komutunu kullanacaktır. Henüz PyPI paketi
 veya sürüm etiketi yayımlanmamıştır.
 

@@ -32,3 +32,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0029 Machine-local Host Service and dashboard hostname](0029-machine-local-host-service.md)
 - [ADR-0030 Source profiles and dashboard-native reports](0030-source-profiles-and-dashboard-report-system.md)
 - [ADR-0031 Atomic Windows runtime generations](0031-atomic-windows-runtime-generations.md)
+- [ADR-0032 Stable Windows machine command ownership](0032-stable-windows-machine-command.md)

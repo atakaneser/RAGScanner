@@ -145,6 +145,11 @@ a new machine-owned runtime generation, atomically updates the active-generation
 Task Scheduler definition to the new launcher, and only then attempts best-effort cleanup. This
 avoids asking a running Windows executable to overwrite its own locked environment.
 
+Windows also exposes a stable machine command under `%ProgramFiles%\RAGScanner\command`. Its command
+dispatcher reads the active-generation pointer on every invocation. The installer owns the matching
+machine `PATH` entry and removes it during uninstall, preventing a user-profile package bootstrap
+from remaining the long-term command owner.
+
 ## Optional AI report flow
 
 Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the

@@ -46,6 +46,7 @@ from ragscanner.host_service import (
     install_host_service,
     install_machine_runtime,
     is_elevated,
+    machine_command_path,
     machine_launcher_path,
     remove_host_service,
     remove_machine_runtime,
@@ -541,7 +542,10 @@ def install(
     typer.echo("RAGScanner installation completed.")
     typer.echo(f"Machine data: {system_data_dir()}")
     typer.echo(f"Service definition: {definition}")
+    typer.echo(f"Machine command: {machine_command_path()}")
     typer.echo(f"Dashboard: {dashboard_url()}")
+    if sys.platform == "win32":
+        typer.echo("Open a new terminal before running the machine command for the first time.")
     if mode == "terminal":
         setup(mode="terminal")
         return
@@ -596,6 +600,8 @@ def repair() -> None:
     except OSError as error:
         raise typer.BadParameter(f"RAGScanner repair failed: {error}") from error
     typer.echo("RAGScanner repair completed. The Host Service was registered and started.")
+    if sys.platform == "win32":
+        typer.echo("Open a new terminal so it uses the machine-wide RAGScanner command.")
 
 
 @app.command()
@@ -753,6 +759,7 @@ def host_status() -> None:
     typer.echo(f"Administrator terminal: {'yes' if is_elevated() else 'no'}")
     typer.echo(f"Service data: {system_data_dir()}")
     typer.echo(f"Service definition: {service_definition_path()}")
+    typer.echo(f"Machine command: {machine_command_path()}")
     hostname = "registered" if local_hostname_is_registered(hosts_file_path()) else "not registered"
     typer.echo(f"Local hostname: {hostname}")
     typer.echo(f"Dashboard: {dashboard_url()}")

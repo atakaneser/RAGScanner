@@ -97,6 +97,14 @@ runtime and restart the Host Service. `uninstall` removes the service, runtime, 
 while preserving reports/history unless `--purge-data` is explicitly provided. Automation may use
 `ragscanner uninstall --yes`. On Windows, locked runtime removal is deferred until the launcher exits.
 
+Installation and repair register `%ProgramFiles%\RAGScanner\command` in the Windows machine `PATH`.
+The stable `ragscanner.cmd` dispatcher follows the active runtime generation, so future terminals use
+the machine installation instead of a stale user-profile `uv` tool. Reopen terminals after the first
+installation or repair so they inherit the updated machine `PATH`.
+Installations created before the machine dispatcher may need one transition from an elevated shell:
+`uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main ragscanner repair`.
+This runs current repair code without installing another user-profile tool and is not repeated.
+
 After a PyPI release, installation will use `uv tool install ragscanner`. No PyPI package or release
 tag has been published yet.
 

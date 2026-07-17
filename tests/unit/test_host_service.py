@@ -4,9 +4,13 @@ from subprocess import CompletedProcess
 import pytest
 from ragscanner.host_service import (
     DEFAULT_UPDATE_SOURCE,
+    _updated_windows_machine_path,
     install_host_service,
+    install_machine_command,
     install_machine_runtime,
+    machine_command_path,
     machine_launcher_path,
+    remove_machine_command,
     restart_host_service,
     service_definition_path,
     system_data_dir,
@@ -54,6 +58,9 @@ def test_windows_host_uses_boot_task_running_as_local_system(tmp_path, monkeypat
     monkeypatch.setattr(
         "ragscanner.host_service.install_machine_runtime", lambda **kwargs: launcher
     )
+    monkeypatch.setattr(
+        "ragscanner.host_service.install_machine_command", lambda *args, **kwargs: launcher
+    )
     monkeypatch.setattr("ragscanner.host_service.subprocess.run", run)
 
     assert install_host_service(platform="win32") == definition
@@ -92,6 +99,9 @@ def test_windows_host_registration_failure_stops_before_start(tmp_path, monkeypa
     monkeypatch.setattr(
         "ragscanner.host_service.install_machine_runtime", lambda **kwargs: launcher
     )
+    monkeypatch.setattr(
+        "ragscanner.host_service.install_machine_command", lambda *args, **kwargs: launcher
+    )
     monkeypatch.setattr("ragscanner.host_service.subprocess.run", run)
 
     with pytest.raises(OSError, match="Windows Host task registration failed with exit code 5"):
@@ -99,6 +109,41 @@ def test_windows_host_registration_failure_stops_before_start(tmp_path, monkeypa
 
     assert [call[1] for call in calls] == ["stop", "delete", "/Create"]
     assert not definition.exists()
+
+
+def test_windows_machine_command_follows_the_active_generation(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    runtime = tmp_path / "runtime"
+    launcher = runtime / "generations" / ("a" * 32) / "bin" / "ragscanner.exe"
+    path_changes: list[tuple[Path, bool]] = []
+    monkeypatch.setattr("ragscanner.host_service.system_runtime_dir", lambda **kwargs: runtime)
+    monkeypatch.setattr(
+        "ragscanner.host_service._write_windows_machine_path",
+        lambda path, remove=False: path_changes.append((path, remove)),
+    )
+
+    command = install_machine_command(launcher, platform="win32")
+
+    assert command == machine_command_path(platform="win32")
+    contents = command.read_text(encoding="utf-8")
+    assert "current-generation.txt" in contents
+    assert "%RAGSCANNER_GENERATION%" in contents
+    assert 'ragscanner.exe" %*' in contents
+    assert path_changes == [(command.parent, False)]
+
+    remove_machine_command(platform="win32")
+
+    assert not command.exists()
+    assert path_changes[-1] == (command.parent, True)
+
+
+def test_windows_machine_path_is_idempotent_and_preserves_other_entries() -> None:
+    command_dir = Path(r"C:\Program Files\RAGScanner\command")
+    original = r"C:\Windows\System32;C:\Tools"
+    added = _updated_windows_machine_path(original, command_dir)
+
+    assert added == original + ";" + str(command_dir)
+    assert _updated_windows_machine_path(added + "\\", command_dir) == added
+    assert _updated_windows_machine_path(added, command_dir, remove=True) == original
 
 
 def test_windows_runtime_upgrade_installs_a_new_generation_from_github(
