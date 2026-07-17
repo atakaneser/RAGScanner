@@ -29,6 +29,12 @@ class HistoryApplicationService:
         created_before: datetime | None = None,
         source: str | None = None,
     ) -> ScanHistoryPage:
+        for name, value in (("created_after", created_after), ("created_before", created_before)):
+            if value is not None and value.utcoffset() is None:
+                raise ValueError(f"{name} must include a UTC offset")
+        if created_after is not None and created_before is not None:
+            if created_after > created_before:
+                raise ValueError("created_after must not be later than created_before")
         if created_after is None and created_before is None and source is None:
             return self.repository.list(limit=limit, offset=offset)
         return self.repository.list(

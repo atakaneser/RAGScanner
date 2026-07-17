@@ -57,6 +57,8 @@
   listing/detail/deletion, and coverage-aware comparison
 - Framework-independent history application services and a versioned localhost API for history,
   detail, comparison, scoped Bearer-authenticated scan creation, and job control
+- Bounded server-side history API pagination plus exact-source and explicit-offset timestamp
+  filters, including large-result acceptance coverage
 - Durable job contracts, SQLite queue migration, atomic lease/heartbeat, bounded retry and
   cancellation, production static-scan handler, CLI control surface, and worker process
 - Consent-gated, read-only OpenWebUI knowledge-file content connector with bounded pagination,

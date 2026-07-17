@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -7,6 +8,8 @@ import pytest
 from ragscanner.api import API_VERSION, create_app
 from ragscanner.api.auth import SlidingWindowRateLimiter
 from ragscanner.storage import SQLiteScanHistoryRepository, SQLiteSourceProfileRepository
+from ragscanner.storage.schema import scans
+from sqlalchemy import update
 
 
 def _test_bearer(suffix: str) -> str:
@@ -53,6 +56,65 @@ async def test_local_api_exposes_health_history_detail_and_comparison(
     assert detail.json()["scan"]["id"] == "scan-1"
     assert comparison.status_code == 200
     assert comparison.json()["compatible"] is True
+
+
+@pytest.mark.anyio
+async def test_history_api_filters_and_paginates_a_large_result_set(tmp_path: Path, report) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    repository = SQLiteScanHistoryRepository(database)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    try:
+        for index in range(240):
+            source = "Selected source" if index % 3 == 0 else "Other source"
+            history_id = repository.save(
+                report(f"scale-{index}", source_name=source, overall=index % 101)
+            )
+            with repository.engine.begin() as connection:
+                connection.execute(
+                    update(scans)
+                    .where(scans.c.id == history_id)
+                    .values(created_at=(base + timedelta(minutes=index)).isoformat())
+                )
+    finally:
+        repository.close()
+
+    lower = base + timedelta(minutes=60)
+    upper = base + timedelta(minutes=179)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)), base_url="http://testserver"
+    ) as client:
+        response = await client.get(
+            "/api/v1/history",
+            params={
+                "limit": 25,
+                "offset": 5,
+                "created_after": lower.isoformat(),
+                "created_before": upper.isoformat(),
+                "source": "Selected source",
+            },
+        )
+        reversed_range = await client.get(
+            "/api/v1/history",
+            params={"created_after": upper.isoformat(), "created_before": lower.isoformat()},
+        )
+        naive_range = await client.get(
+            "/api/v1/history", params={"created_after": "2026-01-01T00:00:00"}
+        )
+        oversized_page = await client.get("/api/v1/history", params={"limit": 201})
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["total"] == 40
+    assert payload["limit"] == 25
+    assert payload["offset"] == 5
+    assert len(payload["items"]) == 25
+    assert {item["source_name"] for item in payload["items"]} == {"Selected source"}
+    assert payload["items"] == sorted(
+        payload["items"], key=lambda item: (item["created_at"], item["history_id"]), reverse=True
+    )
+    assert reversed_range.status_code == 422
+    assert naive_range.status_code == 422
+    assert oversized_page.status_code == 422
 
 
 @pytest.mark.anyio

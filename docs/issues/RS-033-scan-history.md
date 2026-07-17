@@ -11,4 +11,4 @@
 **Tests:** State transitions, pagination/filter, time zones, authz/artifact links, XSS/redaction, E2E.  
 **Documentation changes:** Scan history/reporting/troubleshooting.  
 **Completion checklist:** [x] Local CLI pagination/detail [x] Immutable execution identity
-[ ] API filters [ ] Running/partial states [ ] Artifact auth [ ] Time-zone matrix [x] Initial docs
+[x] API filters [ ] Running/partial states [ ] Artifact auth [x] Time-zone matrix [x] Initial docs
