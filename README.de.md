@@ -91,6 +91,14 @@ und starten den Host Service neu. Automatisierung kann `ragscanner uninstall --y
 `uninstall` bewahrt Maschinenberichte und Verlauf, sofern
 `--purge-data` nicht angegeben wird.
 
+Installation und Reparatur tragen `%ProgramFiles%\RAGScanner\command` in den Windows-Maschinen-`PATH`
+ein. Der stabile Dispatcher `ragscanner.cmd` folgt der aktiven Laufzeitgeneration, sodass neue
+Terminals die Maschineninstallation statt eines veralteten `uv`-Tools im Benutzerprofil verwenden.
+Öffnen Sie Terminals nach der ersten Installation oder Reparatur erneut.
+Installationen vor diesem Maschinendispatcher benötigen gegebenenfalls einen einmaligen Übergang in
+einem Administrator-Terminal: `uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main
+ragscanner repair`. Dadurch wird der aktuelle Reparaturcode ohne weiteres Benutzer-Tool ausgeführt.
+
 Nach einer PyPI-Veröffentlichung erfolgt die Installation mit `uv tool install ragscanner`. Bisher
 wurde weder ein PyPI-Paket noch ein Release-Tag veröffentlicht.
 

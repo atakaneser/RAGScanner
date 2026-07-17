@@ -89,6 +89,14 @@ di macchina e riavviano il Host Service. L’automazione può usare `ragscanner 
 `uninstall` conserva report e cronologia della macchina a
 meno che non venga specificato `--purge-data`.
 
+Installazione e riparazione aggiungono `%ProgramFiles%\RAGScanner\command` al `PATH` di sistema di
+Windows. Il dispatcher stabile `ragscanner.cmd` segue la generazione runtime attiva, così i nuovi
+terminali usano l’installazione macchina invece di un vecchio strumento `uv` nel profilo utente.
+Riapri i terminali dopo la prima installazione o riparazione.
+Le installazioni precedenti a questo dispatcher possono richiedere un solo passaggio da un terminale
+amministratore: `uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main ragscanner
+repair`. Il codice di riparazione corrente viene eseguito senza installare un altro strumento utente.
+
 Dopo una pubblicazione su PyPI, l’installazione userà `uv tool install ragscanner`. Non sono ancora
 stati pubblicati né un pacchetto PyPI né un tag di rilascio.
 

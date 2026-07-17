@@ -30,7 +30,8 @@ pointer remains on the previous working runtime until a complete replacement exi
 ## Consequences
 
 - Existing Windows installations can bootstrap into the generation layout with their normal
-  `ragscanner update` command.
+  `ragscanner update` command only when their command entry already contains this decision. Older
+  user-profile command entries require the one-time transition documented by ADR-0032.
 - A failed download or install leaves the previous active generation intact.
 - The service definition always names an immutable generation launcher on Windows.
 - Cleanup is best effort because the CLI process that initiated an update may still hold its old

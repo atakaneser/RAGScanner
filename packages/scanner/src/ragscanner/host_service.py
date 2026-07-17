@@ -22,6 +22,8 @@ WINDOWS_SERVICE_NAME = "RAGScannerHost"
 WINDOWS_TASK_NAME = "RAGScannerHost"
 DEFAULT_UPDATE_SOURCE = "git+https://github.com/atakaneser/RAGScanner.git@main"
 WINDOWS_GENERATION_POINTER = "current-generation.txt"
+WINDOWS_COMMAND_DIRECTORY = "command"
+WINDOWS_COMMAND_NAME = "ragscanner.cmd"
 
 
 def system_runtime_dir(*, platform: str | None = None) -> Path:
@@ -50,6 +52,17 @@ def machine_launcher_path(*, platform: str | None = None) -> Path:
             if generated_launcher.is_file():
                 return generated_launcher
     return runtime / "bin" / f"ragscanner{suffix}"
+
+
+def machine_command_path(*, platform: str | None = None) -> Path:
+    """Return the stable machine command that dispatches to the active runtime."""
+
+    selected = platform or sys.platform
+    if selected == "win32":
+        return (
+            system_runtime_dir(platform=selected) / WINDOWS_COMMAND_DIRECTORY / WINDOWS_COMMAND_NAME
+        )
+    return machine_launcher_path(platform=selected)
 
 
 def _program(name: str) -> str:
@@ -220,6 +233,94 @@ def _run_ignored(arguments: list[str]) -> None:
     )
 
 
+def _normalise_windows_path_entry(value: str) -> str:
+    return value.strip().strip('"').rstrip("\\/").casefold()
+
+
+def _updated_windows_machine_path(value: str, command_dir: Path, *, remove: bool = False) -> str:
+    """Add or remove the product command directory without disturbing other PATH entries."""
+
+    expected = _normalise_windows_path_entry(str(command_dir))
+    entries = [entry.strip() for entry in value.split(";") if entry.strip()]
+    retained = [entry for entry in entries if _normalise_windows_path_entry(entry) != expected]
+    if not remove:
+        retained.append(str(command_dir))
+    return ";".join(retained)
+
+
+def _write_windows_machine_path(command_dir: Path, *, remove: bool = False) -> None:
+    """Persist the command directory in the machine PATH and notify future shells."""
+
+    try:
+        import winreg
+    except ImportError as error:  # pragma: no cover - available on Windows only
+        raise OSError("Windows registry support is unavailable") from error
+    registry_path = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+    try:
+        with winreg.OpenKey(  # type: ignore[attr-defined]
+            winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
+            registry_path,
+            0,
+            winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE,  # type: ignore[attr-defined]
+        ) as key:
+            current, value_type = winreg.QueryValueEx(key, "Path")  # type: ignore[attr-defined]
+            updated = _updated_windows_machine_path(str(current), command_dir, remove=remove)
+            if updated != current:
+                winreg.SetValueEx(key, "Path", 0, value_type, updated)  # type: ignore[attr-defined]
+    except OSError as error:
+        action = "remove RAGScanner from" if remove else "add RAGScanner to"
+        raise OSError(f"failed to {action} the Windows machine PATH: {error}") from error
+    try:
+        ctypes.windll.user32.SendMessageTimeoutW(  # type: ignore[attr-defined]
+            0xFFFF,
+            0x001A,
+            0,
+            "Environment",
+            0x0002,
+            5000,
+            None,
+        )
+    except (AttributeError, OSError):
+        pass
+
+
+def install_machine_command(launcher: Path, *, platform: str | None = None) -> Path:
+    """Install a stable machine command that follows the active Windows generation."""
+
+    selected = platform or sys.platform
+    if selected != "win32":
+        return launcher
+    runtime = system_runtime_dir(platform=selected)
+    command = machine_command_path(platform=selected)
+    command.parent.mkdir(parents=True, exist_ok=True)
+    pointer = runtime / WINDOWS_GENERATION_POINTER
+    command.write_text(
+        "@echo off\r\n"
+        "setlocal\r\n"
+        f'set /p "RAGSCANNER_GENERATION="<"{pointer}"\r\n'
+        "if not defined RAGSCANNER_GENERATION (echo RAGScanner runtime is unavailable. 1>&2 & exit /b 1)\r\n"
+        f'"{runtime}\\generations\\%RAGSCANNER_GENERATION%\\bin\\ragscanner.exe" %*\r\n',
+        encoding="utf-8",
+    )
+    _write_windows_machine_path(command.parent)
+    return command
+
+
+def remove_machine_command(*, platform: str | None = None) -> None:
+    """Remove the stable machine command and its Windows PATH entry."""
+
+    selected = platform or sys.platform
+    if selected != "win32":
+        return
+    command = machine_command_path(platform=selected)
+    _write_windows_machine_path(command.parent, remove=True)
+    command.unlink(missing_ok=True)
+    try:
+        command.parent.rmdir()
+    except OSError:
+        pass
+
+
 def install_host_service(*, platform: str | None = None, launcher: Path | None = None) -> Path:
     """Register and start the elevated, machine-wide Host Service."""
     selected = platform or sys.platform
@@ -240,6 +341,7 @@ def install_host_service(*, platform: str | None = None, launcher: Path | None =
             BOM_UTF16_LE + task_xml.encode("utf-16-le"),
         )
         try:
+            install_machine_command(installed_launcher, platform=selected)
             _run_checked(
                 [
                     _program("schtasks.exe"),
@@ -321,6 +423,7 @@ def remove_host_service(*, platform: str | None = None) -> None:
         _run_ignored([_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME])
         _run_ignored([_program("sc.exe"), "delete", WINDOWS_SERVICE_NAME])
         (definition.parent / "service-command.txt").unlink(missing_ok=True)
+        remove_machine_command(platform=selected)
     elif selected == "darwin":
         subprocess.run(  # noqa: S603 - fixed platform utility and product-owned plist
             [_program("launchctl"), "bootout", "system", str(definition)], check=False

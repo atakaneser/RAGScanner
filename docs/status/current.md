@@ -12,8 +12,10 @@
 - Typer CLI, Pydantic environment configuration, and structured logging
 - Network-free `ragscanner doctor` and `ragscanner --version`
 - One-command `ragscanner update` and `ragscanner repair` pull the latest official GitHub `main`
-  branch without a separate bootstrap command; Windows upgrades use atomic runtime generations so
-  the running executable never overwrites its locked installation directory
+  branch after the stable machine dispatcher is installed; Windows upgrades use atomic runtime
+  generations so the running executable never overwrites its locked installation directory
+- Stable Windows machine command registration dispatches new terminals to the active runtime
+  generation instead of leaving the user-profile `uv` bootstrap as the long-term command owner
 - Confirmed `ragscanner uninstall`, with deferred Windows removal that avoids self-locking
   executable-file failures
 - Retired per-user Agent installation path; always-on delivery uses the machine service

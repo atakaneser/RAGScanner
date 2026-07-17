@@ -91,6 +91,14 @@ et redémarrent le Host Service. L’automatisation peut utiliser `ragscanner un
 `uninstall` conserve les rapports et l’historique machine sauf si
 `--purge-data` est fourni.
 
+L’installation et la réparation ajoutent `%ProgramFiles%\RAGScanner\command` au `PATH` machine de
+Windows. Le répartiteur stable `ragscanner.cmd` suit la génération active : les nouveaux terminaux
+utilisent donc l’installation machine plutôt qu’un ancien outil `uv` du profil utilisateur. Rouvrez
+les terminaux après la première installation ou réparation.
+Les installations antérieures à ce répartiteur peuvent nécessiter une transition unique depuis un
+terminal administrateur : `uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main
+ragscanner repair`. Le code de réparation actuel s’exécute sans installer un autre outil utilisateur.
+
 Après une publication PyPI, l’installation utilisera `uv tool install ragscanner`. Aucun paquet PyPI
 ni tag de version n’a encore été publié.
 

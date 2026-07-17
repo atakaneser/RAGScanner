@@ -83,6 +83,13 @@ ragscanner open
 这些命令需要管理员权限。`update` 和 `repair` 会替换机器级运行时并重启 Host Service。
 自动化可使用 `ragscanner uninstall --yes`。除非指定 `--purge-data`，`uninstall` 会保留机器级报告和历史记录。
 
+安装和修复会将 `%ProgramFiles%\RAGScanner\command` 注册到 Windows 机器级 `PATH`。稳定的
+`ragscanner.cmd` 调度器会跟随当前运行时版本，因此新终端将使用机器安装，而不是用户配置文件中
+过期的 `uv` 工具。首次安装或修复后请重新打开终端，以载入更新后的机器级 `PATH`。
+在机器调度器推出前创建的安装可能需要在管理员终端中执行一次过渡命令：
+`uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main ragscanner repair`。
+该命令无需安装新的用户级工具即可运行最新修复代码，之后无需重复。
+
 发布到 PyPI 后，安装将使用 `uv tool install ragscanner`。目前尚未发布 PyPI 包或版本标签。
 
 ## 直接扫描
