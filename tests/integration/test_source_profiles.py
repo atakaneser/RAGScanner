@@ -32,7 +32,7 @@ def test_source_profiles_and_setup_preferences_are_durable_and_secret_free(tmp_p
 
 
 def test_source_profile_rejects_secret_values_and_incomplete_locations() -> None:
-    with pytest.raises(ValueError, match="credential references must use env"):
+    with pytest.raises(ValueError, match="not the API key itself"):
         SourceProfile(
             name="Unsafe",
             kind="openwebui",
@@ -41,3 +41,17 @@ def test_source_profile_rejects_secret_values_and_incomplete_locations() -> None
         )
     with pytest.raises(ValueError, match="filesystem profiles require"):
         SourceProfile(name="Missing", kind="filesystem")
+
+
+@pytest.mark.parametrize(
+    "reference",
+    ["env:", "env:INVALID-NAME", "keychain:OPENWEBUI_API_KEY", "synthetic-secret-value"],
+)
+def test_source_profile_accepts_only_well_formed_environment_references(reference: str) -> None:
+    with pytest.raises(ValueError, match="environment-variable reference"):
+        SourceProfile(
+            name="Unsafe",
+            kind="openwebui",
+            base_url="http://127.0.0.1:3000",
+            credential_ref=reference,
+        )

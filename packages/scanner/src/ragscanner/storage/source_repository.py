@@ -4,12 +4,39 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ragscanner.storage.database import create_sqlite_engine
 from ragscanner.storage.schema import app_settings, source_profiles
+
+ENV_CREDENTIAL_REFERENCE_ERROR = (
+    "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key "
+    "itself. You can leave this field blank and connect the source later."
+)
+
+
+def normalize_env_credential_reference(value: str | None) -> str | None:
+    """Normalize an optional env reference without ever accepting a raw credential value."""
+
+    normalized = value.strip() if value else None
+    if normalized and not is_env_credential_reference(normalized):
+        raise ValueError(ENV_CREDENTIAL_REFERENCE_ERROR)
+    return normalized
+
+
+def is_env_credential_reference(value: str) -> bool:
+    prefix, separator, name = value.partition(":")
+    return (
+        separator == ":"
+        and prefix == "env"
+        and bool(name)
+        and (name[0].isalpha() or name[0] == "_")
+        and all(
+            character.isascii() and (character.isalnum() or character == "_") for character in name
+        )
+    )
 
 
 class SourceProfile(BaseModel):
@@ -34,14 +61,17 @@ class SourceProfile(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @field_validator("credential_ref")
+    @classmethod
+    def validate_credential_reference(cls, value: str | None) -> str | None:
+        return normalize_env_credential_reference(value)
+
     @model_validator(mode="after")
     def validate_location(self) -> "SourceProfile":
         if self.kind == "filesystem" and not self.local_path:
             raise ValueError("filesystem profiles require a local path")
         if self.kind != "filesystem" and not self.base_url:
             raise ValueError("service profiles require a base URL")
-        if self.credential_ref and not self.credential_ref.startswith("env:"):
-            raise ValueError("credential references must use env:")
         return self
 
 

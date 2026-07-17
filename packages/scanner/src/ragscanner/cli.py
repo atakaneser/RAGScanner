@@ -125,10 +125,12 @@ from ragscanner.security import (
     StaticSecurityScanner,
 )
 from ragscanner.storage import (
+    ENV_CREDENTIAL_REFERENCE_ERROR,
     SourceProfile,
     SQLiteJobRepository,
     SQLiteScanHistoryRepository,
     SQLiteSourceProfileRepository,
+    normalize_env_credential_reference,
 )
 from ragscanner.storage.database import StorageError
 from ragscanner.version import __version__
@@ -873,7 +875,10 @@ def setup(
                     show_default=False,
                 )
             ).strip()
-            credential_ref = value or None
+            try:
+                credential_ref = normalize_env_credential_reference(value)
+            except ValueError as error:
+                raise typer.BadParameter(ENV_CREDENTIAL_REFERENCE_ERROR) from error
         repository = SQLiteSourceProfileRepository(_history_database(None))
         try:
             repository.set_setting("interface_mode", "cli")

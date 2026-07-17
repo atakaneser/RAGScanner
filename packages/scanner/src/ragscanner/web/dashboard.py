@@ -1,5 +1,6 @@
 """Jinja dashboard routes composed over application services."""
 
+import hashlib
 import hmac
 import os
 import secrets
@@ -31,14 +32,26 @@ from ragscanner.onboarding import (
 )
 from ragscanner.providers import PROVIDER_CATALOG, ModelProviderError, discover_provider_models
 from ragscanner.storage import (
+    ENV_CREDENTIAL_REFERENCE_ERROR,
     SourceProfile,
     SQLiteJobRepository,
     SQLiteScanHistoryRepository,
     SQLiteSourceProfileRepository,
+    normalize_env_credential_reference,
 )
 
 DASHBOARD_ASSET_ROOT = Path(__file__).with_name("templates")
 templates = Jinja2Templates(directory=DASHBOARD_ASSET_ROOT)
+
+
+def _dashboard_asset_version() -> str:
+    digest = hashlib.sha256()
+    for name in ("dashboard.css", "dashboard-i18n.js", "dashboard.js"):
+        digest.update((DASHBOARD_ASSET_ROOT / name).read_bytes())
+    return digest.hexdigest()[:12]
+
+
+templates.env.globals["asset_version"] = _dashboard_asset_version()
 
 
 def _display_timestamp(value: datetime | None) -> str:
@@ -134,14 +147,29 @@ def register_dashboard(
             pending_profile = None
             if source_location and source_mode != "temporary_folder":
                 kind = "openwebui" if source_mode == "openwebui" else "generic"
+                normalized_credential_ref = normalize_env_credential_reference(credential_ref)
                 pending_profile = SourceProfile(
                     name=(source_name or kind).strip(),
                     kind=kind,
                     base_url=source_location.strip(),
-                    credential_ref=credential_ref.strip() if credential_ref else None,
+                    credential_ref=normalized_credential_ref,
                     discovery_origin="setup",
-                    capability_status=("scan_ready" if kind == "openwebui" else "metadata_only"),
+                    capability_status=(
+                        "scan_ready"
+                        if kind == "openwebui" and normalized_credential_ref
+                        else "connection_required"
+                        if kind == "openwebui"
+                        else "metadata_only"
+                    ),
                 )
+        except ValueError:
+            return templates.TemplateResponse(
+                request,
+                "setup.html",
+                {"error": ENV_CREDENTIAL_REFERENCE_ERROR, "csrf_token": csrf_token},
+                status_code=400,
+            )
+        try:
             administrator_store.create(username, password)
             session = administrator_store.issue_session(username.strip())
             sources = SQLiteSourceProfileRepository(database_path)
@@ -153,7 +181,12 @@ def register_dashboard(
             finally:
                 sources.close()
         except ValueError as error:
-            return templates.TemplateResponse(request, "setup.html", {"error": str(error)})
+            return templates.TemplateResponse(
+                request,
+                "setup.html",
+                {"error": str(error), "csrf_token": csrf_token},
+                status_code=400,
+            )
         response = RedirectResponse("/", status_code=303)
         _set_session_cookie(response, session)
         return response

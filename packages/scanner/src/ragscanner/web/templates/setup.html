@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RAGScanner · Local setup</title><link rel="stylesheet" href="/dashboard-assets/dashboard.css"><script defer src="/dashboard-assets/dashboard-i18n.js"></script><script defer src="/dashboard-assets/dashboard.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RAGScanner · Local setup</title><link rel="stylesheet" href="/dashboard-assets/dashboard.css?v={{ asset_version }}"><script defer src="/dashboard-assets/dashboard-i18n.js?v={{ asset_version }}"></script><script defer src="/dashboard-assets/dashboard.js?v={{ asset_version }}"></script></head>
 <body>
   <div class="setup-layout">
     <aside class="setup-rail"><a class="wordmark" href="/"><span>RAG</span>Scanner</a><ol><li>Administrator</li><li class="active">Interface</li><li>First source</li><li>Review</li></ol></aside>
@@ -15,7 +15,7 @@
         <section class="setup-section"><div class="split-heading"><h2>Choose your first source</h2><button class="secondary" type="button" data-setup-discovery>Scan local environment</button></div><div class="choice-list"><label class="choice-row"><input type="radio" name="source_mode" value="openwebui" checked><strong>OpenWebUI</strong><span>Discover a local service or enter its address</span></label><label class="choice-row"><input type="radio" name="source_mode" value="environment"><strong>Another RAG environment</strong><span>Discover containers, Kubernetes services, vector stores, and localhost endpoints</span></label><label class="choice-row"><input type="radio" name="source_mode" value="temporary_folder"><strong>Temporary folder scan</strong><span>Scan a file or folder without saving a source profile</span></label></div>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <p class="field-note" data-discovery-status aria-live="polite"></p><div class="environment-list" data-discovery-results></div>
-          <div class="setup-fields" data-source-fields><label>Source name<input name="source_name" maxlength="160" placeholder="Product knowledge"></label><label>URL or path<input name="source_location" maxlength="4096" placeholder="http://127.0.0.1:3000"></label><label class="wide">Credential reference (optional)<input name="credential_ref" maxlength="500" placeholder="env:OPENWEBUI_API_KEY"></label></div>
+          <div class="setup-fields" data-source-fields><label>Source name<input name="source_name" maxlength="160" placeholder="Product knowledge"></label><label>URL or path<input name="source_location" maxlength="4096" placeholder="http://127.0.0.1:3000"></label><label class="wide">Credential environment-variable reference (optional)<input name="credential_ref" maxlength="500" placeholder="env:OPENWEBUI_API_KEY"><small>Enter env:OPENWEBUI_API_KEY—not the API key itself. You can also leave this blank and connect later.</small></label></div>
         </section>
         <div class="setup-actions"><small>Discovery reads bounded local metadata only. Content is accessed when a scan job starts.</small><button class="primary" type="submit">Finish setup</button></div>
       </form>
