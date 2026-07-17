@@ -192,7 +192,7 @@ are the complete public interface; internal compatibility commands are intention
 
 | Command | Detailed use |
 | --- | --- |
-| `ragscanner install` | Installs the isolated machine runtime and system service, configures `local.ragscanner.com`, initializes machine data, and opens the dashboard. Requests administrator elevation when required. |
+| `ragscanner install` | Installs the isolated machine runtime and machine Host supervisor (Windows `SYSTEM` startup task, Linux systemd, or macOS LaunchDaemon), configures `local.ragscanner.com`, initializes machine data, and opens the dashboard. Requests administrator elevation when required. |
 | `ragscanner install --yes` | Accepts routine installation prompts for unattended provisioning; OS elevation may still be required. |
 | `ragscanner install --mode terminal` | Completes installation through terminal setup instead of the default dashboard setup. Valid modes are `dashboard` and `terminal`. |
 | `ragscanner install --no-open-dashboard` | Installs everything without launching a browser after completion. |

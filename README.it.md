@@ -177,7 +177,7 @@ copre l’interfaccia pubblica completa; i comandi interni di compatibilità res
 
 | Comando | Uso dettagliato |
 | --- | --- |
-| `ragscanner install` | Installa runtime isolato e servizio di sistema, configura `local.ragscanner.com`, inizializza i dati e apre la dashboard. Richiede elevazione quando serve. |
+| `ragscanner install` | Installa runtime isolato e supervisore Host (attività di avvio Windows sotto `SYSTEM`, systemd Linux o LaunchDaemon macOS), configura `local.ragscanner.com`, inizializza i dati e apre la dashboard. Richiede elevazione quando serve. |
 | `ragscanner install --yes` | Accetta le richieste ordinarie per installazioni non presidiate; l’elevazione può restare necessaria. |
 | `ragscanner install --mode terminal` | Usa il setup da terminale invece della dashboard. Modi validi: `dashboard` e `terminal`. |
 | `ragscanner install --no-open-dashboard` | Installa tutto senza aprire il browser al termine. |

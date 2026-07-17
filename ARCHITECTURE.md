@@ -134,6 +134,11 @@ uses a service-owned temporary directory. Interactive disposable caches may use 
 user's platform cache directory. CLI-supplied output/database paths and `RAGSCANNER_DATA_DIR` remain
 explicit overrides for development and automation.
 
+The platform supervisor is a `SYSTEM` boot task on Windows, a system `systemd` unit on Linux, and a
+system `LaunchDaemon` on macOS. The Windows launcher is a console application, so it is deliberately
+not registered directly with Service Control Manager; Task Scheduler provides boot execution and
+restart-on-failure without requiring an interactive user session.
+
 ## Optional AI report flow
 
 Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the

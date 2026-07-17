@@ -167,7 +167,7 @@ Bearer 身份验证扫描创建和作业控制。服务器仅绑定到 `127.0.0.
 
 | 命令 | 详细用途 |
 | --- | --- |
-| `ragscanner install` | 安装隔离运行时和系统服务，配置 `local.ragscanner.com`，初始化机器数据并打开 dashboard；需要时请求管理员权限。 |
+| `ragscanner install` | 安装隔离运行时和机器 Host 管理器（Windows `SYSTEM` 启动任务、Linux systemd 或 macOS LaunchDaemon），配置 `local.ragscanner.com`，初始化机器数据并打开 dashboard；需要时请求管理员权限。 |
 | `ragscanner install --yes` | 为无人值守安装接受常规提示；仍可能需要系统提权。 |
 | `ragscanner install --mode terminal` | 使用终端配置而非默认 dashboard；有效模式为 `dashboard` 和 `terminal`。 |
 | `ragscanner install --no-open-dashboard` | 完整安装，但结束后不打开浏览器。 |

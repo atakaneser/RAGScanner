@@ -10,12 +10,14 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from ragscanner.paths import system_data_dir
 from ragscanner.version import __version__
 
 SERVICE_NAME = "ragscanner-host"
 WINDOWS_SERVICE_NAME = "RAGScannerHost"
+WINDOWS_TASK_NAME = "RAGScannerHost"
 
 
 def system_runtime_dir(*, platform: str | None = None) -> Path:
@@ -81,7 +83,7 @@ def install_machine_runtime(*, platform: str | None = None, reinstall: bool = Fa
 def service_definition_path(*, platform: str | None = None) -> Path:
     selected = platform or sys.platform
     if selected == "win32":
-        return system_data_dir(platform=selected) / "service-command.txt"
+        return system_data_dir(platform=selected) / "host-task.xml"
     if selected == "darwin":
         return Path("/Library/LaunchDaemons/com.ragscanner.host.plist")
     return Path("/etc/systemd/system/ragscanner-host.service")
@@ -97,7 +99,67 @@ def is_elevated(*, platform: str | None = None) -> bool:
     return os.geteuid() == 0
 
 
-def install_host_service(*, platform: str | None = None) -> Path:
+def _windows_task_definition(launcher: Path, data_dir: Path) -> str:
+    """Build a boot-triggered LocalSystem task for the console Host executable."""
+
+    command = escape(str(launcher))
+    arguments = escape(f'host run --data-dir "{data_dir}"')
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
+        "  <RegistrationInfo><Author>RAGScanner</Author>"
+        "<Description>RAGScanner machine-local Host Service</Description></RegistrationInfo>\n"
+        "  <Triggers><BootTrigger><Enabled>true</Enabled></BootTrigger></Triggers>\n"
+        '  <Principals><Principal id="System"><UserId>S-1-5-18</UserId>'
+        "<LogonType>ServiceAccount</LogonType><RunLevel>HighestAvailable</RunLevel>"
+        "</Principal></Principals>\n"
+        "  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>"
+        "<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>"
+        "<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>"
+        "<AllowHardTerminate>true</AllowHardTerminate>"
+        "<StartWhenAvailable>true</StartWhenAvailable>"
+        "<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>"
+        "<AllowStartOnDemand>true</AllowStartOnDemand><Enabled>true</Enabled>"
+        "<Hidden>false</Hidden><RunOnlyIfIdle>false</RunOnlyIfIdle>"
+        "<WakeToRun>false</WakeToRun><ExecutionTimeLimit>PT0S</ExecutionTimeLimit>"
+        "<Priority>7</Priority><RestartOnFailure><Interval>PT1M</Interval>"
+        "<Count>255</Count></RestartOnFailure></Settings>\n"
+        f'  <Actions Context="System"><Exec><Command>{command}</Command>'
+        f"<Arguments>{arguments}</Arguments></Exec></Actions>\n"
+        "</Task>\n"
+    )
+
+
+def _run_checked(arguments: list[str], *, action: str) -> subprocess.CompletedProcess[str]:
+    """Run one platform registration command and retain a bounded diagnostic on failure."""
+
+    result = subprocess.run(  # noqa: S603 - caller supplies fixed platform utilities and arguments
+        arguments,
+        check=False,
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+    if result.returncode == 0:
+        return result
+    platform_detail = " ".join((result.stderr or result.stdout or "").split())[:500]
+    suffix = f": {platform_detail}" if platform_detail else ""
+    raise OSError(f"{action} failed with exit code {result.returncode}{suffix}")
+
+
+def _run_ignored(arguments: list[str]) -> None:
+    """Run idempotent Windows cleanup without leaking expected missing-object errors."""
+
+    subprocess.run(  # noqa: S603 - caller supplies fixed platform utilities and arguments
+        arguments,
+        check=False,
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+
+
+def install_host_service(*, platform: str | None = None, launcher: Path | None = None) -> Path:
     """Register and start the elevated, machine-wide Host Service."""
     selected = platform or sys.platform
     if not is_elevated(platform=selected):
@@ -105,41 +167,42 @@ def install_host_service(*, platform: str | None = None) -> Path:
     data_dir = system_data_dir(platform=selected)
     data_dir.mkdir(parents=True, exist_ok=True)
     definition = service_definition_path(platform=selected)
-    launcher = install_machine_runtime(platform=selected)
-    command = f'"{launcher}" host run --data-dir "{data_dir}"'
+    installed_launcher = launcher or install_machine_runtime(platform=selected)
+    command = f'"{installed_launcher}" host run --data-dir "{data_dir}"'
     if selected == "win32":
-        definition.write_text(command + "\n", encoding="utf-8")
-        created = subprocess.run(  # noqa: S603 - fixed Windows service utility and product-owned command
-            [
-                _program("sc.exe"),
-                "create",
-                WINDOWS_SERVICE_NAME,
-                f"binPath= {command}",
-                "start= auto",
-                "obj= LocalSystem",
-            ],
-            check=False,
+        # Retire any incomplete pre-task-scheduler registration without surfacing expected 1060s.
+        _run_ignored([_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME])
+        _run_ignored([_program("sc.exe"), "delete", WINDOWS_SERVICE_NAME])
+        (data_dir / "service-command.txt").unlink(missing_ok=True)
+        definition.write_text(
+            _windows_task_definition(installed_launcher, data_dir),
+            encoding="utf-8",
+            newline="\r\n",
         )
-        if getattr(created, "returncode", 0) != 0:
-            subprocess.run(  # noqa: S603 - idempotently update the product-owned service
+        try:
+            _run_checked(
                 [
-                    _program("sc.exe"),
-                    "config",
-                    WINDOWS_SERVICE_NAME,
-                    f"binPath= {command}",
-                    "start= auto",
-                    "obj= LocalSystem",
+                    _program("schtasks.exe"),
+                    "/Create",
+                    "/TN",
+                    WINDOWS_TASK_NAME,
+                    "/XML",
+                    str(definition),
+                    "/F",
                 ],
-                check=False,
+                action="Windows Host task registration",
             )
-        subprocess.run(  # noqa: S603 - fixed Windows service utility and product-owned service
-            [_program("sc.exe"), "start", WINDOWS_SERVICE_NAME], check=False
-        )
-        verified = subprocess.run(  # noqa: S603 - fixed product-owned service query
-            [_program("sc.exe"), "query", WINDOWS_SERVICE_NAME], check=False
-        )
-        if getattr(verified, "returncode", 0) != 0:
-            raise OSError("Windows Host Service registration could not be verified")
+            _run_checked(
+                [_program("schtasks.exe"), "/Run", "/TN", WINDOWS_TASK_NAME],
+                action="Windows Host task start",
+            )
+            _run_checked(
+                [_program("schtasks.exe"), "/Query", "/TN", WINDOWS_TASK_NAME],
+                action="Windows Host task verification",
+            )
+        except OSError:
+            definition.unlink(missing_ok=True)
+            raise
         return definition
     if selected == "darwin":
         definition.parent.mkdir(parents=True, exist_ok=True)
@@ -148,7 +211,7 @@ def install_host_service(*, platform: str | None = None) -> Path:
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
             '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
             '<plist version="1.0"><dict><key>Label</key><string>com.ragscanner.host</string>'
-            f"<key>ProgramArguments</key><array><string>{launcher}</string>"
+            f"<key>ProgramArguments</key><array><string>{installed_launcher}</string>"
             "<string>host</string><string>run</string><string>--data-dir</string>"
             f"<string>{data_dir}</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/>"
             "</dict></plist>\n",
@@ -190,12 +253,12 @@ def remove_host_service(*, platform: str | None = None) -> None:
         raise PermissionError("machine-wide service removal requires administrator permission")
     definition = service_definition_path(platform=selected)
     if selected == "win32":
-        subprocess.run(  # noqa: S603 - fixed Windows service utility and product-owned service
-            [_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME], check=False
-        )
-        subprocess.run(  # noqa: S603 - fixed Windows service utility and product-owned service
-            [_program("sc.exe"), "delete", WINDOWS_SERVICE_NAME], check=False
-        )
+        _run_ignored([_program("schtasks.exe"), "/End", "/TN", WINDOWS_TASK_NAME])
+        _run_ignored([_program("schtasks.exe"), "/Delete", "/TN", WINDOWS_TASK_NAME, "/F"])
+        # Remove the incomplete SCM registration used by pre-0.1.0a1 builds, if present.
+        _run_ignored([_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME])
+        _run_ignored([_program("sc.exe"), "delete", WINDOWS_SERVICE_NAME])
+        (definition.parent / "service-command.txt").unlink(missing_ok=True)
     elif selected == "darwin":
         subprocess.run(  # noqa: S603 - fixed platform utility and product-owned plist
             [_program("launchctl"), "bootout", "system", str(definition)], check=False
@@ -215,8 +278,11 @@ def restart_host_service(*, platform: str | None = None) -> None:
 
     selected = platform or sys.platform
     if selected == "win32":
-        subprocess.run([_program("sc.exe"), "stop", WINDOWS_SERVICE_NAME], check=False)  # noqa: S603
-        subprocess.run([_program("sc.exe"), "start", WINDOWS_SERVICE_NAME], check=False)  # noqa: S603
+        _run_ignored([_program("schtasks.exe"), "/End", "/TN", WINDOWS_TASK_NAME])
+        _run_checked(
+            [_program("schtasks.exe"), "/Run", "/TN", WINDOWS_TASK_NAME],
+            action="Windows Host task restart",
+        )
     elif selected == "darwin":
         subprocess.run(  # noqa: S603
             [_program("launchctl"), "kickstart", "-k", "system/com.ragscanner.host"],
