@@ -63,6 +63,36 @@ def _display_timestamp(value: datetime | None) -> str:
 templates.env.filters["display_timestamp"] = _display_timestamp
 
 
+def _source_secret_reference(profile_id: str) -> str:
+    return f"env:RAGSCANNER_SOURCE_{profile_id.upper()}_API_KEY"
+
+
+def _remember_process_secret(reference: str, value: str) -> None:
+    """Keep a dashboard-supplied secret in Host memory, never in SQLite or a job payload."""
+
+    secret = value.strip()
+    if not secret:
+        raise ValueError("API key cannot be empty")
+    os.environ[reference.removeprefix("env:")] = secret
+
+
+def _effective_source_profile(profile: SourceProfile) -> SourceProfile:
+    if profile.kind == "filesystem":
+        status = "scan_ready"
+    elif profile.kind != "openwebui":
+        status = "metadata_only"
+    else:
+        try:
+            if not profile.credential_ref:
+                raise ValueError("missing credential")
+            resolve_secret_reference(profile.credential_ref)
+        except ValueError:
+            status = "connection_required"
+        else:
+            status = "scan_ready"
+    return profile.model_copy(update={"capability_status": status})
+
+
 def _ai_config(
     enabled: bool,
     provider: str | None,
@@ -139,6 +169,7 @@ def register_dashboard(
         source_name: Annotated[str | None, Form(max_length=160)] = None,
         source_location: Annotated[str | None, Form(max_length=4096)] = None,
         credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        api_key: Annotated[str | None, Form(max_length=4096)] = None,
     ) -> HTMLResponse | RedirectResponse:
         if administrator_store is None:
             return RedirectResponse("/", status_code=303)
@@ -147,20 +178,28 @@ def register_dashboard(
             pending_profile = None
             if source_location and source_mode != "temporary_folder":
                 kind = "openwebui" if source_mode == "openwebui" else "generic"
-                normalized_credential_ref = normalize_env_credential_reference(credential_ref)
                 pending_profile = SourceProfile(
                     name=(source_name or kind).strip(),
                     kind=kind,
                     base_url=source_location.strip(),
-                    credential_ref=normalized_credential_ref,
+                    credential_ref=None,
                     discovery_origin="setup",
-                    capability_status=(
-                        "scan_ready"
-                        if kind == "openwebui" and normalized_credential_ref
-                        else "connection_required"
-                        if kind == "openwebui"
-                        else "metadata_only"
-                    ),
+                    capability_status="connection_required"
+                    if kind == "openwebui"
+                    else "metadata_only",
+                )
+                normalized_credential_ref = normalize_env_credential_reference(credential_ref)
+                if api_key:
+                    normalized_credential_ref = _source_secret_reference(pending_profile.id)
+                pending_profile = pending_profile.model_copy(
+                    update={
+                        "credential_ref": normalized_credential_ref,
+                        "capability_status": (
+                            "scan_ready"
+                            if kind == "openwebui" and (api_key or normalized_credential_ref)
+                            else pending_profile.capability_status
+                        ),
+                    }
                 )
         except ValueError:
             return templates.TemplateResponse(
@@ -178,6 +217,8 @@ def register_dashboard(
                 sources.set_setting("initial_source_mode", source_mode)
                 if pending_profile is not None:
                     sources.save(pending_profile)
+                    if api_key and pending_profile.credential_ref:
+                        _remember_process_secret(pending_profile.credential_ref, api_key)
             finally:
                 sources.close()
         except ValueError as error:
@@ -256,7 +297,7 @@ def register_dashboard(
                 if baseline_id and candidate_id
                 else None
             )
-            profiles = source_repository.list()
+            profiles = [_effective_source_profile(profile) for profile in source_repository.list()]
         finally:
             source_repository.close()
             history_repository.close()
@@ -333,33 +374,112 @@ def register_dashboard(
         kind: Annotated[
             str,
             Form(
-                pattern=r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|generic)$"
+                pattern=(
+                    r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|"
+                    r"elasticsearch|opensearch|pinecone|kubernetes|generic|custom)$"
+                )
             ),
         ],
         location: Annotated[str, Form(min_length=1, max_length=4096)],
         credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        api_key: Annotated[str | None, Form(max_length=4096)] = None,
         discovery_origin: Annotated[str, Form(max_length=80)] = "manual",
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         repository = SQLiteSourceProfileRepository(database_path)
         try:
-            scan_ready = kind in {"openwebui", "filesystem"}
-            repository.save(
-                SourceProfile(
-                    name=name.strip(),
-                    kind=kind,
-                    local_path=location.strip() if kind == "filesystem" else None,
-                    base_url=None if kind == "filesystem" else location.strip(),
-                    credential_ref=credential_ref.strip() if credential_ref else None,
-                    discovery_origin=discovery_origin,
-                    capability_status="scan_ready" if scan_ready else "metadata_only",
-                )
+            profile = SourceProfile(
+                name=name.strip(),
+                kind=kind,
+                local_path=location.strip() if kind == "filesystem" else None,
+                base_url=None if kind == "filesystem" else location.strip(),
+                credential_ref=None,
+                discovery_origin=discovery_origin,
+                capability_status=(
+                    "scan_ready"
+                    if kind == "filesystem"
+                    else "connection_required"
+                    if kind == "openwebui"
+                    else "metadata_only"
+                ),
             )
+            normalized_reference = normalize_env_credential_reference(credential_ref)
+            if api_key:
+                normalized_reference = _source_secret_reference(profile.id)
+            profile = profile.model_copy(
+                update={
+                    "credential_ref": normalized_reference,
+                    "capability_status": (
+                        "scan_ready"
+                        if kind == "openwebui" and (api_key or normalized_reference)
+                        else profile.capability_status
+                    ),
+                }
+            )
+            repository.save(profile)
+            if api_key and profile.credential_ref:
+                _remember_process_secret(profile.credential_ref, api_key)
         except ValueError:
             return RedirectResponse("/sources?notice=invalid-source", status_code=303)
         finally:
             repository.close()
         return RedirectResponse("/sources?notice=source-saved", status_code=303)
+
+    @app.post("/dashboard/sources/{profile_id}/connect", include_in_schema=False)
+    async def dashboard_connect_source(
+        request: Request,
+        profile_id: str,
+        csrf_token: Annotated[str, Form()],
+        api_key: Annotated[str | None, Form(max_length=4096)] = None,
+        credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+    ) -> JSONResponse:
+        _validate_csrf(request, csrf_token)
+        repository = SQLiteSourceProfileRepository(database_path)
+        try:
+            profile = repository.get(profile_id)
+            if profile is None:
+                return JSONResponse(
+                    {"error": "The selected source no longer exists."}, status_code=404
+                )
+            if profile.kind != "openwebui" or not profile.base_url:
+                return JSONResponse(
+                    {
+                        "error": "This source can be inventoried, but its content connector is not available yet."
+                    },
+                    status_code=400,
+                )
+            reference = normalize_env_credential_reference(credential_ref)
+            if api_key:
+                reference = _source_secret_reference(profile.id)
+                _remember_process_secret(reference, api_key)
+            if not reference:
+                return JSONResponse({"error": "Enter an API key to continue."}, status_code=400)
+            resolved = resolve_secret_reference(reference)
+            knowledge_bases = await run_in_threadpool(
+                lambda: discover_openwebui_knowledge_bases(profile.base_url or "", resolved)
+            )
+            repository.save(
+                profile.model_copy(
+                    update={"credential_ref": reference, "capability_status": "scan_ready"}
+                )
+            )
+        except (OpenWebUIDiscoveryError, ValueError):
+            return JSONResponse(
+                {"error": "The API key or OpenWebUI address could not be verified."},
+                status_code=400,
+            )
+        finally:
+            repository.close()
+        return JSONResponse(
+            {
+                "status": "scan_ready",
+                "credential_ref": reference,
+                "knowledge_bases": [
+                    {"id": item.id, "name": item.name, "description": item.description}
+                    for item in knowledge_bases
+                ],
+            }
+        )
 
     @app.post("/dashboard/sources/{profile_id}/delete", include_in_schema=False)
     async def dashboard_delete_source(

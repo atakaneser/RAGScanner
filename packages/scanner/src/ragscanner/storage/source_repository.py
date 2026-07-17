@@ -47,7 +47,10 @@ class SourceProfile(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex, min_length=32, max_length=32)
     name: str = Field(min_length=1, max_length=160)
     kind: str = Field(
-        pattern=r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|generic)$"
+        pattern=(
+            r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|"
+            r"elasticsearch|opensearch|pinecone|kubernetes|generic|custom)$"
+        )
     )
     base_url: str | None = Field(default=None, max_length=2048)
     local_path: str | None = Field(default=None, max_length=4096)

@@ -72,8 +72,15 @@
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback
-- Secret-safe setup credential guidance in all dashboard languages, with strict external
+- Secret-safe setup credential guidance in all dashboard languages, with advanced persistent
   `env:VARIABLE_NAME` references, no submitted-value echo, and a connect-later state
+- Direct dashboard API-key entry for OpenWebUI setup, source creation, and inline scan-job
+  connection completion. Submitted keys remain only in Host Service process memory; source
+  profiles and durable jobs retain generated `env:` references, and the UI clearly distinguishes
+  scan-ready connectors from metadata-only detected environments
+- Simplified Sources and Scan jobs workflows with known-platform defaults, an explicit Custom
+  option, selectable incomplete sources, connection testing, and knowledge-base loading in the
+  same job drawer instead of a disabled `connection_required` dead end
 - Bounded Kubernetes service and common vector-platform localhost discovery in addition to
   Docker, Podman, nerdctl, and Finch metadata inventory
 - Guided local and OpenWebUI scans persist reports for dashboard viewing instead of creating a

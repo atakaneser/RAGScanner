@@ -224,9 +224,74 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
 
     assert saved.status_code == 303
     assert "Local OpenWebUI" in sources.text
-    assert "Local OpenWebUI · scan ready" in refreshed_overview.text
+    assert "Local OpenWebUI · API key needed" in refreshed_overview.text
     assert "Select exactly two reports" in reports.text
     assert "Finding a" in detail.text
     assert "Report comparison" in comparison.text
-    assert "Create, monitor, cancel" in jobs.text
+    assert "A scan job tells RAGScanner what source to scan" in jobs.text
     assert "versioned SQLite snapshots" in settings.text
+
+
+@pytest.mark.anyio
+async def test_dashboard_accepts_api_key_without_persisting_it_and_unblocks_source(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    monkeypatch.setattr(
+        "ragscanner.web.dashboard.discover_openwebui_knowledge_bases",
+        lambda base_url, api_key: [
+            KnowledgeBaseCandidate(
+                id="kb-1", name="Engineering", description=base_url + api_key[:0]
+            )
+        ],
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        sources = await client.get("/sources")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', sources.text)
+        assert csrf is not None
+        saved = await client.post(
+            "/dashboard/sources",
+            data={
+                "csrf_token": csrf.group(1),
+                "name": "Local OpenWebUI",
+                "kind": "openwebui",
+                "location": "http://127.0.0.1:3000",
+            },
+        )
+        refreshed = await client.get("/jobs")
+        profile_id = re.search(
+            r'data-connect-profile="([a-f0-9]{32})"', (await client.get("/sources")).text
+        )
+        assert profile_id is not None
+        connected = await client.post(
+            f"/dashboard/sources/{profile_id.group(1)}/connect",
+            data={"csrf_token": csrf.group(1), "api_key": "synthetic-dashboard-secret"},
+        )
+
+    from ragscanner.storage import SQLiteSourceProfileRepository
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        profile = repository.get(profile_id.group(1))
+    finally:
+        repository.close()
+
+    assert saved.status_code == 303
+    assert "Local OpenWebUI · API key needed" in refreshed.text
+    source_option = re.search(
+        r'<option value="[a-f0-9]{32}"[^>]*>Local OpenWebUI[^<]*</option>', refreshed.text
+    )
+    assert source_option is not None
+    assert "disabled" not in source_option.group(0)
+    assert connected.status_code == 200
+    assert connected.json()["knowledge_bases"][0]["id"] == "kb-1"
+    assert profile is not None
+    assert profile.credential_ref == f"env:RAGSCANNER_SOURCE_{profile.id.upper()}_API_KEY"
+    assert "synthetic-dashboard-secret" not in database.read_bytes().decode(
+        "utf-8", errors="ignore"
+    )
+    monkeypatch.delenv(profile.credential_ref.removeprefix("env:"), raising=False)
