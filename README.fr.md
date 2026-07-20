@@ -5,389 +5,146 @@
 [English](README.md) · [Türkçe](README.tr.md) · [Deutsch](README.de.md) · **Français** ·
 [简体中文](README.zh-CN.md) · [Italiano](README.it.md)
 
-RAGScanner est un outil gratuit, open source et local-first qui inspecte les risques de sécurité et
-de qualité du contenu dans les sources de connaissances RAG. L’alpha technique actuelle analyse les
-fichiers Markdown, TXT, HTML, PDF textuels, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV,
-JSON/JSONL, YAML, XML et journaux, puis produit des rapports terminal, JSON ou HTML autonomes.
-
-Le pipeline statique actuel ne transmet aucun document à un service distant, ne nécessite aucun LLM,
-n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les commandes détectées.
+RAGScanner est un analyseur gratuit, open source et local-first pour les risques de sécurité et de
+qualité dans les sources de connaissances RAG. Il réunit analyse déterministe, tâches durables,
+historique, surveillance récurrente et conseil IA facultatif dans un dashboard local à la machine.
 
 > [!WARNING]
-> Il s’agit d’une alpha technique. Une analyse statique ne prouve pas qu’une application RAG en
-> fonctionnement est sûre et n’offre pas une protection complète contre la prompt injection. Les
-> résultats sont des éléments d’examen, pas une garantie de sécurité.
+> RAGScanner est une version alpha technique. Un rapport statique aide à la revue, mais ne prouve pas
+> qu’un système RAG actif est sûr ou protégé contre toutes les formes de prompt injection.
 
-## Fonctionnalités disponibles aujourd’hui
+## Disponible aujourd’hui
 
-| Fonctionnalité | État de l’alpha |
+| Domaine | Capacité actuelle |
 |---|---|
-| Analyse d’un fichier local ou d’un dossier | Disponible |
-| Formats Markdown, texte, PDF, bureautique, publication et texte structuré listés ci-dessus | Disponible |
-| Normalisation déterministe et correspondance des sources | Disponible |
-| Découpage par structure, paragraphe et fenêtre de tokens | Disponible |
-| Règles de sécurité RAG statiques versionnées | Disponible |
-| Analyse des doublons exacts et lexicaux proches | Disponible |
-| Contrôles de qualité des chunks | Disponible |
-| Rapports terminal, JSON et HTML autonomes | Disponible |
-| Analyse statique hors ligne | Comportement par défaut |
-| Installation machine unifiée et ouverture du dashboard | `ragscanner install` ; `ragscanner` seul ouvre le dashboard |
-| Découverte OpenWebUI en conteneur et inventaire des métadonnées KB/fichiers | Disponible |
-| OCR et analyse sémantique des doublons | Pas encore disponible |
-| Historique SQLite facultatif et comparaison tenant compte de la couverture | Disponible via la CLI |
-| API localhost d’historique | Disponible avec `ragscanner serve` |
-| Jobs d’analyse statique SQLite durables et worker | Disponible |
-| API asynchrone authentifiée avec scopes pour analyses/jobs | Disponible sur loopback |
-| Dashboard local d’aperçu et de file d’attente | Disponible avec `ragscanner serve` |
-| Archive de rapports avec filtres date/source, détail et comparaison | Disponible |
-| Profils de sources persistants sans secrets et gestion Sources/Settings | Disponible |
-| Agent local par utilisateur | Retiré ; remplacé par le service machine |
-| Découverte des métadonnées Docker, Podman, nerdctl, Finch, Kubernetes et localhost | Disponible |
-| Service hôte local à la machine avec initialisation d’un administrateur local | Disponible |
-| Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
-| Planifications récurrentes avec historique d’exécution séparé | Disponible dans le dashboard |
-| Connecteurs de contenu vector store | Pas encore disponible |
-| Analyse de rapport assistée par IA locale/distante par analyse | Disponible et désactivée par défaut |
-| CLI d’analyse active d’endpoint | Indisponible ; contrats core uniquement |
+| Contenu local | Fichiers uniques et dossiers confinés à une racine |
+| Formats | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML et journaux |
+| Sources distantes | Bases OpenWebUI ; pages HTTPS, documents, sitemaps de même origine et URL SharePoint accessibles |
+| Analyse | Règles statiques, doublons exacts/lexicaux et qualité des chunks |
+| Rapports | Terminal, JSON, HTML autonome et rapports détaillés du dashboard |
+| Historique | ID lisibles, filtres, détail, comparaison, tendance de santé et suppression permanente |
+| Tâches | Exécutions durables, intervalles, annulation, reprise, progression et journaux sûrs |
+| IA | Conseil local ou distant explicitement autorisé ; désactivé par défaut |
+| Langues | Libellés anglais, turcs, allemands, français, chinois simplifié et italiens |
+| Installation | Host Service local à la machine sur Windows, macOS et Linux |
 
-`ragscanner scan` exécute le pipeline local découverte → parsing → normalisation → découpage →
-sécurité statique → analyse des doublons → qualité des chunks → score → rapport.
+OCR, doublons sémantiques, découverte authentifiée de bibliothèques Microsoft Graph, connecteurs de
+contenu vectoriel, calendriers cron, rétention configurable, authentification multi-utilisateur et
+déploiement Docker ne sont pas encore disponibles. Détecter une plateforme ne donne ni accès au
+contenu ni évaluation.
 
-## Démarrage rapide pour les utilisateurs
+## Installer et ouvrir
 
-Prérequis : Python 3.12 ou 3.13 et [`uv`](https://docs.astral.sh/uv/).
+Installez depuis le dépôt officiel puis créez le service machine :
 
-Installez l’alpha directement depuis GitHub :
-
-```powershell
+```bash
 uv tool install git+https://github.com/atakaneser/RAGScanner.git
 ragscanner doctor
 ragscanner install
 ```
 
-`ragscanner install` installe en une seule étape le service machine, le runtime isolé et l’adresse
-du dashboard local, puis ouvre le dashboard par défaut. Utilisez
-`ragscanner install --mode terminal` pour terminer la configuration dans la CLI. Les appels
-ultérieurs à `ragscanner` ouvrent toujours le dashboard. La découverte automatique ne suggère que les dossiers immédiats aux noms orientés
-RAG et ne traite pas les dossiers généraux tels que Documents comme des sources RAG. Après consentement explicite, la
-découverte OpenWebUI inspecte des métadonnées limitées des runtimes Docker, Podman, nerdctl ou Finch
-disponibles ainsi que les adresses loopback courantes. Une clé API fournie séparément et conservée
-uniquement en mémoire peut inventorier les bases de connaissances accessibles ainsi que les
-métadonnées des fichiers liés ou autonomes/de chat. L’option 2 permet à l’utilisateur de sélectionner
-une base de connaissances OpenWebUI listée puis, après un consentement explicite distinct pour le
-contenu, d’exécuter le pipeline statique dans le même processus local.
+L’installateur ouvre le dashboard local. Utilisez ensuite :
 
-Entretenez ou supprimez l’installation avec une seule commande RAGScanner :
+```bash
+ragscanner
+ragscanner open
+ragscanner status
+ragscanner paths
+```
 
-```powershell
+Les commandes d’installation et de cycle de vie exigent les droits administrateur. Le dashboard
+reste limité au loopback et répond à `http://local.ragscanner.com` après installation.
+
+## Mettre à jour, réparer et désinstaller
+
+```bash
 ragscanner update
 ragscanner repair
 ragscanner uninstall
-ragscanner status
-ragscanner open
+ragscanner uninstall --purge-data --yes
 ```
 
-Ces commandes exigent des droits administrateur. `update` et `repair` remplacent le runtime machine
-et redémarrent le Host Service. L’automatisation peut utiliser `ragscanner uninstall --yes`.
-`uninstall` conserve les rapports et l’historique machine sauf si
-`--purge-data` est fourni.
+`update` installe le dernier runtime officiel `main` tout en conservant paramètres, secrets, tâches
+et rapports. `repair` reconstruit runtime et service. `uninstall` conserve les données par défaut ;
+`--purge-data` les supprime définitivement.
 
-L’installation et la réparation ajoutent `%ProgramFiles%\RAGScanner\command` au `PATH` machine de
-Windows. Le répartiteur stable `ragscanner.cmd` suit la génération active : les nouveaux terminaux
-utilisent donc l’installation machine plutôt qu’un ancien outil `uv` du profil utilisateur. Rouvrez
-les terminaux après la première installation ou réparation.
-Les installations antérieures à ce répartiteur peuvent nécessiter une transition unique depuis un
-terminal administrateur : `uvx --refresh --from git+https://github.com/atakaneser/RAGScanner.git@main
-ragscanner repair`. Le code de réparation actuel s’exécute sans installer un autre outil utilisateur.
+## Analyser le contenu
 
-Après une publication PyPI, l’installation utilisera `uv tool install ragscanner`. Aucun paquet PyPI
-ni tag de version n’a encore été publié.
-
-## Analyses directes
-
-L’analyse assistée par IA se choisit séparément pour chaque analyse directe ou tâche du dashboard.
-Les fournisseurs locaux sont Ollama, LM Studio, LocalAI et vLLM. Les options distantes comprennent
-OpenRouter, OpenAI, NVIDIA NIM, Anthropic, Google Gemini, Groq, Mistral AI, Together AI et les points
-de terminaison compatibles OpenAI personnalisés. L’IA est désactivée par défaut et un fournisseur
-distant exige un consentement explicite pour l’analyse concernée. Seul un résumé borné et expurgé
-est transmis ; les documents bruts et les preuves restent locaux. Une panne du fournisseur ne
-compromet pas le rapport déterministe.
-Dans le dashboard, la découverte affiche tous les modèles retournés dans un sélecteur dédié. Les
-clés API saisies sont stockées hors de SQLite dans des fichiers machine protégés conservés lors des
-mises à jour normales ; les références `env:` restent disponibles pour les tâches administrées sans
-surveillance. La page des tâches se met à jour toutes les deux secondes, distingue
-la progression de l’analyse, de l’IA et de l’enregistrement, et affiche des journaux bornés de
-succès ou d’échec avec des codes stables, sans secrets ni réponses brutes du fournisseur.
+Le dashboard est l’interface recommandée. Pour l’automatisation ou une analyse locale directe :
 
 ```bash
-ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b
-```
-
-Placez entre guillemets les chemins contenant des espaces, des parenthèses ou d’autres caractères
-sensibles au shell.
-
-```powershell
-ragscanner scan "C:\Users\Example\Documents\Knowledge Base"
-ragscanner scan "C:\Users\Example\Downloads\Manual (2026).pdf"
-```
-
-```bash
-ragscanner scan ./knowledge-base
-ragscanner scan ./knowledge-base/manual.pdf
-```
-
-Créez des rapports :
-
-```bash
-ragscanner scan ./knowledge-base --format json --output report.json
-ragscanner scan ./knowledge-base --format html --output ragscanner-report.html
-```
-
-Enregistrez et comparez l’historique local uniquement sur demande :
-
-```bash
-ragscanner scan ./knowledge-base --save-history
-ragscanner history list
-ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
+ragscanner scan PATH
+ragscanner scan PATH --save-history
+ragscanner scan PATH --format html --output report.html
 ragscanner serve
 ```
 
-Mettez les analyses durables en file d’attente et lancez le worker :
+Le tiroir de création de tâche prend en charge :
+
+- fichiers et dossiers locaux ;
+- bases OpenWebUI après consentement explicite au contenu ;
+- une page HTTPS ou un document pris en charge ;
+- sitemaps URL de même origine et un niveau d’index imbriqué ;
+- URL SharePoint directement accessibles avec référence d’environnement Bearer facultative ;
+- exécution unique ou surveillance à intervalle récurrent.
+
+Les analyses web refusent redirections et entrées de sitemap d’une autre origine, n’exécutent aucun
+script et limitent pages, taille et délais. La découverte authentifiée des sites/bibliothèques
+Microsoft Graph reste un connecteur distinct planifié.
+
+## Rapports assistés par IA
+
+L’analyse IA est facultative et ne remplace pas les constats déterministes. Les paramètres détectent
+les modèles installés dans Ollama, LM Studio, LocalAI ou vLLM au lieu de conserver un nom obsolète.
+Les fournisseurs distants exigent HTTPS, une référence d’identifiants et un consentement par analyse.
+
+Seul un résumé limité et expurgé est envoyé—jamais les documents bruts ni les preuves. La sortie est
+validée par schéma. Si un serveur local compatible refuse les champs structurés avec HTTP 400,
+RAGScanner tente une fois le mode JSON compatible puis consigne un code explicite en cas d’échec.
+
+## Rapports et exploitation
+
+La santé de l’aperçu repose toujours sur le dernier rapport achevé restant. Les rapports peuvent
+être filtrés, comparés dans le temps, examinés ou supprimés définitivement après confirmation. Les
+tâches uniques et définitions récurrentes sont séparées. L’activité affiche des codes et raisons sûrs
+sans réponse brute du fournisseur ni identifiants.
+
+Commandes utiles :
 
 ```bash
-ragscanner jobs enqueue-scan ./knowledge-base
 ragscanner jobs list
+ragscanner history list
 ragscanner worker
 ```
 
-Pour une analyse OpenWebUI consentie, conservez l’identifiant hors de SQLite :
+Consultez la [référence CLI complète](docs/cli.md), le [guide du dashboard](docs/dashboard.md) et le
+[guide de dépannage](docs/troubleshooting.md) pour les options avancées.
 
-```bash
-export OPENWEBUI_API_KEY="your-local-runtime-secret"
-ragscanner jobs enqueue-openwebui --base-url http://127.0.0.1:3000 \
-  --knowledge-id KNOWLEDGE_ID --credential-ref env:OPENWEBUI_API_KEY --consent-content
-ragscanner worker
-```
+## Confidentialité et sécurité
 
-`ragscanner serve` ouvre le dashboard local. Définissez `RAGSCANNER_API_KEY` pour activer la création
-d’analyses et le contrôle des jobs via l’API avec authentification Bearer et scopes. Le serveur
-écoute uniquement sur `127.0.0.1`.
+- Les analyses statiques locales sont hors ligne par défaut et ne nécessitent aucun LLM.
+- L’accès distant aux documents ou modèles exige une configuration visible et un consentement.
+- Les clés API restent hors de SQLite, dans des fichiers protégés ou des références `env:`.
+- Les tâches durables et rapports ne contiennent que des références opaques aux secrets.
+- Contenu, sorties modèle, URL et preuves sont non fiables et strictement limités.
+- Les libellés produits sont localisés ; les preuves sources conservent leur langue d’origine.
 
-Par défaut, RAGScanner n’écrase pas un fichier de sortie existant.
+Lisez [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md) et le
+[contrat SourceConnector](docs/source-connector-contract.md) avant d’exposer une intégration.
 
-## Référence complète des commandes CLI
-
-`ragscanner COMMAND --help` donne la syntaxe de référence de la version installée. La liste suivante
-couvre toute l’interface publique ; les commandes internes de compatibilité restent masquées.
-
-### Lancement et diagnostic
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner` | Ouvre le dashboard si RAGScanner est installé, sinon affiche la commande d’installation. |
-| `ragscanner --version` | Affiche la version installée du CLI. |
-| `ragscanner --help` / `ragscanner COMMAND --help` | Affiche l’aide générale ou propre à une commande sans modifier la machine. |
-| `ragscanner --install-completion` / `--show-completion` | Installe l’autocomplétion du shell ou affiche le script pris en charge par Typer. |
-| `ragscanner doctor` | Diagnostique hors ligne installation, chemins, configuration, parseurs et runtime. |
-| `ragscanner paths` | Affiche les chemins machine, données, rapports, temporaires et historiques propres au système. |
-
-### Installation machine et cycle de vie
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner install` | Installe le runtime isolé et le superviseur Host (tâche de démarrage Windows sous `SYSTEM`, systemd Linux ou LaunchDaemon macOS), configure `local.ragscanner.com`, initialise les données machine et ouvre le dashboard. Demande l’élévation si nécessaire. |
-| `ragscanner install --yes` | Accepte les invites courantes pour une installation automatisée ; l’élévation peut rester nécessaire. |
-| `ragscanner install --mode terminal` | Utilise la configuration terminal au lieu du dashboard. Modes valides : `dashboard` et `terminal`. |
-| `ragscanner install --no-open-dashboard` | Installe tout sans ouvrir le navigateur à la fin. |
-| `ragscanner open` | Ouvre le dashboard installé sans démarrer un second serveur au premier plan. |
-| `ragscanner status` | Affiche l’état de l’installation, du service, du dashboard, du runtime et des chemins. |
-| `ragscanner update` | Télécharge la dernière version de la branche `main` du dépôt GitHub officiel, l’installe dans le runtime isolé et lui transfère le service ; droits administrateur requis. Aucune commande `uv tool install` séparée n’est nécessaire. |
-| `ragscanner repair` | Télécharge et réinstalle la dernière branche `main`, puis répare runtime, service, nom d’hôte, dossiers et configuration ; droits administrateur requis. Aucune commande `uv tool install` séparée n’est nécessaire. |
-| `ragscanner uninstall` | Après confirmation, retire service, runtime et nom d’hôte tout en conservant rapports et historique. |
-| `ragscanner uninstall --yes --purge-data` | Retire sans interaction également configuration, historique et données gérées. Opération destructive. |
-
-### Analyses locales directes
-
-```text
-ragscanner scan PATH [OPTIONS]
-```
-
-`PATH` désigne un fichier pris en charge ou un dossier. Placez entre guillemets les chemins sensibles
-au shell. L’analyse est locale et l’enrichissement AI reste désactivé sans sélection explicite.
-
-| Option | Utilisation détaillée |
-| --- | --- |
-| `--format terminal|json|html`, `--output PATH` | Choisit le terminal ou un export JSON/HTML explicite. Un export exige un chemin et n’écrase aucun fichier. |
-| `--include GLOB`, `--exclude GLOB` | Restreint la découverte par motifs glob répétables. |
-| `--recursive` / `--no-recursive` | Active ou désactive les sous-dossiers ; actif par défaut. |
-| `--max-file-size BYTES`, `--max-files COUNT` | Fixe des limites positives de taille et de nombre de fichiers. |
-| `--category NAME`, `--exclude-rule ID` | Inclut des catégories ou exclut des règles ; répéter pour plusieurs valeurs. |
-| `--include-pii` / `--no-include-pii` | Active ou désactive les règles PII de la politique effective. |
-| `--min-severity LEVEL`, `--fail-on LEVEL`, `--max-findings COUNT` | Filtre l’affichage, définit le seuil d’échec et borne le volume des résultats. |
-| `--config FILE` | Charge une politique depuis un fichier explicite en plus des valeurs par défaut et machine. |
-| `--security-only`, `--quality-only` | Exécute uniquement la sécurité ou la qualité ; ne pas combiner. |
-| `--quiet`, `--verbose`, `--no-color` | Règle le détail terminal et la couleur ANSI sans modifier les résultats. |
-| `--save-history`, `--history-db FILE` | Enregistre un rapport versionné et choisit éventuellement une autre base SQLite. |
-| `--ai-provider NAME`, `--ai-model NAME`, `--ai-base-url URL` | Active l’enrichissement avec le fournisseur, modèle et endpoint compatible choisis. |
-| `--ai-credential-ref REF`, `--consent-remote-ai` | Résout un secret externe tel que `env:OPENROUTER_API_KEY` et enregistre le consentement distant requis. |
-
-### Enrichissement AI des rapports
-
-| Commande ou option | Utilisation détaillée |
-| --- | --- |
-| `ragscanner analyze-report REPORT_FILE --model MODEL --output FILE` | Enrichit un rapport existant pris en charge ; modèle et sortie sont obligatoires. |
-| `--provider NAME` | Choisit le fournisseur, `ollama` par défaut ; fournisseurs locaux et distants compatibles sont configurables. |
-| `--base-url URL`, `--credential-ref REF` | Remplace l’endpoint et résout le secret hors du rapport et de l’historique. |
-| `--consent-remote` | Autorise explicitement l’envoi d’un résumé borné et masqué ; documents bruts et preuves restent locaux. |
-
-### Jobs durables et worker
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner jobs enqueue-scan PATH` | Met en file une analyse fichier/dossier ; accepte `--database`, `--config`, `--idempotency-key`, `--max-attempts` et les options AI. |
-| `ragscanner jobs enqueue-openwebui` | Met en file OpenWebUI. Exige `--base-url`, `--knowledge-id`, `--credential-ref`, `--consent-content` ; accepte base, idempotence, reprises et AI. |
-| `ragscanner jobs list` | Liste les jobs avec `--database`, `--limit` (1–200), `--offset` et `--format`. |
-| `ragscanner jobs show JOB_ID` | Affiche tentatives, dates, résultat et erreur ; `--database` choisit le stockage. |
-| `ragscanner jobs cancel JOB_ID` | Annule un job non terminal ; `--database` choisit le stockage. |
-| `ragscanner jobs retry JOB_ID` | Crée une nouvelle tentative pour un job éligible échoué/annulé. |
-| `ragscanner worker` | Loue et exécute en continu les jobs de la base machine. |
-| `ragscanner worker --once` | Traite une fois le travail disponible puis quitte. |
-| `--database FILE`, `--poll-interval SECONDS`, `--lease-seconds SECONDS`, `--worker-id ID` | Règle stockage, polling (0,1–60), bail (5–3600) et identité du worker. |
-
-### Historique des rapports
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner history list` | Liste les scans avec `--database`, `--limit` (1–200), `--offset` et `--format`. |
-| `ragscanner history show SCAN_ID` | Rend un rapport avec `--database`, `--format` et éventuellement `--verbose`. |
-| `ragscanner history compare BASELINE_ID CANDIDATE_ID` | Compare résultats nouveaux, résolus et inchangés ; accepte `--database` et `--format`. |
-| `ragscanner history delete SCAN_ID` | Supprime après confirmation. Réserver `--yes` à l’automatisation délibérée ; `--database` choisit le stockage. |
-
-### Rendu et service au premier plan
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner report SCAN_RESULT` | Refait le rendu avec `--format`, `--output`, `--verbose`, filtres de résultats, `--max-findings`, `--include-info`/`--exclude-info` et éventuellement `--show-absolute-paths`. |
-| `ragscanner serve` | Lance dashboard/API sur loopback au premier plan pour développement ou diagnostic ; l’installation normale utilise le service machine. |
-| `ragscanner serve --port PORT --history-db FILE` | Choisit le port loopback (1–65535) et une autre base d’historique. |
-
-### Analyseurs spécialisés
-
-| Commande | Utilisation détaillée |
-| --- | --- |
-| `ragscanner security scan PATH` | Exécute les règles de sécurité avec filtres, `--format`, `--fail-on`, `--max-findings`, `--include-pii`, `--offline`/`--no-offline` ; hors ligne par défaut. |
-| `ragscanner quality scan PATH` | Vérifie doublons exacts/proches et qualité des chunks avec interrupteurs, `--similarity-threshold` (0,5–1,0), bornes de tokens, `--fail-on` et `--format`. |
-
-### Règles opérationnelles
-
-| Règle | Signification |
-| --- | --- |
-| Code de sortie | Entrée invalide, erreur opérationnelle ou résultat au seuil `--fail-on` produit un code non nul adapté à la CI. |
-| Consentement | Contenu OpenWebUI et AI distante exigent leurs options explicites ; la découverte de métadonnées ne donne aucun accès au contenu. |
-| Identifiants | Stocker les secrets à l’extérieur et ne transmettre qu’une référence d’identifiant. |
-| Stockage | Les chemins omis utilisent les emplacements machine affichés par `ragscanner paths`. |
-| Services | Dashboard/worker installé est à l’échelle machine ; `serve` et `worker` au premier plan servent au diagnostic. |
-| Sécurité de sortie | Aucun écrasement, chemins absolus masqués par défaut, preuves bornées et échappées. |
-| Compatibilité | Options et sorties sont en anglais ; le contenu RAG reste Unicode natif dans toute langue prise en charge. |
-
-## Entrées multilingues
-
-Les libellés d’interface, textes d’état, messages d’erreur, remédiations, métadonnées et documents
-canoniques générés par le produit sont en anglais. Les sources RAG restent natives Unicode et peuvent
-contenir du turc, de l’allemand, du français, du chinois, de l’italien, de l’arabe, du cyrillique, du
-CJK, des emoji et des variantes de noms de fichiers NFC/NFD.
-
-Les preuves issues des sources restent dans leur langue d’origine afin de préserver la fidélité de
-l’audit. Les README localisés sont les seuls documents du projet volontairement non anglophones.
-
-## Comprendre les rapports
-
-Les rapports distinguent :
-
-- l’état d’achèvement de l’analyse et la couverture partielle ;
-- la gravité et le niveau de confiance ;
-- les classifications `confirmed`, `probable`, `ambiguous` et `not_detected` ;
-- les contrôles évalués, partiels, échoués et `not_assessed` ;
-- les emplacements de document, page, chunk et source lorsqu’ils existent ;
-- les versions du scanner, du paquet de règles et de la politique.
-
-`not_assessed` ne signifie pas sain ou sans risque. Un score de sécurité n’est pas une garantie de
-sécurité. L’analyse statique et les tests actifs autorisés d’endpoint sont des modes distincts.
-
-## Modèle de confidentialité et de sécurité
-
-- Les analyses statiques sont locales et n’effectuent aucun appel réseau caché.
-- Le contenu des documents ou chunks n’est pas envoyé à des services d’IA externes.
-- Les URL peuvent être analysées mais ne sont pas récupérées.
-- Les payloads suspects, macros, commandes shell et objets intégrés ne sont pas exécutés.
-- Les relations DOCX externes ne sont pas suivies ; les pièces jointes PDF ne sont pas extraites.
-- Les preuves sont limitées, échappées pour HTML et masquées pour les motifs ressemblant à des secrets.
-- Les chemins source absolus sont masqués par défaut dans les rapports.
-- Il n’existe aucune télémétrie, facturation, souscription, habilitation ou serveur de licence.
-
-Les connecteurs distants et modèles optionnels restent désactivés tant qu’ils ne sont pas
-explicitement configurés et acceptés. L’accès au contenu OpenWebUI exige une base sélectionnée, une
-référence externe d’identifiant et un consentement explicite ; c’est une intégration, pas le cœur.
-
-## Installation pour les contributeurs
+## Pour contribuer
 
 ```bash
 git clone https://github.com/atakaneser/RAGScanner.git
 cd RAGScanner
 uv sync --frozen
-uv run ragscanner --version
-uv run ragscanner doctor
-uv run ragscanner scan ./examples/sample-kb
-```
-
-Contrôles qualité :
-
-```bash
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
 uv run pytest
-uv build
 ```
 
-Tous les fixtures doivent être synthétiques. N’ajoutez jamais de véritables identifiants, documents
-clients ou données personnelles.
+Avant toute contribution, exécutez Ruff, formatage, mypy, tests et `uv build` selon
+[CONTRIBUTING.md](CONTRIBUTING.md). Les limites sont dans [ARCHITECTURE.md](ARCHITECTURE.md) et
+l’état actuel dans [docs/status/current.md](docs/status/current.md).
 
-## Architecture
+## Licence
 
-Le core reste indépendant des frameworks UI, bases de données, connecteurs, fournisseurs de modèles
-et de MCP. Les rôles d’intégration sont délibérément séparés :
-
-- `SourceConnector` lit les documents, chunks, métadonnées ou contenus de base de connaissances.
-- `TargetAdapter` envoie des tests black-box autorisés à une application RAG/chat en fonctionnement.
-- `ModelProvider` fournit un modèle d’analyse optionnel à RAGScanner lui-même.
-
-Utiliser OpenAI, Hugging Face ou OpenWebUI ne prouve pas l’existence d’un retrieval. Une cible n’est
-appelée cible RAG que si le retrieval de documents/vector/index est vérifié.
-
-Consultez [ARCHITECTURE.md](ARCHITECTURE.md), [PRODUCT.md](PRODUCT.md) et
-[docs/status/current.md](docs/status/current.md) pour les limites détaillées et l’état actuel.
-
-## Feuille de route
-
-La séquence immédiate est :
-
-1. Travaux restants de récupération de persistance et d’historique/comparaison à l’échelle API
-2. Connecteurs SharePoint, web, SaaS, Git, object store et vector store par niveau de capacité
-3. Compatibilité OpenWebUI, détection incrémentale, identité des sources et fournisseurs de secrets
-4. Validation de l’accessibilité du dashboard et paramètres des connecteurs
-5. Planification calendaire, rétention et notifications
-6. Renforcement du packaging et du déploiement
-
-Les fonctionnalités prévues ne sont jamais présentées comme disponibles. Consultez
-[ROADMAP.md](ROADMAP.md) pour plus de détails.
-
-## Contribution et licence
-
-Lisez [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) et
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) avant de contribuer. Ne publiez pas de secrets, exploits
-ou contenus clients dans les issues publiques.
-
-RAGScanner est distribué sous [Apache License 2.0](LICENSE). Il existe un seul produit gratuit et open
-source : aucune séparation Community/Pro, aucun flux de règles payant, abonnement, habilitation ou
-module fermé.
+Apache-2.0. Voir [LICENSE](LICENSE).

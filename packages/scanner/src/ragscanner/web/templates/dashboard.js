@@ -17,33 +17,6 @@
     }
     return payload;
   };
-  const sourceKindSelect = document.querySelector("[data-source-kind]");
-  const sourceTypeGrid = document.querySelector(".source-type-grid");
-  [
-    { value: "website", label: "Website / Sitemap", url: "https://example.com/sitemap.xml", name: "Website knowledge" },
-    { value: "sharepoint", label: "SharePoint", url: "https://example.sharepoint.com/sites/knowledge", name: "SharePoint knowledge" },
-  ].forEach((definition) => {
-    if (!sourceKindSelect?.querySelector(`option[value="${definition.value}"]`)) {
-      const option = new Option(definition.label, definition.value);
-      option.dataset.url = definition.url;
-      option.dataset.name = definition.name;
-      sourceKindSelect?.add(option);
-    }
-    if (sourceTypeGrid && !sourceTypeGrid.querySelector(`[data-source-choice="${definition.value}"]`)) {
-      const button = document.createElement("button");
-      button.className = "source-type";
-      button.type = "button";
-      button.dataset.sourceChoice = definition.value;
-      const logo = document.createElement("span");
-      logo.className = `source-logo logo-${definition.value}`;
-      logo.ariaHidden = "true";
-      const label = document.createElement("span");
-      label.textContent = t(definition.label);
-      button.append(logo, label);
-      sourceTypeGrid.append(button);
-    }
-  });
-
   const defaultAIInventory = document.querySelector("[data-default-ai-inventory]");
   if (defaultAIInventory) {
     const settingsForm = document.querySelector("form.settings-console");
