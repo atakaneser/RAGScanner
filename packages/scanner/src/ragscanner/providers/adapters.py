@@ -252,16 +252,30 @@ class OllamaAnalysisProvider(_BaseAnalysisProvider):
     provider_id = "ollama"
 
     async def analyze(self, request: AnalysisRequest) -> AIReportAnalysis:
-        value = await self._post(
-            "/api/chat",
-            {
-                "model": self.model,
-                "messages": _messages(request),
-                "stream": False,
-                "format": AIAnalysisContent.model_json_schema(),
-                "options": {"temperature": 0},
-            },
-        )
+        payload: dict[str, object] = {
+            "model": self.model,
+            "messages": _messages(request),
+            "stream": False,
+            "format": AIAnalysisContent.model_json_schema(),
+            "options": {"temperature": 0},
+        }
+        try:
+            value = await self._post("/api/chat", payload)
+        except ModelProviderError as error:
+            if error.code != "ai_provider_http_400":
+                raise
+            # Older Ollama releases accept JSON mode but reject a JSON Schema object.
+            # The prompt still contains the schema and the response is validated below.
+            try:
+                value = await self._post("/api/chat", {**payload, "format": "json"})
+            except ModelProviderError as fallback_error:
+                if fallback_error.code != "ai_provider_http_400":
+                    raise
+                raise ModelProviderError(
+                    "ai_provider_request_invalid",
+                    "Ollama rejected both schema and JSON compatibility requests. Verify that "
+                    "the selected model is installed and that the endpoint supports /api/chat.",
+                ) from fallback_error
         content = (
             value.get("message", {}).get("content")
             if isinstance(value.get("message"), dict)
@@ -298,16 +312,33 @@ class OpenAICompatibleAnalysisProvider(_BaseAnalysisProvider):
         self.provider_id = provider_id
 
     async def analyze(self, request: AnalysisRequest) -> AIReportAnalysis:
-        value = await self._post(
-            "/v1/chat/completions",
-            {
-                "model": self.model,
-                "messages": _messages(request),
-                "temperature": 0,
-                "response_format": {"type": "json_object"},
-            },
-            {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None,
-        )
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
+        payload: dict[str, object] = {
+            "model": self.model,
+            "messages": _messages(request),
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+        }
+        try:
+            value = await self._post("/v1/chat/completions", payload, headers)
+        except ModelProviderError as error:
+            if error.code != "ai_provider_http_400":
+                raise
+            fallback_payload = {
+                key: payload_value
+                for key, payload_value in payload.items()
+                if key != "response_format"
+            }
+            try:
+                value = await self._post("/v1/chat/completions", fallback_payload, headers)
+            except ModelProviderError as fallback_error:
+                if fallback_error.code != "ai_provider_http_400":
+                    raise
+                raise ModelProviderError(
+                    "ai_provider_request_invalid",
+                    "The provider rejected both structured and compatibility requests. Verify "
+                    "that the selected model exists and the endpoint supports chat completions.",
+                ) from fallback_error
         choices = value.get("choices")
         content = (
             choices[0].get("message", {}).get("content")

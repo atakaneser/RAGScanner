@@ -56,7 +56,7 @@ class SourceProfile(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     kind: str = Field(
         pattern=(
-            r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|"
+            r"^(openwebui|filesystem|website|sharepoint|qdrant|chroma|weaviate|milvus|pgvector|"
             r"elasticsearch|opensearch|pinecone|kubernetes|generic|custom)$"
         )
     )

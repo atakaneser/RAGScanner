@@ -17,6 +17,32 @@
     }
     return payload;
   };
+  const sourceKindSelect = document.querySelector("[data-source-kind]");
+  const sourceTypeGrid = document.querySelector(".source-type-grid");
+  [
+    { value: "website", label: "Website / Sitemap", url: "https://example.com/sitemap.xml", name: "Website knowledge" },
+    { value: "sharepoint", label: "SharePoint", url: "https://example.sharepoint.com/sites/knowledge", name: "SharePoint knowledge" },
+  ].forEach((definition) => {
+    if (!sourceKindSelect?.querySelector(`option[value="${definition.value}"]`)) {
+      const option = new Option(definition.label, definition.value);
+      option.dataset.url = definition.url;
+      option.dataset.name = definition.name;
+      sourceKindSelect?.add(option);
+    }
+    if (sourceTypeGrid && !sourceTypeGrid.querySelector(`[data-source-choice="${definition.value}"]`)) {
+      const button = document.createElement("button");
+      button.className = "source-type";
+      button.type = "button";
+      button.dataset.sourceChoice = definition.value;
+      const logo = document.createElement("span");
+      logo.className = `source-logo logo-${definition.value}`;
+      logo.ariaHidden = "true";
+      const label = document.createElement("span");
+      label.textContent = t(definition.label);
+      button.append(logo, label);
+      sourceTypeGrid.append(button);
+    }
+  });
 
   const defaultAIInventory = document.querySelector("[data-default-ai-inventory]");
   if (defaultAIInventory) {
@@ -30,9 +56,9 @@
     const refreshButton = defaultAIInventory.querySelector("[data-refresh-default-ai]");
     const localDefaults = {
       ollama: "http://127.0.0.1:11434",
-      lmstudio: "http://127.0.0.1:1234/v1",
-      localai: "http://127.0.0.1:8080/v1",
-      vllm: "http://127.0.0.1:8000/v1",
+      "lm-studio": "http://127.0.0.1:1234",
+      localai: "http://127.0.0.1:8080",
+      vllm: "http://127.0.0.1:8000",
     };
     const setInventoryStatus = (message, warning = false) => {
       if (!status) return;
@@ -138,13 +164,21 @@
     if (!option?.value) return;
     const kind = option.dataset.kind;
     if (option.dataset.status === "metadata_only") return;
-    const selectedTab = tabs.find((tab) => tab.dataset.source === (kind === "filesystem" ? "local" : "openwebui"));
+    const targetTab = kind === "filesystem" ? "local" : (["website", "sharepoint"].includes(kind) ? "website" : "openwebui");
+    const selectedTab = tabs.find((tab) => tab.dataset.source === targetTab);
     selectedTab?.click();
     if (kind === "filesystem") {
       const localPath = document.querySelector("[data-local-path]");
       if (localPath) localPath.value = option.dataset.location || "";
       const sourceName = document.querySelector('form[data-form="local"] input[name="source_name"]');
       if (sourceName) sourceName.value = option.textContent?.replace(/ · .+$/, "") || "";
+    } else if (["website", "sharepoint"].includes(kind)) {
+      const websiteUrl = document.querySelector("[data-website-url]");
+      const websiteName = document.querySelector('form[data-form="website"] input[name="source_name"]');
+      const websiteCredential = document.querySelector('form[data-form="website"] input[name="credential_ref"]');
+      if (websiteUrl) websiteUrl.value = option.dataset.location || "";
+      if (websiteName) websiteName.value = option.textContent?.replace(/ · .+$/, "") || "";
+      if (websiteCredential) websiteCredential.value = option.dataset.credential || "";
     } else {
       const url = document.querySelector("[data-openwebui-url]");
       const reference = document.querySelector('form[data-form="openwebui"] input[name="credential_ref"]');
@@ -242,11 +276,11 @@
     const location = sourceForm.querySelector('[name="location"]');
     if (name) name.value = option.dataset.name || "";
     if (location) location.value = option.dataset.url || "";
-    const ready = ["openwebui", "filesystem"].includes(option.value);
+    const ready = ["openwebui", "filesystem", "website", "sharepoint"].includes(option.value);
     if (sourceNote) sourceNote.innerHTML = ready
-      ? `<strong>${t("Ready to scan:")}</strong> ${t(option.value === "filesystem" ? "RAGScanner can scan supported files in this path." : "RAGScanner can inventory OpenWebUI knowledge bases and scan their content.")}`
+      ? `<strong>${t("Ready to scan:")}</strong> ${t(option.value === "filesystem" ? "RAGScanner can scan supported files in this path." : ["website", "sharepoint"].includes(option.value) ? "RAGScanner can scan a page, document, or same-origin sitemap." : "RAGScanner can inventory OpenWebUI knowledge bases and scan their content.")}`
       : `<strong>${t("Detected only:")}</strong> ${t("RAGScanner can remember and discover this environment, but its content connector is not available yet.")}`;
-    const auth = option.value === "openwebui";
+    const auth = ["openwebui", "sharepoint"].includes(option.value);
     sourceForm.querySelector(".auth-choice")?.classList.toggle("hidden", !auth);
     sourceForm.querySelector("[data-api-key-row]")?.classList.toggle("hidden", !auth);
     sourceForm.querySelector("[data-credential-ref-row]")?.classList.add("hidden");
@@ -428,5 +462,26 @@
     const selected = choices.filter((choice) => choice.checked);
     if (selected.length !== 2) { event.preventDefault(); return; }
     selected.forEach((choice, index) => { choice.name = index === 0 ? "baseline" : "candidate"; });
+  });
+  document.querySelectorAll("[data-report-delete]").forEach((control) => {
+    if (control.tagName === "FORM") {
+      control.addEventListener("submit", (event) => {
+        if (!window.confirm(t("Delete this report permanently? This cannot be undone."))) event.preventDefault();
+      });
+      return;
+    }
+    control.addEventListener("click", () => {
+      if (!window.confirm(t("Delete this report permanently? This cannot be undone."))) return;
+      const form = document.createElement("form");
+      form.method = "post";
+      form.action = control.dataset.deleteUrl || "";
+      const token = document.createElement("input");
+      token.type = "hidden";
+      token.name = "csrf_token";
+      token.value = csrfToken;
+      form.append(token);
+      document.body.append(form);
+      form.submit();
+    });
   });
 })();

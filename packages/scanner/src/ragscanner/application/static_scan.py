@@ -12,7 +12,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.ai_analysis.service import enrich_report
 from ragscanner.application.jobs import JobCancellationRequested, JobCheckpoint, JobHandler
-from ragscanner.connectors import OpenWebUISourceConfig, OpenWebUISourceConnector
+from ragscanner.connectors import (
+    OpenWebUISourceConfig,
+    OpenWebUISourceConnector,
+    WebsiteSourceConfig,
+    WebsiteSourceConnector,
+)
 from ragscanner.history import ScanHistoryRepository
 from ragscanner.jobs import JobKind, JobRecord
 from ragscanner.pipeline import (
@@ -38,13 +43,14 @@ class StaticScanJobPayload(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    source_kind: str = Field(default="local", pattern=r"^(local|openwebui)$")
+    source_kind: str = Field(default="local", pattern=r"^(local|openwebui|website)$")
     execution_mode: str = Field(default="one_time", pattern=r"^(one_time|scheduled)$")
     source_name: str | None = Field(default=None, min_length=1, max_length=160)
     path: str | None = Field(default=None, min_length=1, max_length=4096)
     config_path: str | None = Field(default=None, min_length=1, max_length=4096)
     openwebui_base_url: str | None = Field(default=None, max_length=2048)
     openwebui_knowledge_id: str | None = Field(default=None, max_length=240)
+    website_url: str | None = Field(default=None, max_length=4096)
     credential_ref: str | None = Field(default=None, max_length=500)
     content_consent: bool = False
     ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
@@ -59,16 +65,21 @@ class StaticScanJobPayload(BaseModel):
                 for value in (
                     self.openwebui_base_url,
                     self.openwebui_knowledge_id,
+                    self.website_url,
                     self.credential_ref,
                 )
             ):
-                raise ValueError("local scan jobs cannot include OpenWebUI configuration")
-        elif not all((self.openwebui_base_url, self.openwebui_knowledge_id, self.credential_ref)):
+                raise ValueError("local scan jobs cannot include remote source configuration")
+        elif self.source_kind == "openwebui" and not all(
+            (self.openwebui_base_url, self.openwebui_knowledge_id, self.credential_ref)
+        ):
             raise ValueError(
                 "OpenWebUI scan jobs require endpoint, knowledge ID, and credential reference"
             )
-        if self.source_kind == "openwebui" and not self.content_consent:
-            raise ValueError("OpenWebUI content scans require explicit content consent")
+        elif self.source_kind == "website" and self.website_url is None:
+            raise ValueError("website scan jobs require a URL")
+        if self.source_kind in {"openwebui", "website"} and not self.content_consent:
+            raise ValueError("remote content scans require explicit content consent")
         return self
 
 
@@ -163,7 +174,7 @@ class StaticScanApplicationService:
         )
         config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
         return asyncio.run(
-            self._run_openwebui_connector(
+            self._run_connector(
                 config,
                 connector,
                 checkpoint=checkpoint,
@@ -172,10 +183,41 @@ class StaticScanApplicationService:
             )
         )
 
-    async def _run_openwebui_connector(
+    def run_website(
+        self,
+        *,
+        url: str,
+        credential_ref: str | None,
+        content_consent: bool,
+        checkpoint: JobCheckpoint | None = None,
+        ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
+    ) -> tuple[str, ReportDocument]:
+        token = resolve_secret_reference(credential_ref) if credential_ref else ""
+        connector = WebsiteSourceConnector(
+            WebsiteSourceConfig(
+                url=url,
+                source_name=source_name or "Website",
+                credential_ref=credential_ref,
+                content_consent=content_consent,
+            ),
+            bearer_token=token,
+        )
+        config = LocalScanFileConfig().pipeline_config(Path("/website/content"))
+        return asyncio.run(
+            self._run_connector(
+                config,
+                connector,
+                checkpoint=checkpoint,
+                ai_config=ai_config or AIProviderConfig(),
+                source_name=source_name,
+            )
+        )
+
+    async def _run_connector(
         self,
         config: StaticPipelineConfig,
-        connector: OpenWebUISourceConnector,
+        connector: OpenWebUISourceConnector | WebsiteSourceConnector,
         *,
         checkpoint: JobCheckpoint | None,
         ai_config: AIProviderConfig,
@@ -318,6 +360,15 @@ class StaticScanJobHandler(JobHandler):
             history_id, _report = self.service.run_openwebui(
                 base_url=payload.openwebui_base_url,
                 knowledge_id=payload.openwebui_knowledge_id,
+                credential_ref=payload.credential_ref,
+                content_consent=payload.content_consent,
+                checkpoint=checkpoint,
+                ai_config=payload.ai,
+                source_name=payload.source_name,
+            )
+        elif payload.source_kind == "website" and payload.website_url is not None:
+            history_id, _report = self.service.run_website(
+                url=payload.website_url,
                 credential_ref=payload.credential_ref,
                 content_consent=payload.content_consent,
                 checkpoint=checkpoint,
