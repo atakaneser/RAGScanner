@@ -107,6 +107,11 @@ Google Gemini, Groq, Mistral AI, Together AI ve özel OpenAI uyumlu uç noktalar
 olarak kapalıdır; uzak kullanım tarama başına açık onay gerektirir. Yalnızca sınırlandırılmış ve
 maskelenmiş rapor özeti gönderilir; ham belgeler ve bulgu kanıtları gönderilmez. Sağlayıcı hatası
 deterministik raporu geçersiz kılmaz.
+Dashboard'da model keşfi dönen tüm modelleri ayrı bir seçim alanında gösterir. Uzak API anahtarları
+çalışan Host Service belleğine verilebilir veya gözetimsiz kullanım için `env:` ile referanslanabilir.
+İşler sayfası iki saniyede bir güncellenir; tarama, AI ve kaydetme ilerlemesini ayırır ve gizli
+değerlerle ham sağlayıcı yanıtlarını dışarıda bırakan kararlı hata kodlu başarı/başarısızlık logları
+gösterir.
 
 ```bash
 ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b

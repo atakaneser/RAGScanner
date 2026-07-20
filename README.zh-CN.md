@@ -99,6 +99,10 @@ Ollama、LM Studio、LocalAI 和 vLLM；远程选项包括 OpenRouter、OpenAI�
 Anthropic、Google Gemini、Groq、Mistral AI、Together AI 以及自定义 OpenAI 兼容端点。
 AI 默认关闭；远程使用需要对该次扫描明确同意。系统只发送有界且已脱敏的报告摘要，
 不会发送原始文档或发现证据。提供方失败不会影响确定性报告。
+在 dashboard 中，模型发现会在专用选择器中显示提供方返回的全部模型。远程 API 密钥可以
+仅保存在当前 Host Service 进程内存中，也可以通过 `env:` 引用以支持无人值守任务。任务页面
+每两秒更新一次，分别显示扫描、AI 和保存进度，并使用稳定错误码展示有界的成功或失败日志；
+其中不会包含密钥或提供方原始响应。
 
 ```bash
 ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b

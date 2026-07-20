@@ -3,6 +3,7 @@
 import asyncio
 import os
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,8 @@ from ragscanner.pipeline import (
 from ragscanner.providers import ModelProviderError, create_analysis_provider
 from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
 from ragscanner.reporting.models import ReportDocument
+
+AI_HEARTBEAT_SECONDS = 10.0
 
 
 class StaticScanJobPayload(BaseModel):
@@ -80,7 +83,7 @@ class _CheckpointEventSink(StaticScanEventSink):
     async def emit(self, _event: StaticScanEvent) -> None:
         self._events += 1
         try:
-            self._checkpoint(min(0.9, self._events / 100))
+            self._checkpoint(min(0.75, 0.05 + self._events / 100))
         except JobCancellationRequested:
             self.cancellation_requested = True
             self._pipeline_provider().cancel()
@@ -123,7 +126,9 @@ class StaticScanApplicationService:
             show_absolute_paths=not config.show_relative_paths,
             maximum_findings=config.maximum_findings,
         )
-        report = self._enrich_sync(report, ai_config or AIProviderConfig())
+        report = self._enrich_sync(report, ai_config or AIProviderConfig(), checkpoint)
+        if checkpoint is not None:
+            checkpoint(0.98)
         history_id = self.history_repository.save(report)
         if sink is not None and sink.cancellation_requested:
             raise JobCancellationRequested(f"history:{history_id}")
@@ -184,7 +189,9 @@ class StaticScanApplicationService:
                 show_absolute_paths=False,
                 maximum_findings=config.maximum_findings,
             )
-            report = await self._enrich_async(report, ai_config)
+            report = await self._enrich_async(report, ai_config, checkpoint)
+            if checkpoint is not None:
+                checkpoint(0.98)
             history_id = self.history_repository.save(report)
             if sink is not None and sink.cancellation_requested:
                 raise JobCancellationRequested(f"history:{history_id}")
@@ -193,30 +200,79 @@ class StaticScanApplicationService:
             await connector.aclose()
 
     @staticmethod
-    async def _enrich_async(report: ReportDocument, config: AIProviderConfig) -> ReportDocument:
+    async def _enrich_async(
+        report: ReportDocument,
+        config: AIProviderConfig,
+        checkpoint: JobCheckpoint | None = None,
+    ) -> ReportDocument:
         if not config.enabled:
+            if checkpoint is not None:
+                checkpoint(0.9)
             return report
+        if checkpoint is not None:
+            checkpoint(0.8)
         try:
-            return await enrich_report(
-                report,
-                config,
-                provider_factory=lambda selected: create_analysis_provider(
-                    selected, secret_resolver=resolve_secret_reference
-                ),
+            task = asyncio.create_task(
+                enrich_report(
+                    report,
+                    config,
+                    provider_factory=lambda selected: create_analysis_provider(
+                        selected, secret_resolver=resolve_secret_reference
+                    ),
+                )
             )
-        except (ModelProviderError, OSError, ValueError):
-            return report.model_copy(
-                update={
-                    "ai_analysis_error": (
-                        "AI analysis was unavailable. The deterministic report is complete and "
-                        "can be reviewed or analyzed again without rescanning."
-                    )
-                }
+            progress = 0.82
+            try:
+                while not task.done():
+                    done, _pending = await asyncio.wait({task}, timeout=AI_HEARTBEAT_SECONDS)
+                    if done:
+                        break
+                    if checkpoint is not None:
+                        checkpoint(progress)
+                        progress = min(0.94, progress + 0.02)
+                enriched = await task
+            finally:
+                if not task.done():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
+            if checkpoint is not None:
+                checkpoint(0.96)
+            return enriched
+        except ModelProviderError as error:
+            failure_code = error.code
+            failure_message = error.safe_message
+        except ValueError:
+            failure_code = (
+                "ai_credential_unavailable"
+                if config.credential_ref
+                else "ai_provider_configuration_invalid"
             )
+            failure_message = (
+                "The AI credential reference is unavailable to the Host Service."
+                if config.credential_ref
+                else "The AI provider configuration is invalid."
+            )
+        except OSError:
+            failure_code = "ai_provider_unavailable"
+            failure_message = "The AI provider was unavailable."
+        if checkpoint is not None:
+            checkpoint(0.96)
+        return report.model_copy(
+            update={
+                "ai_analysis_error_code": failure_code,
+                "ai_analysis_error": failure_message,
+            }
+        )
 
     @classmethod
-    def _enrich_sync(cls, report: ReportDocument, config: AIProviderConfig) -> ReportDocument:
-        return asyncio.run(cls._enrich_async(report, config)) if config.enabled else report
+    def _enrich_sync(
+        cls,
+        report: ReportDocument,
+        config: AIProviderConfig,
+        checkpoint: JobCheckpoint | None = None,
+    ) -> ReportDocument:
+        return asyncio.run(cls._enrich_async(report, config, checkpoint))
 
 
 class StaticScanJobHandler(JobHandler):

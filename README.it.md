@@ -109,6 +109,11 @@ personalizzati compatibili con OpenAI. L’IA è disattivata per impostazione pr
 richiede il consenso esplicito per quella scansione. Viene inviato solo un riepilogo limitato e
 redatto; documenti grezzi e prove dei rilievi restano locali. Un errore del provider non compromette
 il report deterministico.
+Nel dashboard, il rilevamento mostra tutti i modelli restituiti in un selettore dedicato. Le chiavi
+API remote possono restare nella memoria del processo Host Service attivo oppure essere indicate
+con `env:` per attività non presidiate. La pagina delle attività si aggiorna ogni due secondi,
+separa l’avanzamento di scansione, IA e salvataggio e mostra log limitati di successo o errore con
+codici stabili, senza segreti né risposte grezze del provider.
 
 ```bash
 ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b

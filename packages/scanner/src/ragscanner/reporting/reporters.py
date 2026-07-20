@@ -228,10 +228,15 @@ class HtmlReporter:
                 f"{esc(ai_analysis.disclaimer)}</p></section>"
             )
         elif report.ai_analysis_error:
+            error_code = (
+                f"<p><code>{esc(report.ai_analysis_error_code)}</code></p>"
+                if report.ai_analysis_error_code
+                else ""
+            )
             ai_section = (
                 '<section aria-labelledby="ai-analysis"><h2 id="ai-analysis">'
                 "AI analysis unavailable</h2>"
-                f"<p>{esc(report.ai_analysis_error)}</p></section>"
+                f"{error_code}<p>{esc(report.ai_analysis_error)}</p></section>"
             )
 
         html_value = f"""<!doctype html>

@@ -17,8 +17,8 @@ from ragscanner.quality import DuplicateGroup
 from ragscanner.quality.models import ChunkQualityStatistics
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.1.0"
-REPORTER_VERSION = "1.1.0"
+REPORT_SCHEMA_VERSION = "1.2.0"
+REPORTER_VERSION = "1.2.0"
 
 
 class ReportFilter(BaseModel):
@@ -182,4 +182,5 @@ class ReportDocument(BaseModel):
     assessment_coverage: dict[str, dict[str, Any]]
     ingestion_issues: list[ReportIngestionIssue]
     ai_analysis: AIReportAnalysis | None = None
+    ai_analysis_error_code: str | None = Field(default=None, max_length=80)
     ai_analysis_error: str | None = Field(default=None, max_length=500)

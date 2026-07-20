@@ -93,6 +93,8 @@
   and custom endpoints; jobs persist only non-secret configuration and the provider receives only a
   bounded redacted finding summary. Validated advisory output is shown in dashboard/exports, while
   provider failure preserves the authoritative deterministic report
+- Live two-second dashboard job updates, AI-stage lease heartbeats and progress, complete detected
+  model selection, process-memory AI API-key entry, and secret-safe success/failure activity codes
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage
 - pytest, Ruff, strict mypy, and GitHub Actions
 

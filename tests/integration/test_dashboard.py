@@ -1,10 +1,15 @@
+import os
 import re
+from datetime import timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 from ragscanner.api import create_app
+from ragscanner.application import JobApplicationService
+from ragscanner.jobs import JobStatus
 from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
+from ragscanner.storage import SQLiteJobRepository
 
 
 @pytest.mark.anyio
@@ -179,6 +184,115 @@ async def test_dashboard_discovers_local_environments_and_openwebui_knowledge_ba
     assert knowledge_bases.json()["knowledge_bases"] == [
         {"id": "kb-1", "name": "Engineering", "description": "Synthetic"}
     ]
+
+
+@pytest.mark.anyio
+async def test_dashboard_lists_every_detected_ai_model_and_keeps_direct_key_out_of_jobs(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic dashboard source", encoding="utf-8")
+    captured = {}
+    existing_ai_names = {name for name in os.environ if name.startswith("RAGSCANNER_AI_")}
+
+    async def models(config, *, secret_resolver):  # type: ignore[no-untyped-def]
+        captured["config"] = config
+        captured["secret_resolver"] = secret_resolver
+        return ["model-a", "model-b", "model-c"]
+
+    monkeypatch.setattr("ragscanner.web.dashboard.discover_provider_models", models)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        dashboard = await client.get("/jobs")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', dashboard.text)
+        request_id = re.search(r'name="idempotency_key" value="([^"]+)"', dashboard.text)
+        assert csrf is not None and request_id is not None
+        discovered = await client.post(
+            "/dashboard/discovery/ai-models",
+            data={
+                "csrf_token": csrf.group(1),
+                "provider": "openrouter",
+                "base_url": "https://openrouter.ai/api",
+                "api_key": "synthetic-dashboard-ai-key",
+                "remote_consent": "true",
+            },
+        )
+        queued = await client.post(
+            "/dashboard/scans/local",
+            data={
+                "csrf_token": csrf.group(1),
+                "path": str(source),
+                "idempotency_key": request_id.group(1),
+                "scan_consent": "true",
+                "ai_enabled": "true",
+                "ai_provider": "openrouter",
+                "ai_model": "model-b",
+                "ai_base_url": "https://openrouter.ai/api",
+                "ai_api_key": "synthetic-dashboard-ai-key",
+                "ai_remote_consent": "true",
+            },
+        )
+
+    try:
+        assert discovered.json() == {"models": ["model-a", "model-b", "model-c"]}
+        assert captured["config"].credential_ref.startswith("env:RAGSCANNER_AI_")
+        assert "data-ai-model-results" in dashboard.text
+        assert queued.status_code == 303
+        repository = SQLiteJobRepository(database)
+        try:
+            job = repository.list(limit=1).items[0]
+        finally:
+            repository.close()
+        reference = job.payload["ai"]["credential_ref"]
+        assert reference.startswith("env:RAGSCANNER_AI_")
+        assert "synthetic-dashboard-ai-key" not in job.model_dump_json()
+        assert b"synthetic-dashboard-ai-key" not in database.read_bytes()
+    finally:
+        for name in [
+            key
+            for key in os.environ
+            if key.startswith("RAGSCANNER_AI_") and key not in existing_ai_names
+        ]:
+            os.environ.pop(name, None)
+
+
+@pytest.mark.anyio
+async def test_dashboard_job_status_exposes_safe_failure_codes(tmp_path: Path) -> None:
+    database = tmp_path / "history.sqlite3"
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic dashboard source", encoding="utf-8")
+    repository = SQLiteJobRepository(database)
+    try:
+        queued = JobApplicationService(repository).enqueue_local_scan(
+            source, idempotency_key="dashboard:failure-log:001", max_attempts=1
+        )
+        claimed = repository.claim("test-worker", lease_duration=timedelta(seconds=30))
+        assert claimed is not None and claimed.status is JobStatus.RUNNING
+        repository.fail(
+            queued.id,
+            "test-worker",
+            error_code="source_path_unreadable",
+            error_message="The Host Service cannot read the selected source path.",
+        )
+    finally:
+        repository.close()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)), base_url="http://testserver"
+    ) as client:
+        jobs_page = await client.get("/jobs")
+        status = await client.get("/dashboard/jobs/status")
+
+    assert "Job activity logs" in jobs_page.text
+    assert "source_path_unreadable" in jobs_page.text
+    assert status.json()["logs"][0]["code"] == "source_path_unreadable"
+    assert status.json()["logs"][0]["message"] == (
+        "The Host Service cannot read the selected source path."
+    )
 
 
 @pytest.mark.anyio

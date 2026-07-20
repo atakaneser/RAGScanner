@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from ragscanner.application import DurableWorker
 from ragscanner.jobs import JobKind, JobRecord, JobRequest, JobStatus
 from ragscanner.storage import SQLiteJobRepository
@@ -58,6 +59,38 @@ def test_worker_requeues_safely_then_fails_at_attempt_limit(tmp_path) -> None:  
         assert failed.status is JobStatus.FAILED
         assert failed.error_code == "job_execution_failed"
         assert "synthetic sensitive detail" not in (failed.error_message or "")
+    finally:
+        repository.close()
+
+
+@pytest.mark.parametrize(
+    ("failure", "code"),
+    [
+        (FileNotFoundError("sensitive path"), "source_path_not_found"),
+        (PermissionError("sensitive path"), "source_permission_denied"),
+        (ValueError("sensitive configuration"), "job_configuration_invalid"),
+    ],
+)
+def test_worker_classifies_safe_actionable_failures(tmp_path, failure, code) -> None:  # type: ignore[no-untyped-def]
+    class ClassifiedFailureHandler:
+        def execute(self, job: JobRecord, checkpoint: Callable[[float | None], JobRecord]) -> None:
+            del job, checkpoint
+            raise failure
+
+    repository = SQLiteJobRepository(tmp_path / "jobs.sqlite3")
+    try:
+        repository.enqueue(
+            JobRequest(kind=JobKind.SCAN, payload={"path": "sample"}, max_attempts=1)
+        )
+        failed = DurableWorker(
+            repository,
+            {JobKind.SCAN: ClassifiedFailureHandler()},
+            worker_id="worker-1",
+        ).run_once()
+
+        assert failed is not None
+        assert failed.error_code == code
+        assert "sensitive" not in (failed.error_message or "")
     finally:
         repository.close()
 

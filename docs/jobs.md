@@ -14,7 +14,7 @@ ragscanner worker
 ```
 
 `ragscanner worker --once` claims at most one job and exits. A continuous worker polls until
-interrupted. Use `--history-db` on enqueue and worker commands when they must share a non-default
+interrupted. Use `--database` on enqueue and worker commands when they must share a non-default
 database.
 
 Queue an OpenWebUI scan without storing the credential value:
@@ -41,10 +41,17 @@ ragscanner jobs retry JOB_ID
 - Enqueue is idempotent per job kind and key.
 - A worker atomically claims a lease, renews heartbeat/progress, and checks cancellation at
   pipeline checkpoints.
+- AI-enabled jobs expose separate deterministic-scan, provider-wait, validation, and report-save
+  progress. The worker renews its lease every ten seconds while waiting for a provider.
 - Queued cancellation is immediate; running cancellation is cooperative.
 - Failed or cancelled work may be manually retried.
 - Expired leases are reclaimed while attempts remain and safely failed at the attempt limit.
 - Persisted failures are bounded and do not copy arbitrary exception text.
+
+The dashboard polls durable state every two seconds and includes a Job activity log. Entries show
+stable codes such as `source_path_not_found`, `source_permission_denied`, `ai_provider_timeout`,
+`ai_provider_http_401`, and `ai_output_invalid` with bounded remediation-oriented messages. Raw
+exceptions, provider response bodies, document content, and credentials are never logged.
 
 Payloads are limited to 64 KiB. Plaintext credentials are rejected; only approved external
 references such as `env:VARIABLE`, `keychain:ITEM`, `vault:PATH`, or `file-secret:PATH` may be

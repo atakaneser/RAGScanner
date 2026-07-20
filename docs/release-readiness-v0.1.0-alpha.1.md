@@ -39,7 +39,7 @@ automated gates pass.
 - Lexical/heuristic detectors can produce false positives and false negatives.
 
 There is no previous public release. The initial packaged persistence revision is
-`0001_scan_history`; the current report schema is `1.1.0`.
+`0001_scan_history`; the current report schema is `1.2.0`.
 
 ## Local performance smoke record
 

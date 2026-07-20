@@ -23,7 +23,7 @@ from ragscanner.application import (
     StaticScanJobHandler,
     resolve_secret_reference,
 )
-from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
+from ragscanner.jobs import JobKind, JobNotFoundError, JobRecord, JobStateError, JobStatus
 from ragscanner.local_auth import LocalAdministratorStore
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
@@ -67,6 +67,10 @@ def _source_secret_reference(profile_id: str) -> str:
     return f"env:RAGSCANNER_SOURCE_{profile_id.upper()}_API_KEY"
 
 
+def _ai_secret_reference() -> str:
+    return f"env:RAGSCANNER_AI_{secrets.token_hex(12).upper()}_API_KEY"
+
+
 def _remember_process_secret(reference: str, value: str) -> None:
     """Keep a dashboard-supplied secret in Host memory, never in SQLite or a job payload."""
 
@@ -100,15 +104,23 @@ def _ai_config(
     base_url: str | None,
     credential_ref: str | None,
     remote_consent: bool,
+    api_key: str | None = None,
 ) -> AIProviderConfig:
-    return AIProviderConfig(
+    secret = api_key.strip() if api_key else ""
+    reference = normalize_env_credential_reference(credential_ref) if credential_ref else None
+    if secret:
+        reference = _ai_secret_reference()
+    config = AIProviderConfig(
         enabled=enabled,
         provider=provider.strip() if provider else None,
         model=model.strip() if model else None,
         base_url=base_url.strip() if base_url else None,
-        credential_ref=credential_ref.strip() if credential_ref else None,
+        credential_ref=reference,
         remote_consent=remote_consent,
     )
+    if secret and reference:
+        _remember_process_secret(reference, secret)
+    return config
 
 
 def register_dashboard(
@@ -298,6 +310,7 @@ def register_dashboard(
                 else None
             )
             profiles = [_effective_source_profile(profile) for profile in source_repository.list()]
+            job_logs = [_job_log(job, history_repository) for job in jobs.items]
         finally:
             source_repository.close()
             history_repository.close()
@@ -310,6 +323,7 @@ def register_dashboard(
             {
                 "jobs": jobs.items,
                 "job_total": jobs.total,
+                "job_logs": job_logs,
                 "scans": history.items,
                 "scan_total": history.total,
                 "all_scans": all_history.items,
@@ -507,6 +521,7 @@ def register_dashboard(
         ai_model: Annotated[str | None, Form(max_length=240)] = None,
         ai_base_url: Annotated[str | None, Form(max_length=2048)] = None,
         ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
         ai_remote_consent: Annotated[bool, Form()] = False,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
@@ -524,6 +539,7 @@ def register_dashboard(
                     ai_base_url,
                     ai_credential_ref,
                     ai_remote_consent,
+                    ai_api_key,
                 ),
             )
         except (OSError, ValueError, JobStateError):
@@ -579,24 +595,32 @@ def register_dashboard(
         provider: Annotated[str, Form(max_length=80)],
         base_url: Annotated[str | None, Form(max_length=2048)] = None,
         credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        api_key: Annotated[str | None, Form(max_length=4096)] = None,
         remote_consent: Annotated[bool, Form()] = False,
     ) -> JSONResponse:
         _validate_csrf(request, csrf_token)
         try:
-            config = AIProviderConfig(
-                enabled=True,
-                provider=provider,
-                model="model-inventory",
-                base_url=base_url,
-                credential_ref=credential_ref,
-                remote_consent=remote_consent,
+            config = _ai_config(
+                True,
+                provider,
+                "model-inventory",
+                base_url,
+                credential_ref,
+                remote_consent,
+                api_key,
             )
             models = await discover_provider_models(
                 config, secret_resolver=resolve_secret_reference
             )
-        except (ModelProviderError, OSError, ValueError):
+        except ModelProviderError as error:
+            return JSONResponse({"error": error.safe_message, "code": error.code}, status_code=400)
+        except (OSError, ValueError):
             return JSONResponse(
-                {"error": "The provider model inventory was unavailable."}, status_code=400
+                {
+                    "error": "The provider configuration or credential is unavailable.",
+                    "code": "ai_provider_configuration_invalid",
+                },
+                status_code=400,
             )
         return JSONResponse({"models": models})
 
@@ -614,6 +638,7 @@ def register_dashboard(
         ai_model: Annotated[str | None, Form(max_length=240)] = None,
         ai_base_url: Annotated[str | None, Form(max_length=2048)] = None,
         ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
         ai_remote_consent: Annotated[bool, Form()] = False,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
@@ -632,6 +657,7 @@ def register_dashboard(
                     ai_base_url,
                     ai_credential_ref,
                     ai_remote_consent,
+                    ai_api_key,
                 ),
             )
         except (ValueError, JobStateError):
@@ -639,6 +665,32 @@ def register_dashboard(
         finally:
             repository.close()
         return RedirectResponse("/?notice=scan-queued", status_code=303)
+
+    @app.get("/dashboard/jobs/status", include_in_schema=False)
+    async def dashboard_job_status() -> JSONResponse:
+        jobs_repository = SQLiteJobRepository(database_path)
+        history_repository = SQLiteScanHistoryRepository(database_path)
+        try:
+            jobs = JobApplicationService(jobs_repository).list(limit=100)
+            logs = [_job_log(job, history_repository) for job in jobs.items]
+        finally:
+            history_repository.close()
+            jobs_repository.close()
+        return JSONResponse(
+            {
+                "jobs": [
+                    {
+                        "id": job.id,
+                        "status": job.status.value,
+                        "progress": round(job.progress * 100),
+                        "attempt_count": job.attempt_count,
+                        "max_attempts": job.max_attempts,
+                    }
+                    for job in jobs.items
+                ],
+                "logs": logs,
+            }
+        )
 
     @app.post("/dashboard/worker/run-once", include_in_schema=False)
     async def dashboard_run_worker_once(
@@ -783,6 +835,60 @@ def _coverage(values: Mapping[str, object]) -> int:
         if isinstance(value, dict) and value.get("status") in {"assessed", "partial"}:
             assessed += 1
     return round(assessed / len(values) * 100)
+
+
+def _job_log(job: JobRecord, history_repository: SQLiteScanHistoryRepository) -> dict[str, object]:
+    """Build one bounded, secret-safe activity entry from durable state."""
+
+    code = "job_queued"
+    message = "The job is queued and waiting for the Host Service worker."
+    level = "info"
+    if job.status is JobStatus.RUNNING:
+        code = "job_running"
+        message = "The deterministic scan is running."
+        if job.progress >= 0.96:
+            code = "job_saving_report"
+            message = "The report is being validated and saved."
+        elif job.progress >= 0.8 and job.payload.get("ai", {}).get("enabled"):
+            code = "ai_analysis_running"
+            message = "The deterministic scan is complete and AI analysis is running."
+    elif job.status is JobStatus.SUCCEEDED:
+        code = "job_succeeded"
+        message = "The scan completed and its report was saved."
+        level = "success"
+        ai_enabled = bool(job.payload.get("ai", {}).get("enabled"))
+        if ai_enabled and job.result_ref and job.result_ref.startswith("history:"):
+            report = history_repository.get(job.result_ref.removeprefix("history:"))
+            if report is not None and report.ai_analysis_error_code:
+                code = report.ai_analysis_error_code
+                message = report.ai_analysis_error or "AI analysis was unavailable."
+                level = "warning"
+            elif report is not None and report.ai_analysis is not None:
+                code = "ai_analysis_completed"
+                message = "The scan and AI-assisted report analysis completed successfully."
+    elif job.status is JobStatus.FAILED:
+        code = job.error_code or "job_failed"
+        message = job.error_message or "The job failed."
+        level = "error"
+    elif job.status is JobStatus.CANCELLED:
+        code = "job_cancelled"
+        message = "The job was cancelled."
+        level = "warning"
+    elif job.status is JobStatus.CANCEL_REQUESTED:
+        code = "job_cancellation_requested"
+        message = "Cancellation was requested and will be applied at the next safe checkpoint."
+        level = "warning"
+    elif job.error_code:
+        code = job.error_code
+        message = job.error_message or "The previous attempt failed and will be retried."
+        level = "warning"
+    return {
+        "job_id": job.id,
+        "timestamp": job.updated_at.isoformat(),
+        "level": level,
+        "code": code,
+        "message": message,
+    }
 
 
 def _run_one_dashboard_job(database_path: Path) -> object | None:
