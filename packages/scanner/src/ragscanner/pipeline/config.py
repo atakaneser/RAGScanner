@@ -10,6 +10,7 @@ from ragscanner.domain import Severity
 from ragscanner.normalization import NormalizationConfig
 from ragscanner.parsers import DocxParserConfig, PdfParserConfig
 from ragscanner.pipeline.models import OutputFormat, StaticPipelineConfig
+from ragscanner.pipeline.registry import DEFAULT_DOCUMENT_PATTERNS, SUPPORTED_DOCUMENT_EXTENSIONS
 from ragscanner.quality import ChunkQualityConfig, NearDuplicateConfig
 
 
@@ -17,13 +18,9 @@ class ScanFileSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     recursive: bool = True
-    include: list[str] = Field(
-        default_factory=lambda: ["*.txt", "*.md", "*.markdown", "*.pdf", "*.docx"]
-    )
+    include: list[str] = Field(default_factory=lambda: list(DEFAULT_DOCUMENT_PATTERNS))
     exclude: list[str] = Field(default_factory=lambda: [".git/**", "**/.git/**"])
-    allowed_extensions: set[str] = Field(
-        default_factory=lambda: {".txt", ".md", ".markdown", ".pdf", ".docx"}
-    )
+    allowed_extensions: set[str] = Field(default_factory=lambda: set(SUPPORTED_DOCUMENT_EXTENSIONS))
     max_file_size_mb: float = Field(default=25, gt=0, le=1024)
     max_files: int = Field(default=10_000, gt=0)
 

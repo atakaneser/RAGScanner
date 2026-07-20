@@ -33,3 +33,5 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0030 Source profiles and dashboard-native reports](0030-source-profiles-and-dashboard-report-system.md)
 - [ADR-0031 Atomic Windows runtime generations](0031-atomic-windows-runtime-generations.md)
 - [ADR-0032 Stable Windows machine command ownership](0032-stable-windows-machine-command.md)
+- [ADR-0033 Dashboard ephemeral source secrets](0033-dashboard-ephemeral-source-secrets.md)
+- [ADR-0034 Machine secret files and interval schedules](0034-machine-secret-files-and-interval-schedules.md)

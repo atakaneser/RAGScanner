@@ -9,8 +9,8 @@ RAGScanner uses a Python modular monolith:
   asynchronous scan/job control
 - Server-rendered Jinja2 dashboard with minimal vanilla JavaScript and CSRF-protected forms
 - Opt-in SQLite history in WAL mode with packaged versioned migrations
-- Durable SQLite job lifecycle, production static-scan handler, and one-job worker process;
-  APScheduler enqueueing remains planned
+- Durable SQLite job lifecycle, production static-scan handler, one-job worker process, and
+  idempotent interval-schedule materialization
 - One public monorepo, runnable locally or through a small Docker Compose topology (planned)
 
 API and worker may be separate processes while sharing the same Python distribution, SQLite
@@ -76,18 +76,20 @@ The current storage slices persist redacted report snapshots, normalized finding
 durable job control metadata behind database-independent ports. A separate `history_id` identifies
 an execution snapshot; the deterministic Core `scan.id` remains a configuration identity.
 Persistence is opt-in, retention is explicit, and an older database is backed up before a forward
-migration. Non-secret source profiles and local setup preferences are persisted; credential values
-remain external and only `env:` references may be stored. Schedule, document/chunk, and
-artifact-reference tables remain planned.
+migration. Non-secret source profiles, dashboard preferences, and interval schedules are persisted.
+Credential values stay outside SQLite in environment variables or owner-readable machine secret
+files; durable records contain only opaque references. Document/chunk and artifact-reference tables
+remain planned.
 
 ## Durable jobs
 
 FastAPI in-process tasks are not durable enough for long scans. A `Job` table records queued work.
 One worker atomically claims a lease, writes heartbeat/progress, checks cancellation, and finalizes
-status. Expired leases may be reclaimed. APScheduler only creates idempotent jobs for due schedule
-occurrences. Scan effects use job/idempotency keys to prevent duplicate findings.
+status. Expired leases may be reclaimed. Before each claim cycle, the worker materializes due
+interval schedules as idempotent jobs. Scan effects use job/idempotency keys to prevent duplicate
+findings.
 The table, repository, production static-scan handler, CLI enqueue/control commands, authenticated
-enqueue/control API, and worker entry point are implemented. Scheduling is not available yet.
+enqueue/control API, worker entry point, and interval-schedule materializer are implemented.
 
 ## Adapter contracts
 
@@ -114,7 +116,7 @@ and metadata-only access cannot silently claim content checks.
 ```text
 explicit local root
   -> root-confined discovery and bounded reads
-  -> typed TXT/Markdown/PDF/DOCX parsing
+  -> typed Markdown/TXT/PDF/DOCX and bounded ZIP-office/publication parsing
   -> versioned normalization and source mapping
   -> structure/paragraph/token-window chunking
   -> static security + exact/near duplicate + chunk-quality analysis
@@ -164,7 +166,7 @@ providers require HTTPS, an external credential reference, and explicit consent 
 After explicit configuration and consent, the OpenWebUI `SourceConnector` validates the endpoint,
 enumerates a selected knowledge base through bounded pagination, retrieves bounded accessible file
 content, and produces neutral source models for the same scanner pipeline. Core does not know
-OpenWebUI API types. The worker resolves only an `env:` credential reference in the first slice.
+OpenWebUI API types. The worker resolves only an `env:` or protected machine-file credential reference.
 
 The guided CLI separately checks consented container-runtime and common loopback health candidates
 and can inventory authenticated KB/file metadata through per-knowledge-base file endpoints. A later
@@ -176,7 +178,7 @@ running-container name, image, and published loopback-port metadata from Docker,
 and Finch; bounded service metadata from the active Kubernetes context; and a fixed set of common
 loopback health endpoints. Only OpenWebUI currently has a metadata/content source connector; all other
 classifications remain detected-only hints and cannot imply RAG access or assessment coverage. The
-dashboard resolves an `env:` credential reference only in its local process to list OpenWebUI
+dashboard resolves an external credential reference only in its local process to list OpenWebUI
 knowledge bases, then persists only the reference in a consented job.
 
 ## Dashboard report flow

@@ -6,8 +6,9 @@
 [简体中文](README.zh-CN.md) · **Italiano**
 
 RAGScanner è uno strumento gratuito, open source e local-first per ispezionare i rischi di sicurezza
-e qualità dei contenuti nelle fonti di conoscenza RAG. L’attuale alpha tecnica analizza file TXT,
-Markdown, PDF testuali e DOCX, producendo report da terminale, JSON o HTML autonomi.
+e qualità dei contenuti nelle fonti di conoscenza RAG. L’attuale alpha tecnica analizza Markdown,
+TXT, HTML, PDF testuali, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML e log,
+producendo report da terminale, JSON o HTML autonomi.
 
 L’attuale pipeline statica non trasmette documenti a servizi remoti, non richiede un LLM, non usa
 telemetria, non segue link e non esegue mai i comandi rilevati.
@@ -22,7 +23,7 @@ telemetria, non segue link e non esegue mai i comandi rilevati.
 | Funzionalità | Stato alpha |
 |---|---|
 | Scansione di singoli file e cartelle locali | Disponibile |
-| TXT, Markdown, PDF testuali e DOCX | Disponibile |
+| Formati Markdown, testo, PDF, office, pubblicazione e testo strutturato elencati sopra | Disponibile |
 | Normalizzazione deterministica e mappatura delle fonti | Disponibile |
 | Chunking per struttura, paragrafo e finestra di token | Disponibile |
 | Regole statiche di sicurezza RAG versionate | Disponibile |
@@ -44,7 +45,8 @@ telemetria, non segue link e non esegue mai i comandi rilevati.
 | Host Service locale alla macchina con inizializzazione di un amministratore locale | Disponibile |
 | Scoperta metadata Docker, Podman, nerdctl, Finch, Kubernetes e localhost | Disponibile |
 | Connettore di contenuti knowledge OpenWebUI con consenso | Disponibile |
-| Scheduler e connettori di contenuti vector store | Non ancora disponibile |
+| Pianificazioni ricorrenti con cronologia delle esecuzioni separata | Disponibile nel dashboard |
+| Connettori di contenuti vector store | Non ancora disponibile |
 | Analisi report assistita da IA locale/remota per scansione | Disponibile e disattivata per impostazione predefinita |
 | CLI per scansioni attive degli endpoint | Non disponibile; solo contratti core |
 
@@ -110,8 +112,9 @@ richiede il consenso esplicito per quella scansione. Viene inviato solo un riepi
 redatto; documenti grezzi e prove dei rilievi restano locali. Un errore del provider non compromette
 il report deterministico.
 Nel dashboard, il rilevamento mostra tutti i modelli restituiti in un selettore dedicato. Le chiavi
-API remote possono restare nella memoria del processo Host Service attivo oppure essere indicate
-con `env:` per attività non presidiate. La pagina delle attività si aggiorna ogni due secondi,
+API inserite vengono archiviate fuori da SQLite in file protetti della macchina che sopravvivono ai
+normali aggiornamenti; i riferimenti `env:` restano disponibili per attività gestite non presidiate.
+La pagina delle attività si aggiorna ogni due secondi,
 separa l’avanzamento di scansione, IA e salvataggio e mostra log limitati di successo o errore con
 codici stabili, senza segreti né risposte grezze del provider.
 
@@ -369,8 +372,8 @@ La sequenza immediata è:
 1. Lavori rimanenti su recupero della persistenza e cronologia/confronto su scala API
 2. Connettori SharePoint, web, SaaS, Git, object store e vector store per capacità
 3. Compatibilità OpenWebUI, rilevamento incrementale, identità delle fonti e provider di secret
-4. Pianificazione, conservazione, job ricorrenti e localizzazione dell’interfaccia report
-5. Scheduler, conservazione e notifiche
+4. Verifica di accessibilità del dashboard e impostazioni dei connettori
+5. Pianificazione a calendario, conservazione e notifiche
 6. Rafforzamento di packaging e deployment
 
 Le funzionalità pianificate non sono mai presentate come disponibili. Consulta

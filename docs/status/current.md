@@ -44,7 +44,8 @@
 - Vendor-neutral `SourceConnector` and `TargetAdapter` ports with deterministic test fakes
 - Generic REST target adapter with declarative mapping and bounded transport safeguards
 - Versioned active security test library, response evaluation, and in-memory active runner
-- Root-confined filesystem connector for TXT, Markdown, PDF, and DOCX
+- Root-confined filesystem connector for Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB,
+  RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML, and log files
 - Bounded PDF and DOCX parsers with typed failure categories and remediation metadata, including a
   local text-only pypdf recovery pass for PDFs whose page structure PyMuPDF cannot read and safe,
   classified diagnostics when both local readers reject a PDF
@@ -64,21 +65,24 @@
 - Consent-gated, read-only OpenWebUI knowledge-file content connector with bounded pagination,
   response limits, HTTPS outside loopback, and external `env:` credential resolution
 - Guided OpenWebUI selection and immediate one-knowledge-base content scan after separate explicit
-  consent, using a process-memory-only API key and a central HTML report output
+  consent; dashboard-entered keys use protected owner-readable machine files while the terminal
+  guided flow keeps its one-shot key only in process memory
 - Minimal guided menu with only local file/folder and direct OpenWebUI API scan routes
 - Browser-tested local Jinja dashboard for scan posture, recent history, durable jobs, local and
   OpenWebUI enqueue, cancellation, retry, consented environment/knowledge-base discovery, and a
   one-job local worker action with same-origin CSRF protection
-- Full local product navigation for Sources, Jobs, Reports, and Settings; remembered non-secret
+- Full local product navigation for Sources, Jobs, Reports, and functional Settings; remembered non-secret
   source profiles; date/source report filtering; report detail; and coverage-aware comparison
+- Separate one-time execution history and persistent interval schedules, with latest-report health,
+  health-over-time visualization, readable public IDs, and safe job activity/error logs
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback
-- Secret-safe setup credential guidance in all dashboard languages, with advanced persistent
-  `env:VARIABLE_NAME` references, no submitted-value echo, and a connect-later state
-- Direct dashboard API-key entry for OpenWebUI setup, source creation, and inline scan-job
-  connection completion. Submitted keys remain only in Host Service process memory; source
-  profiles and durable jobs retain generated `env:` references, and the UI clearly distinguishes
+- Secret-safe setup credential guidance in all dashboard languages, with persistent `env:` or
+  owner-readable machine-file references, no submitted-value echo, and a connect-later state
+- Direct dashboard API-key entry for OpenWebUI setup, source creation, inline scan-job connection,
+  and default AI settings. Submitted keys are stored outside SQLite in owner-readable machine files;
+  source profiles and durable jobs retain only opaque references, and the UI clearly distinguishes
   scan-ready connectors from metadata-only detected environments
 - Simplified Sources and Scan jobs workflows with known-platform defaults, an explicit Custom
   option, selectable incomplete sources, connection testing, and knowledge-base loading in the
@@ -94,7 +98,9 @@
   bounded redacted finding summary. Validated advisory output is shown in dashboard/exports, while
   provider failure preserves the authoritative deterministic report
 - Live two-second dashboard job updates, AI-stage lease heartbeats and progress, complete detected
-  model selection, process-memory AI API-key entry, and secret-safe success/failure activity codes
+  model selection, update-safe machine credential files, and secret-safe success/failure activity codes
+- Stable `RAGSCN-`, `RAGREP-`, and `RAGSCH-` display identifiers, recurring interval schedules,
+  source duplicate rejection, localized timestamps, detailed report navigation, and health history
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage
 - pytest, Ruff, strict mypy, and GitHub Actions
 
@@ -102,7 +108,7 @@
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
 Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, broader source connectors, incremental OpenWebUI
-synchronization, remembered per-source content consent, filesystem watch, scheduler, configurable
+synchronization, remembered per-source content consent, filesystem watch, cron/calendar schedules, configurable
 retention, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.
 
@@ -116,7 +122,7 @@ Domain models do not perform scans and contain no network, filesystem, database,
 1. Complete persistence concurrency/recovery hardening and history/comparison filter/scale acceptance.
 2. Define capability-tiered SharePoint, web/sitemap, SaaS knowledge, Git, object-store, vector-store,
    and generic RAG-environment connectors.
-3. Add scheduling, retention, recurring jobs, and report-localization surfaces.
+3. Extend interval scheduling with calendar rules, retention, and deeper report-content localization.
 4. Resolve OpenWebUI compatibility, change detection, source identity, and broader secret providers.
 
 ## Next scoped issue

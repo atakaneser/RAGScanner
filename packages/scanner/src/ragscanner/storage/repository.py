@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import Integer, cast, delete, func, insert, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ragscanner.domain.helpers import contains_unreferenced_secret
@@ -41,9 +41,13 @@ class SQLiteScanHistoryRepository:
             ).scalar_one_or_none()
             if existing is not None:
                 return str(existing)
+            sequence = connection.execute(
+                select(func.max(cast(func.substr(scans.c.display_id, 9), Integer)))
+            ).scalar_one_or_none()
             connection.execute(
                 insert(scans).values(
                     id=history_id,
+                    display_id=f"RAGREP-{(sequence or 0) + 1:04d}",
                     scan_id=scan_id,
                     scan_type=str(report.scan["type"]),
                     status=str(report.scan["status"]),
@@ -114,6 +118,7 @@ class SQLiteScanHistoryRepository:
             count_query = select(func.count()).select_from(scans)
             rows_query = select(
                 scans.c.id,
+                scans.c.display_id,
                 scans.c.scan_id,
                 scans.c.scan_type,
                 scans.c.status,
@@ -137,6 +142,7 @@ class SQLiteScanHistoryRepository:
             items = [
                 ScanHistorySummary(
                     history_id=row["id"],
+                    display_id=row["display_id"],
                     scan_id=row["scan_id"],
                     scan_type=row["scan_type"],
                     status=row["status"],

@@ -6,8 +6,9 @@
 [简体中文](README.zh-CN.md) · [Italiano](README.it.md)
 
 RAGScanner, RAG bilgi kaynaklarındaki güvenlik ve içerik kalitesi risklerini incelemek için ücretsiz,
-açık kaynaklı ve önce yerel çalışan bir araçtır. Mevcut teknik alfa; TXT, Markdown, metin tabanlı PDF
-ve DOCX dosyalarını tarar, ardından terminal, JSON veya bağımsız HTML raporları üretir.
+açık kaynaklı ve önce yerel çalışan bir araçtır. Mevcut teknik alfa; Markdown, TXT, HTML, metin tabanlı PDF,
+DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML ve log dosyalarını tarar;
+ardından terminal, JSON veya bağımsız HTML raporları üretir.
 
 Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirmez, telemetri
 çalıştırmaz, bağlantıları takip etmez ve tespit edilen komutları hiçbir zaman yürütmez.
@@ -22,7 +23,7 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Yetenek | Alfa durumu |
 |---|---|
 | Tek yerel dosya ve klasör taramaları | Mevcut |
-| TXT, Markdown, metin tabanlı PDF ve DOCX | Mevcut |
+| Yukarıda listelenen Markdown, metin, PDF, ofis, yayın ve yapılandırılmış metin türleri | Mevcut |
 | Deterministik normalizasyon ve kaynak eşleme | Mevcut |
 | Yapı, paragraf ve token penceresi chunking | Mevcut |
 | Sürümlendirilmiş statik RAG güvenlik kuralları | Mevcut |
@@ -44,7 +45,8 @@ Mevcut statik işlem hattı belgeleri uzak servislere göndermez, LLM gerektirme
 | Yerel yönetici ilk kurulumu olan makine-geneli Host Service | Mevcut |
 | Docker, Podman, nerdctl, Finch, Kubernetes ve localhost metadata keşfi | Mevcut |
 | Açık onaylı OpenWebUI bilgi tabanı içerik connector’ı | Mevcut |
-| Scheduler ve vector store içerik connector’ları | Henüz mevcut değil |
+| Ayrı çalıştırma geçmişi olan periyodik tarama planları | Dashboard’da mevcut |
+| Vector store içerik connector’ları | Henüz mevcut değil |
 | Tarama başına yerel/uzak AI destekli rapor analizi | Mevcut ve varsayılan olarak kapalı |
 | Aktif endpoint tarama CLI’ı | Mevcut değil; yalnızca core sözleşmeleri var |
 
@@ -107,8 +109,9 @@ Google Gemini, Groq, Mistral AI, Together AI ve özel OpenAI uyumlu uç noktalar
 olarak kapalıdır; uzak kullanım tarama başına açık onay gerektirir. Yalnızca sınırlandırılmış ve
 maskelenmiş rapor özeti gönderilir; ham belgeler ve bulgu kanıtları gönderilmez. Sağlayıcı hatası
 deterministik raporu geçersiz kılmaz.
-Dashboard'da model keşfi dönen tüm modelleri ayrı bir seçim alanında gösterir. Uzak API anahtarları
-çalışan Host Service belleğine verilebilir veya gözetimsiz kullanım için `env:` ile referanslanabilir.
+Dashboard'da model keşfi dönen tüm modelleri ayrı bir seçim alanında gösterir. Dashboard'a girilen
+API anahtarları SQLite dışında, normal güncellemelerde korunan güvenli makine dosyalarında saklanır;
+yönetilen gözetimsiz kullanım için `env:` referansları da kullanılabilir.
 İşler sayfası iki saniyede bir güncellenir; tarama, AI ve kaydetme ilerlemesini ayırır ve gizli
 değerlerle ham sağlayıcı yanıtlarını dışarıda bırakan kararlı hata kodlu başarı/başarısızlık logları
 gösterir.
@@ -367,8 +370,8 @@ Yakın dönem sıralaması şöyledir:
 1. Kalan kalıcılık kurtarma ve API ölçeğinde geçmiş/karşılaştırma işleri
 2. Yetenek katmanlı SharePoint, web, SaaS, Git, object store ve vector connector’ları
 3. OpenWebUI uyumluluğu, artımlı değişiklik algılama, kaynak kimliği ve secret sağlayıcıları
-4. Zamanlama, saklama politikası, yinelenen işler ve rapor arayüzü yerelleştirmesi
-5. Scheduler, saklama ve bildirimler
+4. Dashboard erişilebilirlik kabulü ve connector ayarları
+5. Takvim tabanlı zamanlama, saklama ve bildirimler
 6. Paketleme ve dağıtım sağlamlaştırması
 
 Planlanan özellikler hiçbir zaman mevcutmuş gibi sunulmaz. Ayrıntılar için

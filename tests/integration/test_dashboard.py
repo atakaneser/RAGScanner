@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 from ragscanner.api import create_app
-from ragscanner.application import JobApplicationService
+from ragscanner.application import JobApplicationService, resolve_secret_reference
 from ragscanner.jobs import JobStatus
 from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
 from ragscanner.storage import SQLiteJobRepository
@@ -72,11 +72,13 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert '"Overview": "Panoramica"' in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303
-    assert queued.headers["location"] == "/?notice=scan-queued"
+    assert queued.headers["location"] == "/jobs?notice=scan-queued"
     assert executed.status_code == 303
     assert executed.headers["location"] == "/?notice=job-completed"
     assert source.name in refreshed.text
     assert "completed" in refreshed.text
+    assert 'class="recent-job-list"' in refreshed.text
+    assert 'class="recent-job-card"' in refreshed.text
 
 
 @pytest.mark.anyio
@@ -239,7 +241,9 @@ async def test_dashboard_lists_every_detected_ai_model_and_keeps_direct_key_out_
 
     try:
         assert discovered.json() == {"models": ["model-a", "model-b", "model-c"]}
-        assert captured["config"].credential_ref.startswith("env:RAGSCANNER_AI_")
+        assert captured["config"].credential_ref.startswith("file-secret:")
+        with pytest.raises(ValueError, match="unavailable"):
+            resolve_secret_reference(captured["config"].credential_ref)
         assert "data-ai-model-results" in dashboard.text
         assert queued.status_code == 303
         repository = SQLiteJobRepository(database)
@@ -248,7 +252,8 @@ async def test_dashboard_lists_every_detected_ai_model_and_keeps_direct_key_out_
         finally:
             repository.close()
         reference = job.payload["ai"]["credential_ref"]
-        assert reference.startswith("env:RAGSCANNER_AI_")
+        assert reference.startswith("file-secret:")
+        assert resolve_secret_reference(reference) == "synthetic-dashboard-ai-key"
         assert "synthetic-dashboard-ai-key" not in job.model_dump_json()
         assert b"synthetic-dashboard-ai-key" not in database.read_bytes()
     finally:
@@ -340,14 +345,17 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert "Local OpenWebUI" in sources.text
     assert "Local OpenWebUI · API key needed" in refreshed_overview.text
     assert "Select exactly two reports" in reports.text
+    assert "RAGREP-0001" in reports.text
+    assert "<td><strong>Knowledge</strong></td>" in reports.text
     assert "Finding a" in detail.text
+    assert 'class="finding" open' in detail.text
     assert "Report comparison" in comparison.text
     assert "A scan job tells RAGScanner what source to scan" in jobs.text
     assert "versioned SQLite snapshots" in settings.text
 
 
 @pytest.mark.anyio
-async def test_dashboard_accepts_api_key_without_persisting_it_and_unblocks_source(
+async def test_dashboard_accepts_api_key_without_persisting_plaintext_and_unblocks_source(
     tmp_path: Path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     database = tmp_path / "history.sqlite3"
@@ -404,8 +412,91 @@ async def test_dashboard_accepts_api_key_without_persisting_it_and_unblocks_sour
     assert connected.status_code == 200
     assert connected.json()["knowledge_bases"][0]["id"] == "kb-1"
     assert profile is not None
-    assert profile.credential_ref == f"env:RAGSCANNER_SOURCE_{profile.id.upper()}_API_KEY"
+    assert profile.credential_ref is not None
+    assert profile.credential_ref.startswith("file-secret:")
+    assert resolve_secret_reference(profile.credential_ref) == "synthetic-dashboard-secret"
     assert "synthetic-dashboard-secret" not in database.read_bytes().decode(
         "utf-8", errors="ignore"
     )
     monkeypatch.delenv(profile.credential_ref.removeprefix("env:"), raising=False)
+
+
+@pytest.mark.anyio
+async def test_dashboard_settings_persist_language_and_machine_ai_credential(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        page = await client.get("/settings")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text)
+        assert csrf is not None
+        saved = await client.post(
+            "/dashboard/settings",
+            data={
+                "csrf_token": csrf.group(1),
+                "locale": "tr",
+                "timezone": "local",
+                "report_detail": "detailed",
+                "rows_per_page": "25",
+                "ai_provider": "openrouter",
+                "ai_model": "model-a",
+                "ai_base_url": "https://openrouter.ai/api",
+                "ai_api_key": "synthetic-persistent-ai-key",
+                "ai_remote_consent": "true",
+            },
+        )
+
+    from ragscanner.storage import SQLiteSourceProfileRepository
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        settings = repository.dashboard_settings()
+    finally:
+        repository.close()
+    assert saved.status_code == 303
+    assert "ragscanner_locale=tr" in saved.headers["set-cookie"]
+    assert settings.locale == "tr"
+    assert settings.ai_credential_ref is not None
+    assert resolve_secret_reference(settings.ai_credential_ref) == "synthetic-persistent-ai-key"
+    assert b"synthetic-persistent-ai-key" not in database.read_bytes()
+
+
+@pytest.mark.anyio
+async def test_dashboard_creates_recurring_scan_separately_from_job_history(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Scheduled source", encoding="utf-8")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        page = await client.get("/jobs")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text)
+        request_id = re.search(r'name="idempotency_key" value="([^"]+)"', page.text)
+        assert csrf is not None and request_id is not None
+        saved = await client.post(
+            "/dashboard/scans/local",
+            data={
+                "csrf_token": csrf.group(1),
+                "idempotency_key": request_id.group(1),
+                "path": str(source),
+                "source_name": "Support knowledge",
+                "scan_consent": "true",
+                "execution_mode": "scheduled",
+                "schedule_name": "Daily support health",
+                "interval_minutes": "1440",
+            },
+        )
+        refreshed = await client.get("/jobs")
+
+    assert saved.headers["location"] == "/jobs?notice=schedule-saved"
+    assert "Daily support health" in refreshed.text
+    assert "RAGSCH-0001" in refreshed.text
+    assert "RAGSCN-" not in refreshed.text

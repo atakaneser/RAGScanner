@@ -11,7 +11,7 @@ subscription, entitlement, or commercial package decision.
 | OD-005 | Health score formula, critical-security cap, coverage, and calibration | RS-017 |
 | OD-006 | RAG Rot baseline/window and missing-data behavior | RS-027 |
 | OD-007 | **Resolved:** SQLAlchemy Core plus packaged Alembic migrations; see ADR-0019 | — |
-| OD-008 | **Resolved:** SQLite durable queue, one worker, and APScheduler; see ADR-0007/0021 | — |
+| OD-008 | **Resolved:** SQLite durable queue, one worker, and an idempotent interval materializer; see ADR-0007/0021/0034 | — |
 | OD-009 | Optional multi-user authentication/session model; initial local API-key/CSRF composition is resolved by ADR-0022 | RS-030 |
 | OD-010 | Connector secret references, encryption, and key rotation | Connectors |
 | OD-011 | Evidence/artifact retention, deletion, and optional object storage | Monitoring/privacy |

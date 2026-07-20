@@ -19,6 +19,7 @@ from ragscanner.domain import (
 )
 from ragscanner.normalization import NormalizationConfig
 from ragscanner.parsers import DocxParserConfig, ParserWarning, PdfParserConfig
+from ragscanner.pipeline.registry import DEFAULT_DOCUMENT_PATTERNS, SUPPORTED_DOCUMENT_EXTENSIONS
 from ragscanner.quality import (
     ChunkQualityConfig,
     DuplicateGroup,
@@ -91,13 +92,9 @@ class StaticPipelineConfig(BaseModel):
 
     source_path: Path
     recursive: bool = True
-    include_patterns: list[str] = Field(
-        default_factory=lambda: ["*.txt", "*.md", "*.markdown", "*.pdf", "*.docx"]
-    )
+    include_patterns: list[str] = Field(default_factory=lambda: list(DEFAULT_DOCUMENT_PATTERNS))
     exclude_patterns: list[str] = Field(default_factory=lambda: [".git/**", "**/.git/**"])
-    allowed_extensions: set[str] = Field(
-        default_factory=lambda: {".txt", ".md", ".markdown", ".pdf", ".docx"}
-    )
+    allowed_extensions: set[str] = Field(default_factory=lambda: set(SUPPORTED_DOCUMENT_EXTENSIONS))
     maximum_file_size: int = Field(default=25 * 1024 * 1024, gt=0)
     maximum_discovered_files: int = Field(default=10_000, gt=0)
     pdf: PdfParserConfig = Field(default_factory=PdfParserConfig)
@@ -126,7 +123,7 @@ class StaticPipelineConfig(BaseModel):
     @field_validator("allowed_extensions")
     @classmethod
     def normalize_extensions(cls, value: set[str]) -> set[str]:
-        supported = {".txt", ".md", ".markdown", ".pdf", ".docx"}
+        supported = SUPPORTED_DOCUMENT_EXTENSIONS
         normalized = {
             item.casefold() if item.startswith(".") else f".{item.casefold()}" for item in value
         }

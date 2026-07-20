@@ -20,7 +20,9 @@ def _safe(value: str, limit: int = 700) -> str:
     return truncate_text(mask_secret_like_values(value), limit)
 
 
-def build_analysis_request(report: ReportDocument) -> AnalysisRequest:
+def build_analysis_request(
+    report: ReportDocument, *, output_language: str = "en"
+) -> AnalysisRequest:
     """Return a no-evidence summary so providers never receive raw document content."""
 
     findings = report.findings[:25]
@@ -52,7 +54,9 @@ def build_analysis_request(report: ReportDocument) -> AnalysisRequest:
                 "Prioritize actions by severity, blast radius, and remediation dependency.",
                 "Ask questions only when the findings leave a material decision gap.",
                 "Provide verification steps that do not assume unavailable tools.",
+                f"Write every generated narrative field in locale {output_language}.",
             ],
+            "output_language": output_language,
         },
     )
 
@@ -68,6 +72,8 @@ async def enrich_report(
     if not config.enabled:
         return report
     provider = provider_factory(config)
-    result: Awaitable[AIReportAnalysis] = provider.analyze(build_analysis_request(report))
+    result: Awaitable[AIReportAnalysis] = provider.analyze(
+        build_analysis_request(report, output_language=config.output_language)
+    )
     analysis = await result
     return report.model_copy(update={"ai_analysis": analysis, "ai_analysis_error": None})

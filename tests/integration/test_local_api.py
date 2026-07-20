@@ -1,4 +1,3 @@
-import os
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -7,6 +6,7 @@ import httpx
 import pytest
 from ragscanner.api import API_VERSION, create_app
 from ragscanner.api.auth import SlidingWindowRateLimiter
+from ragscanner.application import resolve_secret_reference
 from ragscanner.storage import SQLiteScanHistoryRepository, SQLiteSourceProfileRepository
 from ragscanner.storage.schema import scans
 from sqlalchemy import update
@@ -277,8 +277,8 @@ async def test_host_setup_rejects_raw_api_key_without_echoing_or_persisting_it(
 
 
 @pytest.mark.anyio
-async def test_host_setup_accepts_api_key_in_memory_without_persisting_it(
-    tmp_path: Path, monkeypatch
+async def test_host_setup_persists_api_key_outside_sqlite(
+    tmp_path: Path,
 ) -> None:  # type: ignore[no-untyped-def]
     database = tmp_path / "history.sqlite3"
     submitted_value = "synthetic-setup-api-key"
@@ -311,10 +311,10 @@ async def test_host_setup_accepts_api_key_in_memory_without_persisting_it(
         repository.close()
 
     assert response.status_code == 303
-    assert profile.credential_ref == f"env:RAGSCANNER_SOURCE_{profile.id.upper()}_API_KEY"
+    assert profile.credential_ref is not None
+    assert profile.credential_ref.startswith("file-secret:")
     assert submitted_value.encode() not in database.read_bytes()
-    assert os.environ[profile.credential_ref.removeprefix("env:")] == submitted_value
-    monkeypatch.delenv(profile.credential_ref.removeprefix("env:"), raising=False)
+    assert resolve_secret_reference(profile.credential_ref) == submitted_value
 
 
 @pytest.mark.anyio

@@ -12,6 +12,7 @@ from ragscanner.parsers.docx import (
     DocxParserErrorCategory,
 )
 from ragscanner.parsers.markdown import MarkdownParser
+from ragscanner.parsers.office_archive import OFFICE_ARCHIVE_MIME_TYPES, OfficeArchiveParser
 from ragscanner.parsers.pdf import (
     PAGE_SEPARATOR,
     PdfParser,
@@ -24,6 +25,7 @@ from ragscanner.parsers.text import PlainTextParser
 __all__ = [
     "BLOCK_SEPARATOR",
     "DOCX_MIME",
+    "OFFICE_ARCHIVE_MIME_TYPES",
     "PAGE_SEPARATOR",
     "DocumentParser",
     "DocxBlock",
@@ -33,6 +35,7 @@ __all__ = [
     "DocxParserError",
     "DocxParserErrorCategory",
     "MarkdownParser",
+    "OfficeArchiveParser",
     "ParserResult",
     "ParserWarning",
     "PdfParser",

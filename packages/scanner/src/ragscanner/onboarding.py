@@ -13,7 +13,29 @@ import httpx
 
 from ragscanner.domain.helpers import mask_secret_like_values, normalize_control_characters
 
-SUPPORTED_LOCAL_EXTENSIONS = frozenset({".txt", ".md", ".markdown", ".pdf", ".docx"})
+SUPPORTED_LOCAL_EXTENSIONS = frozenset(
+    {
+        ".txt",
+        ".md",
+        ".markdown",
+        ".pdf",
+        ".docx",
+        ".pptx",
+        ".xlsx",
+        ".odt",
+        ".epub",
+        ".rst",
+        ".adoc",
+        ".csv",
+        ".tsv",
+        ".json",
+        ".jsonl",
+        ".yaml",
+        ".yml",
+        ".xml",
+        ".log",
+    }
+)
 RAG_SOURCE_DIRECTORY_NAMES = (
     "knowledge-base",
     "knowledge_base",

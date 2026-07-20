@@ -121,6 +121,42 @@ def test_openai_compatible_adds_local_provenance(report, finding, monkeypatch) -
     assert "AI analysis" in HtmlReporter().render(enriched)
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        '```json\n{"executive_summary":"Review now.","finding_ids":[]}\n```',
+        '{"analysis":{"summary":"Review now.","priorityActions":"Fix it",'
+        '"findingIds":[]}} trailing prose',
+    ],
+)
+def test_provider_recovers_common_structured_output_formatting_drift(
+    report, monkeypatch, content
+) -> None:
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+
+    async def fake_post(*_args, **_kwargs):
+        return {"choices": [{"message": {"content": content}}]}
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    analysis = asyncio.run(adapter.analyze(build_analysis_request(report("scan-a"))))
+
+    assert analysis.executive_summary == "Review now."
+    if "priorityActions" in content:
+        assert analysis.priority_actions == ["Fix it"]
+
+
+def test_provider_still_rejects_non_json_analysis(report, monkeypatch) -> None:
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+
+    async def fake_post(*_args, **_kwargs):
+        return {"choices": [{"message": {"content": "not structured output"}}]}
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    with pytest.raises(ModelProviderError) as captured:
+        asyncio.run(adapter.analyze(build_analysis_request(report("scan-a"))))
+    assert captured.value.code == "ai_output_invalid"
+
+
 def test_provider_http_failure_has_safe_stable_code(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     response = httpx.Response(
         401,

@@ -7,8 +7,8 @@
 
 RAGScanner ist ein kostenloses, quelloffenes und lokal ausgerichtetes Werkzeug zur Prüfung von
 Sicherheits- und Inhaltsqualitätsrisiken in RAG-Wissensquellen. Die aktuelle technische Alpha scannt
-TXT-, Markdown-, textbasierte PDF- und DOCX-Dateien und erstellt Terminal-, JSON- oder eigenständige
-HTML-Berichte.
+Markdown-, TXT-, HTML-, textbasierte PDF-, DOCX-, PPTX-, XLSX-, ODT-, EPUB-, RST-, AsciiDoc-, CSV/TSV-,
+JSON/JSONL-, YAML-, XML- und Protokolldateien und erstellt Terminal-, JSON- oder eigenständige HTML-Berichte.
 
 Die aktuelle statische Pipeline überträgt keine Dokumente an entfernte Dienste, benötigt kein LLM,
 verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niemals aus.
@@ -23,7 +23,7 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Funktion | Alpha-Status |
 |---|---|
 | Scans einzelner lokaler Dateien und Ordner | Verfügbar |
-| TXT, Markdown, textbasierte PDF und DOCX | Verfügbar |
+| Oben aufgeführte Markdown-, Text-, PDF-, Office-, Publikations- und strukturierte Textformate | Verfügbar |
 | Deterministische Normalisierung und Quellenzuordnung | Verfügbar |
 | Struktur-, Absatz- und Tokenfenster-Chunking | Verfügbar |
 | Versionierte statische RAG-Sicherheitsregeln | Verfügbar |
@@ -45,7 +45,8 @@ verwendet keine Telemetrie, folgt keinen Links und führt erkannte Befehle niema
 | Maschinenlokaler Host Service mit lokaler Administrator-Ersteinrichtung | Verfügbar |
 | Metadatenerkennung für Docker, Podman, nerdctl, Finch, Kubernetes und localhost | Verfügbar |
 | Zustimmungsbasierter OpenWebUI-Wissensinhaltskonnektor | Verfügbar |
-| Scheduler und Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
+| Wiederkehrende Scan-Zeitpläne mit getrenntem Ausführungsverlauf | Im Dashboard verfügbar |
+| Vektorspeicher-Inhaltskonnektoren | Noch nicht verfügbar |
 | Lokale/entfernte KI-gestützte Berichtsanalyse pro Scan | Verfügbar und standardmäßig aus |
 | CLI für aktive Endpoint-Scans | Nicht verfügbar; nur Core-Verträge |
 
@@ -112,8 +113,9 @@ ausdrückliche Zustimmung für diesen Scan. Nur eine begrenzte, redigierte Beric
 wird übertragen; Rohdokumente und Befundnachweise bleiben lokal. Anbieterfehler beeinträchtigen den
 deterministischen Bericht nicht.
 Im Dashboard zeigt die Modellerkennung alle zurückgegebenen Modelle in einer eigenen Auswahl.
-Externe API-Schlüssel können im Speicher des laufenden Host Service bereitgestellt oder für
-unbeaufsichtigte Nutzung per `env:` referenziert werden. Die Auftragsseite aktualisiert sich alle
+Dort eingegebene API-Schlüssel werden außerhalb von SQLite in geschützten Rechnerdateien gespeichert,
+die normale Aktualisierungen überstehen; für verwaltete unbeaufsichtigte Nutzung bleiben `env:`-
+Referenzen verfügbar. Die Auftragsseite aktualisiert sich alle
 zwei Sekunden, trennt Scan-, KI- und Speicherfortschritt und zeigt begrenzte Erfolgs- oder
 Fehlerprotokolle mit stabilen Codes; Geheimnisse und rohe Anbieterantworten bleiben ausgeschlossen.
 
@@ -372,8 +374,8 @@ Die unmittelbare Reihenfolge lautet:
 1. Verbleibende Wiederherstellung der Persistenz und Verlauf/Vergleich im API-Maßstab
 2. Fähigkeitsgestufte SharePoint-, Web-, SaaS-, Git-, Objektspeicher- und Vektorkonnektoren
 3. OpenWebUI-Kompatibilität, inkrementelle Änderungserkennung, Quellenidentität und Secret-Anbieter
-4. Planung, Aufbewahrung, wiederkehrende Jobs und Lokalisierung der Berichtsoberfläche
-5. Scheduler, Aufbewahrung und Benachrichtigungen
+4. Barrierefreiheitsabnahme des Dashboards und Connector-Einstellungen
+5. Kalenderplanung, Aufbewahrung und Benachrichtigungen
 6. Härtung von Paketierung und Bereitstellung
 
 Geplante Funktionen werden niemals als verfügbar dargestellt. Details stehen in

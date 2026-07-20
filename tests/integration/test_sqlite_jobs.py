@@ -20,6 +20,7 @@ def test_enqueue_is_idempotent_and_preserves_only_secret_references(tmp_path) ->
         second = repository.enqueue(request)
 
         assert first.id == second.id
+        assert first.display_id == "RAGSCN-0001"
         assert repository.list().total == 1
         assert second.payload["credential_ref"] == "env:SYNTHETIC_TOKEN"
     finally:
