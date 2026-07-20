@@ -32,6 +32,7 @@ class AIProviderConfig(BaseModel):
     base_url: str | None = Field(default=None, max_length=2048)
     credential_ref: str | None = Field(default=None, max_length=500)
     remote_consent: bool = False
+    output_language: str = Field(default="en", pattern=r"^(en|tr|de|fr|zh-CN|it)$")
 
     @model_validator(mode="after")
     def validate_selection(self) -> "AIProviderConfig":

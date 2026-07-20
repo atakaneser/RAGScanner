@@ -56,11 +56,15 @@
     if (kind === "filesystem") {
       const localPath = document.querySelector("[data-local-path]");
       if (localPath) localPath.value = option.dataset.location || "";
+      const sourceName = document.querySelector('form[data-form="local"] input[name="source_name"]');
+      if (sourceName) sourceName.value = option.textContent?.replace(/ · .+$/, "") || "";
     } else {
       const url = document.querySelector("[data-openwebui-url]");
       const reference = document.querySelector('form[data-form="openwebui"] input[name="credential_ref"]');
       if (url) url.value = option.dataset.location || "";
       if (reference) reference.value = option.dataset.credential || "";
+      const sourceName = document.querySelector("[data-selected-source-name]");
+      if (sourceName) sourceName.value = option.textContent?.replace(/ · .+$/, "") || "";
     }
   });
   document.querySelectorAll("[data-connect-profile]").forEach((button) => button.addEventListener("click", () => {
@@ -249,6 +253,7 @@
         const models = payload.models || [];
         modelList?.replaceChildren(...models.map((name) => new Option(name, name)));
         modelResults?.replaceChildren(new Option(t("Choose a detected model"), ""), ...models.map((name) => new Option(name, name)));
+        if (modelResults) modelResults.size = Math.min(Math.max(models.length + 1, 2), 7);
         modelResultsRow?.classList.toggle("hidden", models.length === 0);
         loadModels.textContent = payload.models?.length ? `${payload.models.length} ${t("model(s) found")}` : t("No models found");
       } catch (error) {
@@ -283,10 +288,10 @@
       const article = document.createElement("article"); article.className = `job-log job-log-${log.level}`; article.dataset.jobLog = log.job_id;
       const heading = document.createElement("div");
       const code = document.createElement("strong"); code.textContent = log.code;
-      const id = document.createElement("code"); id.textContent = log.job_id.slice(0, 12);
+      const id = document.createElement("code"); id.textContent = log.display_id || log.job_id.slice(0, 12);
       heading.append(code, id);
       const message = document.createElement("p"); message.textContent = t(log.message);
-      const time = document.createElement("time"); time.textContent = log.timestamp;
+      const time = document.createElement("time"); time.dateTime = log.timestamp; time.dataset.localTime = ""; time.textContent = window.ragscannerFormatTime?.(log.timestamp) || log.timestamp;
       article.append(heading, message, time);
       return article;
     }));
@@ -312,6 +317,16 @@
     }
   };
   if (liveStatus) window.setInterval(refreshJobs, 2000);
+
+  document.querySelectorAll(".scan-form").forEach((form) => {
+    const scheduleFields = form.querySelector("[data-schedule-fields]");
+    form.querySelectorAll("[data-execution-mode]").forEach((control) => control.addEventListener("change", () => {
+      const recurring = form.querySelector('[name="execution_mode"]:checked')?.value === "scheduled";
+      scheduleFields?.classList.toggle("hidden", !recurring);
+      scheduleFields?.querySelectorAll("input,select").forEach((field) => { field.disabled = !recurring; });
+    }));
+    scheduleFields?.querySelectorAll("input,select").forEach((field) => { field.disabled = true; });
+  });
 
   const compareForm = document.querySelector("[data-compare-form]");
   const choices = [...document.querySelectorAll("[data-report-choice]")];

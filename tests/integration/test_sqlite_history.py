@@ -19,7 +19,7 @@ def test_fresh_database_migrates_uses_wal_and_restrictive_permissions(tmp_path: 
             ).scalar_one()
             journal_mode = connection.execute(text("PRAGMA journal_mode")).scalar_one()
             foreign_keys = connection.execute(text("PRAGMA foreign_keys")).scalar_one()
-        assert revision == "0003_source_profiles"
+        assert revision == "0006_source_profile_kinds"
         assert journal_mode == "wal"
         assert foreign_keys == 1
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
@@ -68,6 +68,7 @@ def test_repository_saves_lists_reads_and_deletes_immutable_reports(
         page = repository.list(limit=1)
         assert page.total == 2
         assert len(page.items) == 1
+        assert page.items[0].display_id == "RAGREP-0002"
         assert page.items[0].finding_count == 1
         assert repository.get(first_history_id) == first
         assert repository.get("missing") is None

@@ -19,7 +19,11 @@ import uvicorn
 from ragscanner.api import create_app
 from ragscanner.application import DurableWorker, StaticScanApplicationService, StaticScanJobHandler
 from ragscanner.jobs import JobKind
-from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
+from ragscanner.storage import (
+    SQLiteJobRepository,
+    SQLiteScanHistoryRepository,
+    SQLiteScheduleRepository,
+)
 
 AGENT_LABEL = "RAGScanner Agent"
 SERVICE_NAME = "ragscanner-agent"
@@ -136,6 +140,7 @@ def run_agent(
     def work() -> None:
         jobs = SQLiteJobRepository(database_path)
         history = SQLiteScanHistoryRepository(database_path)
+        schedules = SQLiteScheduleRepository(database_path)
         try:
             worker = DurableWorker(
                 jobs,
@@ -144,9 +149,11 @@ def run_agent(
                 lease_duration=timedelta(seconds=30),
             )
             while not stop.is_set():
+                schedules.materialize_due(jobs)
                 if worker.run_once() is None:
                     stop.wait(poll_interval)
         finally:
+            schedules.close()
             history.close()
             jobs.close()
 

@@ -21,6 +21,7 @@ scans = Table(
     "scans",
     metadata,
     Column("id", String(160), primary_key=True),
+    Column("display_id", String(32), nullable=False),
     Column("scan_id", String(160), nullable=False),
     Column("scan_type", String(40), nullable=False),
     Column("status", String(40), nullable=False),
@@ -35,6 +36,7 @@ scans = Table(
     Column("created_at", String(40), nullable=False),
     CheckConstraint("length(report_sha256) = 64", name="ck_scans_report_sha256"),
     UniqueConstraint("report_sha256", name="uq_scans_report_sha256"),
+    UniqueConstraint("display_id", name="uq_scans_display_id"),
 )
 Index("ix_scans_created_at", scans.c.created_at)
 Index("ix_scans_scan_id", scans.c.scan_id)
@@ -71,6 +73,7 @@ jobs = Table(
     "jobs",
     metadata,
     Column("id", String(32), primary_key=True),
+    Column("display_id", String(32), nullable=False),
     Column("kind", String(40), nullable=False),
     Column("status", String(40), nullable=False),
     Column("payload_json", Text, nullable=False),
@@ -97,9 +100,28 @@ jobs = Table(
         name="ck_jobs_status",
     ),
     UniqueConstraint("kind", "idempotency_key", name="uq_jobs_kind_idempotency"),
+    UniqueConstraint("display_id", name="uq_jobs_display_id"),
 )
 Index("ix_jobs_claim", jobs.c.status, jobs.c.available_at, jobs.c.lease_expires_at)
 Index("ix_jobs_created_at", jobs.c.created_at)
+
+schedules = Table(
+    "schedules",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("display_id", String(32), nullable=False),
+    Column("name", String(160), nullable=False),
+    Column("payload_json", Text, nullable=False),
+    Column("interval_minutes", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False, default=True),
+    Column("created_at", String(40), nullable=False),
+    Column("updated_at", String(40), nullable=False),
+    Column("next_run_at", String(40), nullable=False),
+    Column("last_run_at", String(40)),
+    CheckConstraint("interval_minutes BETWEEN 15 AND 525600", name="ck_schedules_interval"),
+    UniqueConstraint("display_id", name="uq_schedules_display_id"),
+)
+Index("ix_schedules_due", schedules.c.enabled, schedules.c.next_run_at)
 
 source_profiles = Table(
     "source_profiles",
@@ -117,7 +139,8 @@ source_profiles = Table(
     Column("updated_at", String(40), nullable=False),
     CheckConstraint(
         "kind IN ('openwebui', 'filesystem', 'qdrant', 'chroma', 'weaviate', "
-        "'milvus', 'pgvector', 'generic')",
+        "'milvus', 'pgvector', 'elasticsearch', 'opensearch', 'pinecone', 'kubernetes', "
+        "'generic', 'custom')",
         name="ck_source_profiles_kind",
     ),
     CheckConstraint(

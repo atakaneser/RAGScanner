@@ -6,8 +6,9 @@
 [简体中文](README.zh-CN.md) · [Italiano](README.it.md)
 
 RAGScanner is a free, open-source, local-first tool for inspecting security and content-quality
-risks in RAG knowledge sources. The current technical alpha scans TXT, Markdown, text-based PDF,
-and DOCX files, then produces terminal, JSON, or standalone HTML reports.
+risks in RAG knowledge sources. The current technical alpha scans Markdown, TXT, HTML, text-based PDF,
+DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML, and log files, then
+produces terminal, JSON, or standalone HTML reports.
 
 The current static pipeline does not transmit documents to remote services, does not require an
 LLM, does not run telemetry, does not follow links, and never executes detected commands.
@@ -22,7 +23,7 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Capability | Alpha status |
 |---|---|
 | Single local file and folder scans | Available |
-| TXT, Markdown, text-based PDF, and DOCX | Available |
+| Markdown, text, PDF, office, publication, and structured-text formats listed above | Available |
 | Deterministic normalization and source mapping | Available |
 | Structure, paragraph, and token-window chunking | Available |
 | Versioned static RAG security rules | Available |
@@ -44,7 +45,8 @@ LLM, does not run telemetry, does not follow links, and never executes detected 
 | Machine-local Host Service, runtime, SQLite, and administrator bootstrap | Available |
 | Docker, Podman, nerdctl, Finch, Kubernetes, and localhost metadata discovery | Available |
 | Consent-gated OpenWebUI knowledge content connector | Available |
-| Scheduler and vector-store content connectors | Not available yet |
+| Recurring scan schedules with separate execution history | Available in the dashboard |
+| Vector-store content connectors | Not available yet |
 | Per-scan local/remote AI-assisted report analysis | Available and off by default |
 | Active endpoint scan CLI | Not available; core contracts only |
 
@@ -124,9 +126,10 @@ ragscanner scan ./knowledge-base --ai-provider openrouter \
 AI is off by default. Remote choices require explicit consent for that scan. Only bounded, redacted
 scores, coverage, and finding summaries are sent; raw documents and finding evidence are excluded.
 If a provider fails, the deterministic report remains complete and authoritative.
-In the dashboard, model discovery exposes every returned model in a dedicated selector. Remote API
-keys may be supplied for the running Host Service process or referenced with `env:` for unattended
-use. The Jobs page updates every two seconds, separates scan/AI/save progress, and shows bounded
+In the dashboard, model discovery exposes every returned model in a dedicated selector. API keys
+entered in the dashboard are stored outside SQLite in protected machine files that survive normal
+updates; `env:` references remain available for managed unattended use. The Jobs page updates every
+two seconds, separates scan/AI/save progress, and shows bounded
 success or failure logs with stable error codes; secrets and raw provider responses are excluded.
 
 Use quotes around paths containing spaces, parentheses, or other shell-sensitive characters.
@@ -384,7 +387,7 @@ The immediate sequence is:
 2. Capability-tiered SharePoint, web, SaaS, Git, object-store, and vector connectors
 3. OpenWebUI compatibility, incremental change detection, source identity, and secret providers
 4. Dashboard scan detail, comparison, connector settings, and accessibility acceptance
-5. Scheduler, retention, and notifications
+5. Calendar scheduling, retention, and notifications
 6. Packaging and deployment hardening
 
 Planned features are never presented as available. See [ROADMAP.md](ROADMAP.md) for details.

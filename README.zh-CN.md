@@ -6,8 +6,8 @@
 **简体中文** · [Italiano](README.it.md)
 
 RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG 知识源中的安全和内容质量风险。
-当前技术 Alpha 版本可扫描 TXT、Markdown、基于文本的 PDF 和 DOCX 文件，并生成终端、JSON 或
-独立 HTML 报告。
+当前技术 Alpha 版本可扫描 Markdown、TXT、HTML、基于文本的 PDF、DOCX、PPTX、XLSX、ODT、EPUB、
+RST、AsciiDoc、CSV/TSV、JSON/JSONL、YAML、XML 和日志文件，并生成终端、JSON 或独立 HTML 报告。
 
 当前静态流水线不会将文档传输到远程服务，不需要 LLM，不运行遥测，不跟踪链接，也绝不会执行
 检测到的命令。
@@ -21,7 +21,7 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 功能 | Alpha 状态 |
 |---|---|
 | 单个本地文件和文件夹扫描 | 可用 |
-| TXT、Markdown、基于文本的 PDF 和 DOCX | 可用 |
+| 上述 Markdown、文本、PDF、办公、出版和结构化文本格式 | 可用 |
 | 确定性规范化和源映射 | 可用 |
 | 结构、段落和令牌窗口分块 | 可用 |
 | 版本化静态 RAG 安全规则 | 可用 |
@@ -43,7 +43,8 @@ RAGScanner 是一个免费、开源、本地优先的工具，用于检查 RAG �
 | 具有本地管理员初始化的机器本地 Host Service | 可用 |
 | Docker、Podman、nerdctl、Finch、Kubernetes 和 localhost 元数据发现 | 可用 |
 | 经明确同意的 OpenWebUI 知识内容连接器 | 可用 |
-| 调度器和向量存储内容连接器 | 尚不可用 |
+| 带独立执行历史的定期扫描计划 | 可在 dashboard 使用 |
+| 向量存储内容连接器 | 尚不可用 |
 | 每次扫描可选的本地/远程 AI 辅助报告分析 | 可用，默认关闭 |
 | 主动端点扫描 CLI | 不可用；仅有核心契约 |
 
@@ -99,8 +100,9 @@ Ollama、LM Studio、LocalAI 和 vLLM；远程选项包括 OpenRouter、OpenAI�
 Anthropic、Google Gemini、Groq、Mistral AI、Together AI 以及自定义 OpenAI 兼容端点。
 AI 默认关闭；远程使用需要对该次扫描明确同意。系统只发送有界且已脱敏的报告摘要，
 不会发送原始文档或发现证据。提供方失败不会影响确定性报告。
-在 dashboard 中，模型发现会在专用选择器中显示提供方返回的全部模型。远程 API 密钥可以
-仅保存在当前 Host Service 进程内存中，也可以通过 `env:` 引用以支持无人值守任务。任务页面
+在 dashboard 中，模型发现会在专用选择器中显示提供方返回的全部模型。Dashboard 中输入的
+API 密钥存储在 SQLite 外部的受保护本机文件中，并在正常更新后保留；托管的无人值守任务仍可
+使用 `env:` 引用。任务页面
 每两秒更新一次，分别显示扫描、AI 和保存进度，并使用稳定错误码展示有界的成功或失败日志；
 其中不会包含密钥或提供方原始响应。
 
@@ -354,8 +356,8 @@ uv build
 1. 剩余的持久化恢复和 API 规模历史记录/比较工作
 2. 按能力分级的 SharePoint、Web、SaaS、Git、对象存储和向量连接器
 3. OpenWebUI 兼容性、增量变更检测、源身份和密钥提供程序
-4. 调度、保留策略、周期任务和报告界面本地化
-5. 调度器、保留策略和通知
+4. Dashboard 无障碍验收和连接器设置
+5. 日历调度、保留策略和通知
 6. 打包和部署加固
 
 计划中的功能绝不会被描述为已经可用。详情请参阅 [ROADMAP.md](ROADMAP.md)。

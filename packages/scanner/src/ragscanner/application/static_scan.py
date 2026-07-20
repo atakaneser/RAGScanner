@@ -28,6 +28,7 @@ from ragscanner.pipeline import (
 from ragscanner.providers import ModelProviderError, create_analysis_provider
 from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
 from ragscanner.reporting.models import ReportDocument
+from ragscanner.storage.machine_secrets import resolve_file_secret_reference
 
 AI_HEARTBEAT_SECONDS = 10.0
 
@@ -38,6 +39,8 @@ class StaticScanJobPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     source_kind: str = Field(default="local", pattern=r"^(local|openwebui)$")
+    execution_mode: str = Field(default="one_time", pattern=r"^(one_time|scheduled)$")
+    source_name: str | None = Field(default=None, min_length=1, max_length=160)
     path: str | None = Field(default=None, min_length=1, max_length=4096)
     config_path: str | None = Field(default=None, min_length=1, max_length=4096)
     openwebui_base_url: str | None = Field(default=None, max_length=2048)
@@ -102,6 +105,7 @@ class StaticScanApplicationService:
         config_path: Path | None = None,
         checkpoint: JobCheckpoint | None = None,
         ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         resolved_source = source_path.expanduser().resolve(strict=True)
         resolved_config = config_path.expanduser().resolve(strict=True) if config_path else None
@@ -110,7 +114,7 @@ class StaticScanApplicationService:
             resolved_source.is_file()
             and resolved_source.suffix.casefold() not in config.allowed_extensions
         ):
-            raise ValueError("single-file scan supports only TXT, Markdown, PDF, or DOCX")
+            raise ValueError("single-file scan uses the configured supported document extensions")
 
         pipeline_holder: dict[str, StaticScanPipeline] = {}
         sink = (
@@ -126,6 +130,8 @@ class StaticScanApplicationService:
             show_absolute_paths=not config.show_relative_paths,
             maximum_findings=config.maximum_findings,
         )
+        if source_name:
+            report = report.model_copy(update={"scan": {**report.scan, "source_name": source_name}})
         report = self._enrich_sync(report, ai_config or AIProviderConfig(), checkpoint)
         if checkpoint is not None:
             checkpoint(0.98)
@@ -143,6 +149,7 @@ class StaticScanApplicationService:
         content_consent: bool,
         checkpoint: JobCheckpoint | None = None,
         ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         api_key = resolve_secret_reference(credential_ref)
         connector = OpenWebUISourceConnector(
@@ -157,7 +164,11 @@ class StaticScanApplicationService:
         config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
         return asyncio.run(
             self._run_openwebui_connector(
-                config, connector, checkpoint=checkpoint, ai_config=ai_config or AIProviderConfig()
+                config,
+                connector,
+                checkpoint=checkpoint,
+                ai_config=ai_config or AIProviderConfig(),
+                source_name=source_name,
             )
         )
 
@@ -168,6 +179,7 @@ class StaticScanApplicationService:
         *,
         checkpoint: JobCheckpoint | None,
         ai_config: AIProviderConfig,
+        source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         try:
             pipeline_holder: dict[str, StaticScanPipeline] = {}
@@ -189,6 +201,10 @@ class StaticScanApplicationService:
                 show_absolute_paths=False,
                 maximum_findings=config.maximum_findings,
             )
+            if source_name:
+                report = report.model_copy(
+                    update={"scan": {**report.scan, "source_name": source_name}}
+                )
             report = await self._enrich_async(report, ai_config, checkpoint)
             if checkpoint is not None:
                 checkpoint(0.98)
@@ -291,6 +307,7 @@ class StaticScanJobHandler(JobHandler):
                 config_path=Path(payload.config_path) if payload.config_path else None,
                 checkpoint=checkpoint,
                 ai_config=payload.ai,
+                source_name=payload.source_name,
             )
         elif (
             payload.source_kind == "openwebui"
@@ -305,6 +322,7 @@ class StaticScanJobHandler(JobHandler):
                 content_consent=payload.content_consent,
                 checkpoint=checkpoint,
                 ai_config=payload.ai,
+                source_name=payload.source_name,
             )
         else:
             raise ValueError("Scan job source configuration is incomplete")
@@ -312,8 +330,10 @@ class StaticScanJobHandler(JobHandler):
 
 
 def resolve_secret_reference(reference: str) -> str:
+    if reference.startswith("file-secret:"):
+        return resolve_file_secret_reference(reference)
     if not reference.startswith("env:"):
-        raise ValueError("The worker currently resolves only env: credential references")
+        raise ValueError("The credential reference type is unsupported")
     name = reference.removeprefix("env:")
     if not name or name not in os.environ or not os.environ[name].strip():
         raise ValueError("The referenced credential environment variable is unavailable")

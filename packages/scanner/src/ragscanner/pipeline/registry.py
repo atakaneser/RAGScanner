@@ -4,14 +4,46 @@ from pathlib import Path
 
 from ragscanner.parsers import (
     DOCX_MIME,
+    OFFICE_ARCHIVE_MIME_TYPES,
     DocumentParser,
     DocxParser,
     DocxParserConfig,
     MarkdownParser,
+    OfficeArchiveParser,
     PdfParser,
     PdfParserConfig,
     PlainTextParser,
 )
+
+STRUCTURED_TEXT_MIME_TYPES = {
+    ".txt": "text/plain",
+    ".rst": "text/x-rst",
+    ".adoc": "text/asciidoc",
+    ".csv": "text/csv",
+    ".tsv": "text/tab-separated-values",
+    ".json": "application/json",
+    ".jsonl": "application/x-ndjson",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+    ".xml": "application/xml",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".log": "text/plain",
+}
+SUPPORTED_DOCUMENT_EXTENSIONS = frozenset(
+    {*STRUCTURED_TEXT_MIME_TYPES, ".md", ".markdown", ".pdf", ".docx", *OFFICE_ARCHIVE_MIME_TYPES}
+)
+DEFAULT_DOCUMENT_PATTERNS = tuple(
+    f"*{extension}" for extension in sorted(SUPPORTED_DOCUMENT_EXTENSIONS)
+)
+DOCUMENT_MIME_TYPES = {
+    **STRUCTURED_TEXT_MIME_TYPES,
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".pdf": "application/pdf",
+    ".docx": DOCX_MIME,
+    **OFFICE_ARCHIVE_MIME_TYPES,
+}
 
 
 class ParserRegistry:
@@ -50,7 +82,11 @@ class ParserRegistry:
         docx_config: DocxParserConfig | None = None,
     ) -> "ParserRegistry":
         registry = cls()
-        registry.register(PlainTextParser(), content_types=("text/plain",), extensions=(".txt",))
+        registry.register(
+            PlainTextParser(),
+            content_types=tuple(dict.fromkeys(STRUCTURED_TEXT_MIME_TYPES.values())),
+            extensions=tuple(STRUCTURED_TEXT_MIME_TYPES),
+        )
         registry.register(
             MarkdownParser(),
             content_types=("text/markdown",),
@@ -61,5 +97,11 @@ class ParserRegistry:
         )
         registry.register(
             DocxParser(docx_config), content_types=(DOCX_MIME,), extensions=(".docx",)
+        )
+        office = OfficeArchiveParser()
+        registry.register(
+            office,
+            content_types=tuple(OFFICE_ARCHIVE_MIME_TYPES.values()),
+            extensions=tuple(OFFICE_ARCHIVE_MIME_TYPES),
         )
         return registry

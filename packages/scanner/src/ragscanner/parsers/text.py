@@ -20,8 +20,7 @@ class PlainTextParser:
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def parse(self, source: SourceContent) -> ParserResult:
-        if source.item.mime_type != "text/plain" and source.content_type != "text/plain":
-            raise ValueError("plain-text parser requires text/plain content")
+        mime_type = source.content_type or source.item.mime_type or "text/plain"
         content, warnings = decode_source(source)
         normalized = normalize_newlines(content)
         document = build_document(
@@ -29,7 +28,7 @@ class PlainTextParser:
             content=content,
             normalized_content=normalized,
             title=None,
-            mime_type="text/plain",
+            mime_type=mime_type,
             metadata={"line_count": max(1, normalized.count("\n") + 1)},
             warnings=warnings,
             clock=self._clock(),

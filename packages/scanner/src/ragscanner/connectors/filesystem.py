@@ -38,6 +38,22 @@ MIME_TYPES = {
     ".markdown": "text/markdown",
     ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".odt": "application/vnd.oasis.opendocument.text",
+    ".epub": "application/epub+zip",
+    ".rst": "text/x-rst",
+    ".adoc": "text/asciidoc",
+    ".csv": "text/csv",
+    ".tsv": "text/tab-separated-values",
+    ".json": "application/json",
+    ".jsonl": "application/x-ndjson",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+    ".xml": "application/xml",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".log": "text/plain",
 }
 
 
@@ -53,7 +69,7 @@ class FilesystemSourceConfig(BaseModel):
     display_name: str = Field(default="Local filesystem", min_length=1)
     recursive: bool = True
     include_patterns: list[str] = Field(
-        default_factory=lambda: ["*.txt", "*.md", "*.markdown", "*.pdf", "*.docx"]
+        default_factory=lambda: [f"*{extension}" for extension in sorted(MIME_TYPES)]
     )
     exclude_patterns: list[str] = Field(default_factory=lambda: [".git/**", "**/.git/**"])
     follow_symlinks: bool = False
@@ -122,7 +138,7 @@ class LocalFilesystemConnector(SourceConnector):
             name="filesystem",
             source_type="filesystem",
             display_name=self.config.display_name,
-            description="Root-confined local TXT and Markdown source",
+            description="Root-confined local document source",
             capabilities=SourceCapabilities(
                 discover_documents=True,
                 read_document_content=True,

@@ -1,7 +1,13 @@
 from pathlib import Path
 
 import pytest
-from ragscanner.storage import SourceProfile, SQLiteSourceProfileRepository
+from ragscanner.application import resolve_secret_reference
+from ragscanner.storage import (
+    DuplicateSourceError,
+    MachineSecretStore,
+    SourceProfile,
+    SQLiteSourceProfileRepository,
+)
 
 
 def test_source_profiles_and_setup_preferences_are_durable_and_secret_free(tmp_path: Path) -> None:
@@ -55,3 +61,47 @@ def test_source_profile_accepts_only_well_formed_environment_references(referenc
             base_url="http://127.0.0.1:3000",
             credential_ref=reference,
         )
+
+
+def test_machine_secret_reference_survives_repository_restart_without_entering_sqlite(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    store = MachineSecretStore(tmp_path)
+    reference = store.save("source-synthetic", "synthetic-persisted-credential")
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        saved = repository.save(
+            SourceProfile(
+                name="Persistent OpenWebUI",
+                kind="openwebui",
+                base_url="http://127.0.0.1:3000",
+                credential_ref=reference,
+            )
+        )
+    finally:
+        repository.close()
+
+    reopened = SQLiteSourceProfileRepository(database)
+    try:
+        assert reopened.get(saved.id) is not None
+        assert resolve_secret_reference(reference) == "synthetic-persisted-credential"
+    finally:
+        reopened.close()
+
+    assert b"synthetic-persisted-credential" not in database.read_bytes()
+    assert store.delete(reference)
+
+
+def test_duplicate_source_locations_are_rejected_after_normalization(tmp_path: Path) -> None:
+    repository = SQLiteSourceProfileRepository(tmp_path / "history.sqlite3")
+    try:
+        repository.save(
+            SourceProfile(name="First", kind="openwebui", base_url="http://LOCALHOST:3000/")
+        )
+        with pytest.raises(DuplicateSourceError, match="already connected"):
+            repository.save(
+                SourceProfile(name="Second", kind="openwebui", base_url="http://localhost:3000")
+            )
+    finally:
+        repository.close()

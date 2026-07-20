@@ -59,6 +59,7 @@ class JobRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    display_id: str = Field(pattern=r"^RAGSCN-[0-9]{4,}$")
     kind: JobKind
     status: JobStatus
     payload: dict[str, Any]

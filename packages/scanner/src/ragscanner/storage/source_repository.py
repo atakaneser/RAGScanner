@@ -1,13 +1,17 @@
 """SQLite persistence for non-secret source profiles and local preferences."""
 
+import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
+from ragscanner.domain.helpers import is_secure_secret_reference
 from ragscanner.storage.database import create_sqlite_engine
 from ragscanner.storage.schema import app_settings, source_profiles
 
@@ -15,6 +19,10 @@ ENV_CREDENTIAL_REFERENCE_ERROR = (
     "Enter an environment-variable reference such as env:OPENWEBUI_API_KEY, not the API key "
     "itself. You can leave this field blank and connect the source later."
 )
+
+
+class DuplicateSourceError(ValueError):
+    """The same canonical source location is already remembered."""
 
 
 def normalize_env_credential_reference(value: str | None) -> str | None:
@@ -67,7 +75,13 @@ class SourceProfile(BaseModel):
     @field_validator("credential_ref")
     @classmethod
     def validate_credential_reference(cls, value: str | None) -> str | None:
-        return normalize_env_credential_reference(value)
+        if value is None:
+            return None
+        if (value.startswith("env:") and is_env_credential_reference(value)) or (
+            value.startswith("file-secret:") and is_secure_secret_reference(value)
+        ):
+            return value
+        raise ValueError(ENV_CREDENTIAL_REFERENCE_ERROR)
 
     @model_validator(mode="after")
     def validate_location(self) -> "SourceProfile":
@@ -76,6 +90,35 @@ class SourceProfile(BaseModel):
         if self.kind != "filesystem" and not self.base_url:
             raise ValueError("service profiles require a base URL")
         return self
+
+
+class DashboardSettings(BaseModel):
+    """Non-secret machine preferences used by the local dashboard."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    locale: str = Field(default="en", pattern=r"^(en|tr|de|fr|zh-CN|it)$")
+    timezone: str = Field(default="local", pattern=r"^(local|UTC)$")
+    report_detail: str = Field(default="detailed", pattern=r"^(standard|detailed)$")
+    rows_per_page: int = Field(default=25, ge=10, le=100)
+    reduced_motion: bool = False
+    show_absolute_paths: bool = False
+    ai_provider: str = Field(default="ollama", max_length=80)
+    ai_model: str = Field(default="llama3.1:8b", max_length=240)
+    ai_base_url: str = Field(default="http://127.0.0.1:11434", max_length=2048)
+    ai_credential_ref: str | None = Field(default=None, max_length=500)
+    ai_remote_consent: bool = False
+
+    @field_validator("ai_credential_ref")
+    @classmethod
+    def validate_ai_credential_reference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if (value.startswith("env:") and is_env_credential_reference(value)) or (
+            value.startswith("file-secret:") and is_secure_secret_reference(value)
+        ):
+            return value
+        raise ValueError(ENV_CREDENTIAL_REFERENCE_ERROR)
 
 
 class SQLiteSourceProfileRepository:
@@ -112,6 +155,20 @@ class SQLiteSourceProfileRepository:
         record = profile.model_copy(update={"updated_at": now})
         values = record.model_dump(mode="json")
         with self.engine.begin() as connection:
+            candidates = connection.execute(
+                select(
+                    source_profiles.c.id,
+                    source_profiles.c.kind,
+                    source_profiles.c.base_url,
+                    source_profiles.c.local_path,
+                ).where(source_profiles.c.id != record.id)
+            ).mappings()
+            identity = _source_identity(record.kind, record.local_path, record.base_url)
+            if any(
+                _source_identity(row["kind"], row["local_path"], row["base_url"]) == identity
+                for row in candidates
+            ):
+                raise DuplicateSourceError("This source is already connected.")
             existing = connection.execute(
                 select(source_profiles.c.id).where(source_profiles.c.id == record.id)
             ).scalar_one_or_none()
@@ -151,3 +208,30 @@ class SQLiteSourceProfileRepository:
                     set_={"value": value, "updated_at": datetime.now(UTC).isoformat()},
                 )
             )
+
+    def dashboard_settings(self) -> DashboardSettings:
+        value = self.setting("dashboard_settings")
+        if value is None:
+            return DashboardSettings()
+        try:
+            return DashboardSettings.model_validate_json(value)
+        except ValueError:
+            return DashboardSettings()
+
+    def save_dashboard_settings(self, settings: DashboardSettings) -> None:
+        self.set_setting("dashboard_settings", json.dumps(settings.model_dump(mode="json")))
+
+
+def _source_identity(kind: str, local_path: str | None, base_url: str | None) -> str:
+    if kind == "filesystem" and local_path:
+        return f"filesystem:{os.path.normcase(str(Path(local_path).expanduser().resolve()))}"
+    if base_url:
+        parts = urlsplit(base_url.strip())
+        host = (parts.hostname or "").casefold()
+        port = parts.port
+        is_default_port = (parts.scheme.casefold(), port) in {("http", 80), ("https", 443)}
+        if port and not is_default_port:
+            host = f"{host}:{port}"
+        path = parts.path.rstrip("/")
+        return f"{kind}:{urlunsplit((parts.scheme.casefold(), host, path, parts.query, ''))}"
+    return f"{kind}:"

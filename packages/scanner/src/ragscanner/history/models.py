@@ -5,6 +5,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 class ScanHistorySummary(BaseModel):
     history_id: str
+    display_id: str = Field(default="RAGREP-0000", pattern=r"^RAGREP-[0-9]{4,}$")
     scan_id: str
     scan_type: str
     status: str

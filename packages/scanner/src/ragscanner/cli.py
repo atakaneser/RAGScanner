@@ -73,14 +73,6 @@ from ragscanner.onboarding import (
     discover_openwebui_knowledge_bases,
     discover_openwebui_services,
 )
-from ragscanner.parsers import (
-    DOCX_MIME,
-    DocumentParser,
-    DocxParser,
-    MarkdownParser,
-    PdfParser,
-    PlainTextParser,
-)
 from ragscanner.paths import (
     new_report_path,
     reports_directory,
@@ -90,6 +82,7 @@ from ragscanner.paths import (
 )
 from ragscanner.pipeline import (
     OutputFormat,
+    ParserRegistry,
     ProgressMode,
     StaticPipelineConfig,
     StaticPipelineResult,
@@ -98,6 +91,7 @@ from ragscanner.pipeline import (
     load_local_scan_config,
     run_static_pipeline,
 )
+from ragscanner.pipeline.registry import DOCUMENT_MIME_TYPES, SUPPORTED_DOCUMENT_EXTENSIONS
 from ragscanner.providers import (
     ModelProviderError,
     create_analysis_provider,
@@ -993,7 +987,7 @@ def unified_scan(
         file_config = load_local_scan_config(config_file)
         config = file_config.pipeline_config(path.resolve())
         if path.is_file() and path.suffix.casefold() not in config.allowed_extensions:
-            raise ValueError("single-file scan supports only TXT, Markdown, PDF, or DOCX")
+            raise ValueError("single-file scan uses the configured supported document extensions")
         updates: dict[str, object] = {}
         if output_format is not None:
             updates["output_format"] = OutputFormat(output_format)
@@ -1629,13 +1623,7 @@ def _parse_local_file(path: Path):  # type: ignore[no-untyped-def]
     if len(data) > 25 * 1024 * 1024:
         raise ValueError("input file exceeds the CLI safety limit")
     suffix = path.suffix.casefold()
-    mime = {
-        ".txt": "text/plain",
-        ".md": "text/markdown",
-        ".markdown": "text/markdown",
-        ".pdf": "application/pdf",
-        ".docx": DOCX_MIME,
-    }.get(suffix)
+    mime = DOCUMENT_MIME_TYPES.get(suffix)
     if mime is None:
         raise ValueError(f"unsupported file type: {suffix or '<none>'}")
     now = datetime.now(UTC)
@@ -1655,13 +1643,9 @@ def _parse_local_file(path: Path):  # type: ignore[no-untyped-def]
         retrieved_at=now,
         limit_bytes=max(1, len(data)),
     )
-    parsers: dict[str, DocumentParser] = {
-        "text/plain": PlainTextParser(),
-        "text/markdown": MarkdownParser(),
-        "application/pdf": PdfParser(),
-        DOCX_MIME: DocxParser(),
-    }
-    parser = parsers[mime]
+    parser = ParserRegistry.defaults().select(content_type=mime, path=str(path))
+    if parser is None:
+        raise ValueError(f"unsupported file type: {suffix or '<none>'}")
     return parser.parse(source)
 
 
@@ -1704,7 +1688,7 @@ def security_scan(
         library,
         StaticScanConfig(selection=selection, maximum_findings_per_document=max_findings),
     )
-    supported = {".txt", ".md", ".markdown", ".pdf", ".docx"}
+    supported = SUPPORTED_DOCUMENT_EXTENSIONS
     files = (
         [path]
         if path.is_file()
@@ -1790,7 +1774,7 @@ def quality_scan(
         fail_severity = Severity(fail_on) if fail_on else None
     except ValueError as error:
         raise typer.BadParameter("invalid severity value") from error
-    supported = {".txt", ".md", ".markdown", ".pdf", ".docx"}
+    supported = SUPPORTED_DOCUMENT_EXTENSIONS
     files = (
         [path]
         if path.is_file()

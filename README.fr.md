@@ -7,8 +7,8 @@
 
 RAGScanner est un outil gratuit, open source et local-first qui inspecte les risques de sécurité et
 de qualité du contenu dans les sources de connaissances RAG. L’alpha technique actuelle analyse les
-fichiers TXT, Markdown, PDF textuels et DOCX, puis produit des rapports terminal, JSON ou HTML
-autonomes.
+fichiers Markdown, TXT, HTML, PDF textuels, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV,
+JSON/JSONL, YAML, XML et journaux, puis produit des rapports terminal, JSON ou HTML autonomes.
 
 Le pipeline statique actuel ne transmet aucun document à un service distant, ne nécessite aucun LLM,
 n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les commandes détectées.
@@ -23,7 +23,7 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | Fonctionnalité | État de l’alpha |
 |---|---|
 | Analyse d’un fichier local ou d’un dossier | Disponible |
-| TXT, Markdown, PDF textuel et DOCX | Disponible |
+| Formats Markdown, texte, PDF, bureautique, publication et texte structuré listés ci-dessus | Disponible |
 | Normalisation déterministe et correspondance des sources | Disponible |
 | Découpage par structure, paragraphe et fenêtre de tokens | Disponible |
 | Règles de sécurité RAG statiques versionnées | Disponible |
@@ -45,7 +45,8 @@ n’exécute aucune télémétrie, ne suit aucun lien et n’exécute jamais les
 | Découverte des métadonnées Docker, Podman, nerdctl, Finch, Kubernetes et localhost | Disponible |
 | Service hôte local à la machine avec initialisation d’un administrateur local | Disponible |
 | Connecteur de contenu de connaissances OpenWebUI avec consentement | Disponible |
-| Scheduler et connecteurs de contenu vector store | Pas encore disponible |
+| Planifications récurrentes avec historique d’exécution séparé | Disponible dans le dashboard |
+| Connecteurs de contenu vector store | Pas encore disponible |
 | Analyse de rapport assistée par IA locale/distante par analyse | Disponible et désactivée par défaut |
 | CLI d’analyse active d’endpoint | Indisponible ; contrats core uniquement |
 
@@ -111,9 +112,10 @@ de terminaison compatibles OpenAI personnalisés. L’IA est désactivée par d�
 distant exige un consentement explicite pour l’analyse concernée. Seul un résumé borné et expurgé
 est transmis ; les documents bruts et les preuves restent locaux. Une panne du fournisseur ne
 compromet pas le rapport déterministe.
-Dans le dashboard, la découverte affiche tous les modèles retournés dans un sélecteur dédié. Une
-clé API distante peut rester en mémoire du Host Service actif ou être référencée avec `env:` pour
-les tâches sans surveillance. La page des tâches se met à jour toutes les deux secondes, distingue
+Dans le dashboard, la découverte affiche tous les modèles retournés dans un sélecteur dédié. Les
+clés API saisies sont stockées hors de SQLite dans des fichiers machine protégés conservés lors des
+mises à jour normales ; les références `env:` restent disponibles pour les tâches administrées sans
+surveillance. La page des tâches se met à jour toutes les deux secondes, distingue
 la progression de l’analyse, de l’IA et de l’enregistrement, et affiche des journaux bornés de
 succès ou d’échec avec des codes stables, sans secrets ni réponses brutes du fournisseur.
 
@@ -373,8 +375,8 @@ La séquence immédiate est :
 1. Travaux restants de récupération de persistance et d’historique/comparaison à l’échelle API
 2. Connecteurs SharePoint, web, SaaS, Git, object store et vector store par niveau de capacité
 3. Compatibilité OpenWebUI, détection incrémentale, identité des sources et fournisseurs de secrets
-4. Planification, rétention, tâches récurrentes et localisation de l’interface des rapports
-5. Scheduler, rétention et notifications
+4. Validation de l’accessibilité du dashboard et paramètres des connecteurs
+5. Planification calendaire, rétention et notifications
 6. Renforcement du packaging et du déploiement
 
 Les fonctionnalités prévues ne sont jamais présentées comme disponibles. Consultez

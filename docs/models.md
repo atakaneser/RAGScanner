@@ -6,6 +6,8 @@ opt in to the same bounded advisory analysis before its report snapshot is saved
 changes deterministic findings or scores. See [BYOM.md](../BYOM.md).
 
 Reports identify provider/model and remote use, but never keys. The dashboard can accept an API key
-for the running Host Service process or an advanced `env:` reference; durable jobs store only the
-generated reference. Provider failures preserve the deterministic report and record a stable safe
-error code and message. Unsupported capabilities are visible rather than silently downgraded.
+stored outside SQLite in a protected owner-readable machine file, or an advanced `env:` reference;
+durable jobs store only the opaque reference. These protected files live with preserved machine data,
+so normal `ragscanner update` runtime replacement does not remove them. Provider failures preserve
+the deterministic report and record a stable safe error code and message. Unsupported capabilities
+are visible rather than silently downgraded.

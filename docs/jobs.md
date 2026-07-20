@@ -54,11 +54,13 @@ stable codes such as `source_path_not_found`, `source_permission_denied`, `ai_pr
 exceptions, provider response bodies, document content, and credentials are never logged.
 
 Payloads are limited to 64 KiB. Plaintext credentials are rejected; only approved external
-references such as `env:VARIABLE`, `keychain:ITEM`, `vault:PATH`, or `file-secret:PATH` may be
-stored. The first packaged OpenWebUI worker resolver supports `env:` only.
+references such as `env:VARIABLE`, `keychain:ITEM`, `vault:PATH`, or opaque `file-secret:` values may
+be stored. The packaged worker resolves `env:` and protected machine-file references.
 
 SQLite uses WAL, foreign keys, a five-second busy timeout, restrictive file permissions, and short
-transactions. One active worker is the supported alpha topology. Scheduling is not implemented.
+transactions. One active worker is the supported alpha topology. Persistent interval schedules are
+materialized into separate idempotent jobs before each worker claim cycle; calendar/cron schedules,
+retention, and notifications remain planned.
 
 See [ADR-0007](decisions/0007-background-execution.md),
 [ADR-0021](decisions/0021-durable-job-lifecycle.md), and

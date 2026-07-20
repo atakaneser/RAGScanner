@@ -37,6 +37,7 @@ async def all_items(source: LocalFilesystemConnector, page_size: int = 100) -> l
 
 def test_recursive_non_recursive_supported_and_hidden_discovery(tmp_path: Path) -> None:
     (tmp_path / "root.txt").write_text("root")
+    (tmp_path / "page.html").write_text("<h1>Local knowledge</h1>")
     (tmp_path / "document.pdf").write_bytes(b"pdf")
     (tmp_path / ".hidden.md").write_text("hidden")
     nested = tmp_path / "nested"
@@ -46,10 +47,12 @@ def test_recursive_non_recursive_supported_and_hidden_discovery(tmp_path: Path) 
     assert [item.path for item in recursive] == [
         "document.pdf",
         "nested/guide.markdown",
+        "page.html",
         "root.txt",
     ]
     flat = asyncio.run(all_items(connector(tmp_path, recursive=False)))
-    assert [item.path for item in flat] == ["document.pdf", "root.txt"]
+    assert [item.path for item in flat] == ["document.pdf", "page.html", "root.txt"]
+    assert next(item for item in flat if item.path == "page.html").mime_type == "text/html"
 
 
 @pytest.mark.parametrize(

@@ -27,6 +27,7 @@ class JobApplicationService:
         idempotency_key: str | None = None,
         max_attempts: int = 3,
         ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
     ) -> JobRecord:
         resolved_path = path.expanduser().resolve(strict=True)
         if resolved_path == Path(resolved_path.anchor):
@@ -37,6 +38,7 @@ class JobApplicationService:
             path=str(resolved_path),
             config_path=str(resolved_config) if resolved_config else None,
             ai=ai_config or AIProviderConfig(),
+            source_name=source_name or resolved_path.name,
         )
         return self.repository.enqueue(
             JobRequest(
@@ -57,6 +59,7 @@ class JobApplicationService:
         idempotency_key: str | None = None,
         max_attempts: int = 3,
         ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
     ) -> JobRecord:
         OpenWebUISourceConfig(
             base_url=base_url,
@@ -71,6 +74,7 @@ class JobApplicationService:
             credential_ref=credential_ref,
             content_consent=content_consent,
             ai=ai_config or AIProviderConfig(),
+            source_name=source_name or f"OpenWebUI · {knowledge_id}",
         )
         return self.repository.enqueue(
             JobRequest(

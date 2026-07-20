@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import Integer, and_, case, cast, func, or_, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ragscanner.jobs import (
@@ -41,8 +41,13 @@ class SQLiteJobRepository:
         )
         with self.engine.begin() as connection:
             job_id = uuid4().hex
+            sequence = connection.execute(
+                select(func.max(cast(func.substr(jobs.c.display_id, 9), Integer)))
+            ).scalar_one_or_none()
+            display_id = f"RAGSCN-{(sequence or 0) + 1:04d}"
             statement = sqlite_insert(jobs).values(
                 id=job_id,
+                display_id=display_id,
                 kind=request.kind.value,
                 status=JobStatus.QUEUED.value,
                 payload_json=payload,
@@ -440,6 +445,7 @@ class SQLiteJobRepository:
 def _record(row: Any) -> JobRecord:
     return JobRecord(
         id=row["id"],
+        display_id=row["display_id"],
         kind=row["kind"],
         status=row["status"],
         payload=json.loads(row["payload_json"]),
