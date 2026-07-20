@@ -124,6 +124,10 @@ ragscanner scan ./knowledge-base --ai-provider openrouter \
 AI is off by default. Remote choices require explicit consent for that scan. Only bounded, redacted
 scores, coverage, and finding summaries are sent; raw documents and finding evidence are excluded.
 If a provider fails, the deterministic report remains complete and authoritative.
+In the dashboard, model discovery exposes every returned model in a dedicated selector. Remote API
+keys may be supplied for the running Host Service process or referenced with `env:` for unattended
+use. The Jobs page updates every two seconds, separates scan/AI/save progress, and shows bounded
+success or failure logs with stable error codes; secrets and raw provider responses are excluded.
 
 Use quotes around paths containing spaces, parentheses, or other shell-sensitive characters.
 

@@ -70,7 +70,9 @@ def test_ai_provider_failure_preserves_authoritative_scan_report(
     history = SQLiteScanHistoryRepository(database)
     monkeypatch.setattr(
         "ragscanner.application.static_scan.create_analysis_provider",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ModelProviderError("unavailable")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ModelProviderError("ai_provider_unreachable", "The AI provider could not be reached.")
+        ),
     )
     try:
         queued = JobApplicationService(jobs).enqueue_local_scan(
@@ -88,10 +90,40 @@ def test_ai_provider_failure_preserves_authoritative_scan_report(
         report = history.get(completed.result_ref.removeprefix("history:"))
         assert report is not None
         assert report.ai_analysis is None
-        assert report.ai_analysis_error is not None
+        assert report.ai_analysis_error_code == "ai_provider_unreachable"
+        assert report.ai_analysis_error == "The AI provider could not be reached."
     finally:
         history.close()
         jobs.close()
+
+
+def test_ai_analysis_renews_progress_while_waiting_for_provider(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic knowledge", encoding="utf-8")
+    history = SQLiteScanHistoryRepository(tmp_path / "ragscanner.sqlite3")
+    progress: list[float] = []
+
+    async def slow_enrichment(report, config, *, provider_factory):  # type: ignore[no-untyped-def]
+        del config, provider_factory
+        await asyncio.sleep(0.035)
+        return report
+
+    monkeypatch.setattr("ragscanner.application.static_scan.AI_HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr("ragscanner.application.static_scan.enrich_report", slow_enrichment)
+    try:
+        StaticScanApplicationService(history).run_local(
+            source,
+            ai_config=AIProviderConfig(enabled=True, provider="ollama", model="llama3.1:8b"),
+            checkpoint=lambda value: progress.append(value or 0),  # type: ignore[arg-type,return-value]
+        )
+    finally:
+        history.close()
+
+    assert 0.8 in progress
+    assert len([value for value in progress if 0.82 <= value <= 0.94]) >= 2
+    assert progress[-1] == 0.98
 
 
 def test_openwebui_scan_closes_its_client_on_the_pipeline_event_loop(

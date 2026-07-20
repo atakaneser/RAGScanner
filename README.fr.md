@@ -111,6 +111,11 @@ de terminaison compatibles OpenAI personnalisés. L’IA est désactivée par d�
 distant exige un consentement explicite pour l’analyse concernée. Seul un résumé borné et expurgé
 est transmis ; les documents bruts et les preuves restent locaux. Une panne du fournisseur ne
 compromet pas le rapport déterministe.
+Dans le dashboard, la découverte affiche tous les modèles retournés dans un sélecteur dédié. Une
+clé API distante peut rester en mémoire du Host Service actif ou être référencée avec `env:` pour
+les tâches sans surveillance. La page des tâches se met à jour toutes les deux secondes, distingue
+la progression de l’analyse, de l’IA et de l’enregistrement, et affiche des journaux bornés de
+succès ou d’échec avec des codes stables, sans secrets ni réponses brutes du fournisseur.
 
 ```bash
 ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b

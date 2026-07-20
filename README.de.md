@@ -111,6 +111,11 @@ OpenAI-kompatible Endpunkte. KI ist standardmäßig deaktiviert; entfernte Nutzu
 ausdrückliche Zustimmung für diesen Scan. Nur eine begrenzte, redigierte Berichtszusammenfassung
 wird übertragen; Rohdokumente und Befundnachweise bleiben lokal. Anbieterfehler beeinträchtigen den
 deterministischen Bericht nicht.
+Im Dashboard zeigt die Modellerkennung alle zurückgegebenen Modelle in einer eigenen Auswahl.
+Externe API-Schlüssel können im Speicher des laufenden Host Service bereitgestellt oder für
+unbeaufsichtigte Nutzung per `env:` referenziert werden. Die Auftragsseite aktualisiert sich alle
+zwei Sekunden, trennt Scan-, KI- und Speicherfortschritt und zeigt begrenzte Erfolgs- oder
+Fehlerprotokolle mit stabilen Codes; Geheimnisse und rohe Anbieterantworten bleiben ausgeschlossen.
 
 ```bash
 ragscanner scan ./knowledge-base --ai-provider ollama --ai-model llama3.1:8b

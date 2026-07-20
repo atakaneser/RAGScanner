@@ -15,6 +15,11 @@ from ragscanner.ai_analysis.service import AnalysisRequest
 class ModelProviderError(RuntimeError):
     """A safe, user-facing provider failure."""
 
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        self.safe_message = message
+        super().__init__(message)
+
 
 @dataclass(frozen=True)
 class ProviderDefinition:
@@ -106,11 +111,14 @@ class _BaseAnalysisProvider:
         try:
             generated = AIAnalysisContent.model_validate_json(content)
         except (ValueError, TypeError) as error:
-            raise ModelProviderError("model returned invalid structured analysis") from error
+            raise ModelProviderError(
+                "ai_output_invalid", "The model returned analysis that did not match the schema."
+            ) from error
         unknown_ids = set(generated.finding_ids) - request.finding_ids
         if unknown_ids:
             raise ModelProviderError(
-                "model referenced finding IDs not included in the report summary"
+                "ai_output_unknown_finding",
+                "The model referenced findings that were not included in the analysis request.",
             )
         return AIReportAnalysis(
             **generated.model_dump(),
@@ -133,16 +141,34 @@ class _BaseAnalysisProvider:
                 )
                 response.raise_for_status()
                 if len(response.content) > 256_000:
-                    raise ModelProviderError("model response exceeded the 256 KiB safety limit")
+                    raise ModelProviderError(
+                        "ai_response_too_large",
+                        "The model response exceeded the 256 KiB safety limit.",
+                    )
                 value = response.json()
         except httpx.TimeoutException as error:
-            raise ModelProviderError("model request timed out") from error
-        except httpx.HTTPError as error:
-            raise ModelProviderError(f"model request failed: {error}") from error
+            raise ModelProviderError(
+                "ai_provider_timeout",
+                f"The AI provider did not respond within {self.timeout_seconds:g} seconds.",
+            ) from error
+        except httpx.HTTPStatusError as error:
+            status = error.response.status_code
+            raise ModelProviderError(
+                f"ai_provider_http_{status}",
+                f"The AI provider rejected the request with HTTP {status}.",
+            ) from error
+        except httpx.RequestError as error:
+            raise ModelProviderError(
+                "ai_provider_unreachable", "The AI provider could not be reached."
+            ) from error
         except ValueError as error:
-            raise ModelProviderError("model response was not JSON") from error
+            raise ModelProviderError(
+                "ai_response_not_json", "The AI provider response was not valid JSON."
+            ) from error
         if not isinstance(value, dict):
-            raise ModelProviderError("model response has an invalid shape")
+            raise ModelProviderError(
+                "ai_response_invalid", "The AI provider response had an invalid shape."
+            )
         return value
 
     async def _post(
@@ -174,14 +200,18 @@ class OllamaAnalysisProvider(_BaseAnalysisProvider):
             else None
         )
         if not isinstance(content, str):
-            raise ModelProviderError("Ollama response did not contain message.content")
+            raise ModelProviderError(
+                "ai_response_missing_content", "The Ollama response did not contain analysis text."
+            )
         return self._analysis(content, request)
 
     async def list_models(self) -> list[str]:
         value = await self._request("GET", "/api/tags")
         models = value.get("models")
         if not isinstance(models, list):
-            raise ModelProviderError("Ollama model inventory had an invalid shape")
+            raise ModelProviderError(
+                "ai_model_inventory_invalid", "Ollama returned an invalid model inventory."
+            )
         return sorted(
             item["name"]
             for item in models
@@ -218,7 +248,8 @@ class OpenAICompatibleAnalysisProvider(_BaseAnalysisProvider):
         )
         if not isinstance(content, str):
             raise ModelProviderError(
-                "OpenAI-compatible response did not contain choices[0].message.content"
+                "ai_response_missing_content",
+                "The OpenAI-compatible response did not contain analysis text.",
             )
         return self._analysis(content, request)
 
@@ -227,7 +258,9 @@ class OpenAICompatibleAnalysisProvider(_BaseAnalysisProvider):
         value = await self._request("GET", "/v1/models", headers=headers)
         models = value.get("data")
         if not isinstance(models, list):
-            raise ModelProviderError("model inventory had an invalid shape")
+            raise ModelProviderError(
+                "ai_model_inventory_invalid", "The provider returned an invalid model inventory."
+            )
         return sorted(
             item["id"]
             for item in models
@@ -260,7 +293,10 @@ class AnthropicAnalysisProvider(_BaseAnalysisProvider):
         blocks = value.get("content")
         content = blocks[0].get("text") if isinstance(blocks, list) and blocks else None
         if not isinstance(content, str):
-            raise ModelProviderError("Anthropic response did not contain content[0].text")
+            raise ModelProviderError(
+                "ai_response_missing_content",
+                "The Anthropic response did not contain analysis text.",
+            )
         return self._analysis(content, request)
 
     async def list_models(self) -> list[str]:
@@ -271,7 +307,9 @@ class AnthropicAnalysisProvider(_BaseAnalysisProvider):
         )
         models = value.get("data")
         if not isinstance(models, list):
-            raise ModelProviderError("Anthropic model inventory had an invalid shape")
+            raise ModelProviderError(
+                "ai_model_inventory_invalid", "Anthropic returned an invalid model inventory."
+            )
         return sorted(
             item["id"]
             for item in models
@@ -312,7 +350,9 @@ class GeminiAnalysisProvider(_BaseAnalysisProvider):
                 if isinstance(parts, list) and parts and isinstance(parts[0], dict):
                     content = parts[0].get("text")
         if not isinstance(content, str):
-            raise ModelProviderError("Gemini response did not contain candidate text")
+            raise ModelProviderError(
+                "ai_response_missing_content", "The Gemini response did not contain analysis text."
+            )
         return self._analysis(content, request)
 
     async def list_models(self) -> list[str]:
@@ -321,7 +361,9 @@ class GeminiAnalysisProvider(_BaseAnalysisProvider):
         )
         models = value.get("models")
         if not isinstance(models, list):
-            raise ModelProviderError("Gemini model inventory had an invalid shape")
+            raise ModelProviderError(
+                "ai_model_inventory_invalid", "Gemini returned an invalid model inventory."
+            )
         return sorted(
             item["name"].removeprefix("models/")
             for item in models

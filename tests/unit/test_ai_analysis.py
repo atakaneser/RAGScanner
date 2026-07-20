@@ -1,6 +1,7 @@
 import asyncio
 import json
 
+import httpx
 import pytest
 from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.ai_analysis.service import build_analysis_request
@@ -68,10 +69,11 @@ def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -
         }
 
     monkeypatch.setattr(adapter, "_post", fake_post)
-    with pytest.raises(ModelProviderError, match="finding IDs"):
+    with pytest.raises(ModelProviderError, match="referenced findings") as captured:
         asyncio.run(
             adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
         )
+    assert captured.value.code == "ai_output_unknown_finding"
 
 
 def test_ollama_discovers_installed_models(monkeypatch) -> None:
@@ -117,3 +119,39 @@ def test_openai_compatible_adds_local_provenance(report, finding, monkeypatch) -
     assert enriched.ai_analysis is not None
     assert enriched.ai_analysis.provider == "openai-compatible"
     assert "AI analysis" in HtmlReporter().render(enriched)
+
+
+def test_provider_http_failure_has_safe_stable_code(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    response = httpx.Response(
+        401,
+        request=httpx.Request("GET", "https://provider.example.test/v1/models"),
+        text="synthetic sensitive provider detail",
+    )
+
+    class FakeClient:
+        async def __aenter__(self):  # type: ignore[no-untyped-def]
+            return self
+
+        async def __aexit__(self, *args):  # type: ignore[no-untyped-def]
+            del args
+
+        async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            del args, kwargs
+            return response
+
+    monkeypatch.setattr(
+        "ragscanner.providers.adapters.httpx.AsyncClient", lambda **_kwargs: FakeClient()
+    )
+    adapter = OpenAICompatibleAnalysisProvider(
+        base_url="https://provider.example.test",
+        model="model",
+        api_key="synthetic-key",
+        consent_remote=True,
+    )
+
+    with pytest.raises(ModelProviderError) as captured:
+        asyncio.run(adapter.list_models())
+
+    assert captured.value.code == "ai_provider_http_401"
+    assert str(captured.value) == "The AI provider rejected the request with HTTP 401."
+    assert "sensitive" not in str(captured.value)

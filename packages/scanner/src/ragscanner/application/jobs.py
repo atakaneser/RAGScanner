@@ -68,7 +68,7 @@ class DurableWorker:
             return current
 
         try:
-            checkpoint(0)
+            checkpoint(0.01)
             result_ref = handler.execute(job, checkpoint)
             checkpoint(1)
         except JobCancellationRequested as error:
@@ -76,6 +76,27 @@ class DurableWorker:
                 job.id,
                 self.worker_id,
                 result_ref=error.result_ref,
+            )
+        except FileNotFoundError:
+            return self.repository.fail(
+                job.id,
+                self.worker_id,
+                error_code="source_path_not_found",
+                error_message="The selected source path no longer exists.",
+            )
+        except PermissionError:
+            return self.repository.fail(
+                job.id,
+                self.worker_id,
+                error_code="source_permission_denied",
+                error_message="The Host Service does not have permission to read the selected source.",
+            )
+        except ValueError:
+            return self.repository.fail(
+                job.id,
+                self.worker_id,
+                error_code="job_configuration_invalid",
+                error_message="The persisted job configuration is invalid or incomplete.",
             )
         except Exception:
             return self.repository.fail(

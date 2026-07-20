@@ -11,7 +11,10 @@
     Object.entries(values).forEach(([key, value]) => data.append(key, value));
     const response = await fetch(url, { method: "POST", body: data, credentials: "same-origin" });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || t("The request could not be completed."));
+    if (!response.ok) {
+      const message = payload.error || t("The request could not be completed.");
+      throw new Error(payload.code ? `[${payload.code}] ${message}` : message);
+    }
     return payload;
   };
 
@@ -200,8 +203,10 @@
     const model = container.querySelector("[data-ai-model]");
     const privacy = container.querySelector("[data-ai-privacy]");
     const consent = container.querySelector("[data-ai-consent]");
-    const credentialRow = container.querySelector("[data-ai-credential-row]");
+    const credentialRows = [...container.querySelectorAll("[data-ai-credential-row]")];
     const modelList = container.querySelector("[data-ai-model-list]");
+    const modelResultsRow = container.querySelector("[data-ai-model-results-row]");
+    const modelResults = container.querySelector("[data-ai-model-results]");
     const loadModels = container.querySelector("[data-load-ai-models]");
     const updateProvider = () => {
       const option = provider?.selectedOptions[0];
@@ -209,7 +214,7 @@
       const local = option.dataset.local === "true";
       const credentialRequired = option.dataset.credentialRequired === "true";
       if (endpoint && !endpoint.dataset.edited) endpoint.value = option.dataset.url || "";
-      credentialRow?.classList.toggle("hidden", !credentialRequired);
+      credentialRows.forEach((row) => row.classList.toggle("hidden", !credentialRequired));
       consent?.classList.toggle("hidden", local);
       privacy.textContent = local
         ? t("Local providers keep the bounded, redacted analysis context on this machine.")
@@ -223,9 +228,13 @@
       if (toggle.checked) updateProvider();
     });
     provider?.addEventListener("change", updateProvider);
+    modelResults?.addEventListener("change", () => {
+      if (model && modelResults.value) model.value = modelResults.value;
+    });
     loadModels?.addEventListener("click", async () => {
       const option = provider?.selectedOptions[0];
-      const credential = credentialRow?.querySelector('input[name="ai_credential_ref"]');
+      const credential = container.querySelector('input[name="ai_credential_ref"]');
+      const apiKey = container.querySelector('input[name="ai_api_key"]');
       const remoteConsent = consent?.querySelector('input[name="ai_remote_consent"]');
       loadModels.disabled = true;
       loadModels.textContent = t("Detecting models…");
@@ -234,10 +243,13 @@
           provider: provider?.value || "",
           base_url: endpoint?.value || "",
           credential_ref: credential?.value || "",
+          api_key: apiKey?.value || "",
           remote_consent: option?.dataset.local === "true" ? "false" : String(Boolean(remoteConsent?.checked)),
         });
-        modelList?.replaceChildren(...(payload.models || []).map((name) => new Option(name, name)));
-        if (model && payload.models?.length) model.value = payload.models[0];
+        const models = payload.models || [];
+        modelList?.replaceChildren(...models.map((name) => new Option(name, name)));
+        modelResults?.replaceChildren(new Option(t("Choose a detected model"), ""), ...models.map((name) => new Option(name, name)));
+        modelResultsRow?.classList.toggle("hidden", models.length === 0);
         loadModels.textContent = payload.models?.length ? `${payload.models.length} ${t("model(s) found")}` : t("No models found");
       } catch (error) {
         loadModels.textContent = error instanceof Error ? error.message : t("Model discovery failed");
@@ -261,6 +273,45 @@
   };
   document.querySelectorAll('input[name="source_mode"]').forEach((radio) => radio.addEventListener("change", updateSetupSource));
   updateSetupSource();
+
+  const jobRows = [...document.querySelectorAll("[data-job-row]")];
+  const jobLogs = document.querySelector("[data-job-logs]");
+  const liveStatus = document.querySelector("[data-job-live-status]");
+  const renderJobLogs = (logs) => {
+    if (!jobLogs) return;
+    jobLogs.replaceChildren(...logs.map((log) => {
+      const article = document.createElement("article"); article.className = `job-log job-log-${log.level}`; article.dataset.jobLog = log.job_id;
+      const heading = document.createElement("div");
+      const code = document.createElement("strong"); code.textContent = log.code;
+      const id = document.createElement("code"); id.textContent = log.job_id.slice(0, 12);
+      heading.append(code, id);
+      const message = document.createElement("p"); message.textContent = t(log.message);
+      const time = document.createElement("time"); time.textContent = log.timestamp;
+      article.append(heading, message, time);
+      return article;
+    }));
+  };
+  const refreshJobs = async () => {
+    try {
+      const response = await fetch("/dashboard/jobs/status", { credentials: "same-origin", cache: "no-store" });
+      if (!response.ok) throw new Error("status unavailable");
+      const payload = await response.json();
+      (payload.jobs || []).forEach((job) => {
+        const row = document.querySelector(`[data-job-row="${job.id}"]`);
+        if (!row) return;
+        const status = row.querySelector("[data-job-status]");
+        if (status) { status.className = `state state-${job.status}`; status.textContent = job.status.replaceAll("_", " "); }
+        const bar = row.querySelector("[data-job-progress-bar]"); if (bar) bar.style.width = `${job.progress}%`;
+        const progress = row.querySelector("[data-job-progress]"); if (progress) progress.textContent = `${job.progress}%`;
+        const attempts = row.querySelector("[data-job-attempts]"); if (attempts) attempts.textContent = `${job.attempt_count}/${job.max_attempts}`;
+      });
+      renderJobLogs(payload.logs || []);
+      if (liveStatus) liveStatus.textContent = t("Live");
+    } catch (_error) {
+      if (liveStatus) liveStatus.textContent = t("Update unavailable");
+    }
+  };
+  if (liveStatus) window.setInterval(refreshJobs, 2000);
 
   const compareForm = document.querySelector("[data-compare-form]");
   const choices = [...document.querySelectorAll("[data-report-choice]")];
