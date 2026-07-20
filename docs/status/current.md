@@ -35,8 +35,8 @@
 - Platform-native central machine data, report, and history locations plus a separate per-user
   disposable cache location discoverable with
   `ragscanner paths`; guided reports never default to the current working directory
-- Canonical English root README plus Turkish, German, French, Simplified Chinese, and Italian
-  localized README pages
+- Concise task-oriented English root README plus structurally matched Turkish, German, French,
+  Simplified Chinese, and Italian entry pages; advanced command details live in the canonical CLI guide
 - Canonical English project documentation enforced by a regression test, with intentional
   multilingual scan fixtures kept separate
 - Framework-independent source, document, chunk, finding, scan, score, active-test, and target

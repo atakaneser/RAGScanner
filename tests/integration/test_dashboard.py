@@ -28,6 +28,7 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         follow_redirects=False,
     ) as client:
         dashboard = await client.get("/")
+        sources_page = await client.get("/sources")
         css = await client.get("/dashboard-assets/dashboard.css")
         i18n = await client.get("/dashboard-assets/dashboard-i18n.js")
         invalid = await client.post(
@@ -45,6 +46,8 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         assert "Scan jobs" in dashboard.text
         assert "AI settings" in dashboard.text
         assert "Integrations" in dashboard.text
+        assert 'data-source-choice="website"' in sources_page.text
+        assert 'data-source-choice="sharepoint"' in sources_page.text
         queued = await client.post(
             "/dashboard/scans/local",
             data={
