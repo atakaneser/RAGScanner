@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -18,6 +19,7 @@ from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.application import (
     DurableWorker,
     HistoryApplicationService,
+    HistoryNotFoundError,
     JobApplicationService,
     StaticScanApplicationService,
     StaticScanJobHandler,
@@ -458,6 +460,22 @@ def register_dashboard(
     async def dashboard_report_detail(request: Request, history_id: str) -> HTMLResponse:
         return render_dashboard(request, page="report_detail", report_id=history_id)
 
+    @app.post("/dashboard/reports/{history_id}/delete", include_in_schema=False)
+    async def dashboard_delete_report(
+        request: Request,
+        history_id: str,
+        csrf_token: Annotated[str, Form()],
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        repository = SQLiteScanHistoryRepository(database_path)
+        try:
+            HistoryApplicationService(repository).delete(history_id)
+        except HistoryNotFoundError:
+            return RedirectResponse("/reports?notice=report-not-found", status_code=303)
+        finally:
+            repository.close()
+        return RedirectResponse("/reports?notice=report-deleted", status_code=303)
+
     @app.get("/compare", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_compare(
         request: Request,
@@ -539,7 +557,7 @@ def register_dashboard(
             str,
             Form(
                 pattern=(
-                    r"^(openwebui|filesystem|qdrant|chroma|weaviate|milvus|pgvector|"
+                    r"^(openwebui|filesystem|website|sharepoint|qdrant|chroma|weaviate|milvus|pgvector|"
                     r"elasticsearch|opensearch|pinecone|kubernetes|generic|custom)$"
                 )
             ),
@@ -562,7 +580,7 @@ def register_dashboard(
                 discovery_origin=discovery_origin,
                 capability_status=(
                     "scan_ready"
-                    if kind == "filesystem"
+                    if kind in {"filesystem", "website", "sharepoint"}
                     else "connection_required"
                     if kind == "openwebui"
                     else "metadata_only"
@@ -579,7 +597,8 @@ def register_dashboard(
                     "credential_ref": normalized_reference,
                     "capability_status": (
                         "scan_ready"
-                        if kind == "openwebui" and (api_key or normalized_reference)
+                        if kind in {"website", "sharepoint"}
+                        or (kind == "openwebui" and (api_key or normalized_reference))
                         else profile.capability_status
                     ),
                 }
@@ -901,6 +920,84 @@ def register_dashboard(
                     base_url=base_url,
                     knowledge_id=knowledge_id,
                     credential_ref=credential_ref,
+                    content_consent=content_consent,
+                    source_name=friendly_name,
+                    idempotency_key=idempotency_key,
+                    ai_config=ai_config,
+                )
+        except (ValueError, JobStateError):
+            MachineSecretStore(database_path.parent).delete(created_ai_reference)
+            return RedirectResponse("/?notice=invalid-scan", status_code=303)
+        finally:
+            repository.close()
+        notice = "schedule-saved" if execution_mode == "scheduled" else "scan-queued"
+        return RedirectResponse(f"/jobs?notice={notice}", status_code=303)
+
+    @app.post("/dashboard/scans/website", include_in_schema=False)
+    async def dashboard_website_scan(
+        request: Request,
+        csrf_token: Annotated[str, Form()],
+        url: Annotated[str, Form(min_length=1, max_length=4096)],
+        idempotency_key: Annotated[str, Form(min_length=8, max_length=160)],
+        source_name: Annotated[str | None, Form(max_length=160)] = None,
+        credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        execution_mode: Annotated[str, Form(pattern=r"^(one_time|scheduled)$")] = "one_time",
+        schedule_name: Annotated[str | None, Form(max_length=160)] = None,
+        interval_minutes: Annotated[int, Form(ge=15, le=525600)] = 1440,
+        content_consent: Annotated[bool, Form()] = False,
+        ai_enabled: Annotated[bool, Form()] = False,
+        ai_provider: Annotated[str | None, Form(max_length=80)] = None,
+        ai_model: Annotated[str | None, Form(max_length=240)] = None,
+        ai_base_url: Annotated[str | None, Form(max_length=2048)] = None,
+        ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
+        ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
+        ai_remote_consent: Annotated[bool, Form()] = False,
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        repository = SQLiteJobRepository(database_path)
+        created_ai_reference: str | None = None
+        try:
+            selected_settings = _dashboard_settings(database_path)
+            ai_config = _ai_config(
+                ai_enabled,
+                ai_provider,
+                ai_model,
+                ai_base_url,
+                ai_credential_ref,
+                ai_remote_consent,
+                ai_api_key,
+                database_path=database_path,
+                defaults=selected_settings,
+                output_language=_request_locale(request, selected_settings),
+            )
+            if ai_api_key:
+                created_ai_reference = ai_config.credential_ref
+            normalized_reference = normalize_env_credential_reference(credential_ref)
+            friendly_name = (source_name or urlparse(url).hostname or "Website").strip()
+            if execution_mode == "scheduled":
+                schedule_repository = SQLiteScheduleRepository(database_path)
+                try:
+                    schedule_repository.create(
+                        ScanScheduleRequest(
+                            name=(schedule_name or friendly_name).strip(),
+                            interval_minutes=interval_minutes,
+                            payload=StaticScanJobPayload(
+                                source_kind="website",
+                                execution_mode="scheduled",
+                                source_name=friendly_name,
+                                website_url=url,
+                                credential_ref=normalized_reference,
+                                content_consent=content_consent,
+                                ai=ai_config,
+                            ).model_dump(mode="json", exclude_none=True),
+                        )
+                    )
+                finally:
+                    schedule_repository.close()
+            else:
+                JobApplicationService(repository).enqueue_website_scan(
+                    url=url,
+                    credential_ref=normalized_reference,
                     content_consent=content_consent,
                     source_name=friendly_name,
                     idempotency_key=idempotency_key,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.application.static_scan import StaticScanJobPayload
-from ragscanner.connectors import OpenWebUISourceConfig
+from ragscanner.connectors import OpenWebUISourceConfig, WebsiteSourceConfig
 from ragscanner.jobs import (
     JobKind,
     JobNotFoundError,
@@ -90,6 +90,40 @@ class JobApplicationService:
         if job is None:
             raise JobNotFoundError("The requested job does not exist.")
         return job
+
+    def enqueue_website_scan(
+        self,
+        *,
+        url: str,
+        credential_ref: str | None,
+        content_consent: bool,
+        idempotency_key: str | None = None,
+        max_attempts: int = 3,
+        ai_config: AIProviderConfig | None = None,
+        source_name: str | None = None,
+    ) -> JobRecord:
+        config = WebsiteSourceConfig(
+            url=url,
+            source_name=source_name or "Website",
+            credential_ref=credential_ref,
+            content_consent=content_consent,
+        )
+        payload = StaticScanJobPayload(
+            source_kind="website",
+            website_url=config.url,
+            credential_ref=credential_ref,
+            content_consent=content_consent,
+            ai=ai_config or AIProviderConfig(),
+            source_name=config.source_name,
+        )
+        return self.repository.enqueue(
+            JobRequest(
+                kind=JobKind.SCAN,
+                payload=payload.model_dump(mode="json", exclude_none=True),
+                idempotency_key=idempotency_key,
+                max_attempts=max_attempts,
+            )
+        )
 
     def list(self, *, limit: int = 50, offset: int = 0) -> JobPage:
         return self.repository.list(limit=limit, offset=offset)

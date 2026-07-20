@@ -191,3 +191,35 @@ def test_provider_http_failure_has_safe_stable_code(monkeypatch) -> None:  # typ
     assert captured.value.code == "ai_provider_http_401"
     assert str(captured.value) == "The AI provider rejected the request with HTTP 401."
     assert "sensitive" not in str(captured.value)
+
+
+@pytest.mark.parametrize("provider_kind", ["ollama", "openai-compatible"])
+def test_analysis_retries_http_400_without_unsupported_structured_output(
+    report, monkeypatch, provider_kind
+) -> None:  # type: ignore[no-untyped-def]
+    adapter = (
+        OllamaAnalysisProvider(base_url="http://127.0.0.1:11434", model="test-model")
+        if provider_kind == "ollama"
+        else OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+    )
+    payloads = []
+
+    async def fake_post(_path, payload, *_args):  # type: ignore[no-untyped-def]
+        payloads.append(payload)
+        if len(payloads) == 1:
+            raise ModelProviderError("ai_provider_http_400", "Synthetic HTTP 400")
+        content = json.dumps({"executive_summary": "Review now.", "finding_ids": []})
+        return (
+            {"message": {"content": content}}
+            if provider_kind == "ollama"
+            else {"choices": [{"message": {"content": content}}]}
+        )
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    analysis = asyncio.run(adapter.analyze(build_analysis_request(report("scan-a"))))
+
+    assert analysis.executive_summary == "Review now."
+    if provider_kind == "ollama":
+        assert payloads[1]["format"] == "json"
+    else:
+        assert "response_format" not in payloads[1]

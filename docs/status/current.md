@@ -64,6 +64,9 @@
   cancellation, production static-scan handler, CLI control surface, and worker process
 - Consent-gated, read-only OpenWebUI knowledge-file content connector with bounded pagination,
   response limits, HTTPS outside loopback, and external `env:` credential resolution
+- Consent-gated website connector for one page, supported documents, same-origin sitemaps, and
+  accessible SharePoint URLs, with optional external bearer-token references and bounded one-time
+  or recurring dashboard jobs
 - Guided OpenWebUI selection and immediate one-knowledge-base content scan after separate explicit
   consent; dashboard-entered keys use protected owner-readable machine files while the terminal
   guided flow keeps its one-shot key only in process memory
@@ -99,6 +102,9 @@
   provider failure preserves the authoritative deterministic report
 - Live two-second dashboard job updates, AI-stage lease heartbeats and progress, complete detected
   model selection, update-safe machine credential files, and secret-safe success/failure activity codes
+- Compatibility retry for Ollama and OpenAI-compatible HTTP 400 structured-output rejection, with
+  an actionable `ai_provider_request_invalid` terminal error when compatibility mode also fails
+- CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after
   a machine-data path migration that preserved the protected secret file
@@ -110,7 +116,8 @@
 ## Not available yet
 
 OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
-Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, broader source connectors, incremental OpenWebUI
+Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, authenticated
+Microsoft Graph/SharePoint library discovery, broader source connectors, incremental OpenWebUI
 synchronization, remembered per-source content consent, filesystem watch, cron/calendar schedules, configurable
 retention, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.

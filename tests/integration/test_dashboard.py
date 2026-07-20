@@ -117,6 +117,67 @@ async def test_dashboard_local_form_requires_explicit_scan_consent(tmp_path: Pat
 
 
 @pytest.mark.anyio
+async def test_dashboard_enqueues_website_job_and_deletes_saved_report(tmp_path: Path) -> None:
+    database = tmp_path / "history.sqlite3"
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic website report", encoding="utf-8")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        dashboard = await client.get("/")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', dashboard.text)
+        assert csrf is not None
+        website = await client.post(
+            "/dashboard/scans/website",
+            data={
+                "csrf_token": csrf.group(1),
+                "idempotency_key": "dashboard-website-test-001",
+                "url": "https://docs.example.test/sitemap.xml",
+                "source_name": "Product website",
+                "content_consent": "true",
+            },
+        )
+        local = await client.post(
+            "/dashboard/scans/local",
+            data={
+                "csrf_token": csrf.group(1),
+                "idempotency_key": "dashboard-report-delete-001",
+                "path": str(source),
+                "scan_consent": "true",
+            },
+        )
+        assert local.status_code == 303
+        await client.post("/dashboard/worker/run-once", data={"csrf_token": csrf.group(1)})
+        reports = await client.get("/reports")
+        history_id = re.search(
+            r'data-delete-url="/dashboard/reports/([a-f0-9]+)/delete"', reports.text
+        )
+        assert history_id is not None
+        deleted = await client.post(
+            f"/dashboard/reports/{history_id.group(1)}/delete",
+            data={"csrf_token": csrf.group(1)},
+        )
+        missing = await client.get(f"/reports/{history_id.group(1)}")
+
+    assert website.status_code == 303
+    assert website.headers["location"] == "/jobs?notice=scan-queued"
+    repository = SQLiteJobRepository(database)
+    try:
+        website_job = next(
+            job
+            for job in repository.list(limit=10).items
+            if job.payload["source_kind"] == "website"
+        )
+        assert website_job.payload["website_url"] == "https://docs.example.test/sitemap.xml"
+    finally:
+        repository.close()
+    assert deleted.headers["location"] == "/reports?notice=report-deleted"
+    assert missing.status_code == 404
+
+
+@pytest.mark.anyio
 async def test_dashboard_openwebui_form_requires_explicit_content_consent(tmp_path: Path) -> None:
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=create_app(tmp_path / "history.sqlite3")),
