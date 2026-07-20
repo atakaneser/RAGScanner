@@ -9,7 +9,12 @@ from ragscanner.api import create_app
 from ragscanner.application import JobApplicationService, resolve_secret_reference
 from ragscanner.jobs import JobStatus
 from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
-from ragscanner.storage import SQLiteJobRepository
+from ragscanner.storage import (
+    MachineSecretStore,
+    SourceProfile,
+    SQLiteJobRepository,
+    SQLiteSourceProfileRepository,
+)
 
 
 @pytest.mark.anyio
@@ -36,6 +41,10 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', dashboard.text)
         request_id = re.search(r'name="idempotency_key" value="([^"]+)"', dashboard.text)
         assert csrf is not None and request_id is not None
+        assert 'id="icon-shield-check"' in dashboard.text
+        assert "Scan jobs" in dashboard.text
+        assert "AI settings" in dashboard.text
+        assert "Integrations" in dashboard.text
         queued = await client.post(
             "/dashboard/scans/local",
             data={
@@ -432,6 +441,8 @@ async def test_dashboard_settings_persist_language_and_machine_ai_credential(
         follow_redirects=False,
     ) as client:
         page = await client.get("/settings")
+        assert "Models available on this machine" in page.text
+        assert "data-default-ai-inventory" in page.text
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text)
         assert csrf is not None
         saved = await client.post(
@@ -463,6 +474,46 @@ async def test_dashboard_settings_persist_language_and_machine_ai_credential(
     assert settings.ai_credential_ref is not None
     assert resolve_secret_reference(settings.ai_credential_ref) == "synthetic-persistent-ai-key"
     assert b"synthetic-persistent-ai-key" not in database.read_bytes()
+
+
+@pytest.mark.anyio
+async def test_dashboard_repairs_stale_source_secret_reference_after_data_migration(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "current" / "history.sqlite3"
+    old_store = MachineSecretStore(tmp_path / "previous")
+    stale_reference = old_store.save("source-migrated", "synthetic-migrated-key")
+    current_store = MachineSecretStore(database.parent)
+    current_store.root.mkdir(parents=True)
+    (old_store.root / "source-migrated").replace(current_store.root / "source-migrated")
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        profile = repository.save(
+            SourceProfile(
+                name="Migrated OpenWebUI",
+                kind="openwebui",
+                base_url="http://127.0.0.1:3000",
+                credential_ref=stale_reference,
+            )
+        )
+    finally:
+        repository.close()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+    ) as client:
+        page = await client.get("/sources")
+
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        repaired = repository.get(profile.id)
+    finally:
+        repository.close()
+    assert page.status_code == 200
+    assert "Migrated OpenWebUI · Ready" in page.text
+    assert repaired is not None and repaired.credential_ref != stale_reference
+    assert resolve_secret_reference(repaired.credential_ref or "") == "synthetic-migrated-key"
 
 
 @pytest.mark.anyio

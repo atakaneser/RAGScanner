@@ -17,6 +17,7 @@
   </div>
 </fieldset>
 {%- endmacro %}
+{% macro icon(name, class_name='') -%}<svg class="icon {{ class_name }}" aria-hidden="true" focusable="false"><use href="#icon-{{ name }}"></use></svg>{%- endmacro %}
 <!doctype html>
 <html lang="{{ locale }}">
 <head>
@@ -28,18 +29,43 @@
   <script defer src="/dashboard-assets/dashboard.js?v={{ asset_version }}"></script>
 </head>
 <body class="drawer-collapsed {{ 'reduce-motion' if settings.reduced_motion }}" data-locale="{{ locale }}" data-timezone="{{ settings.timezone }}" data-report-detail="{{ settings.report_detail }}">
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8Z"/><path d="m9 12 2 2 4-5"/></symbol>
+    <symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></symbol>
+    <symbol id="icon-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+    <symbol id="icon-scan" viewBox="0 0 24 24"><path d="M3 7V4a1 1 0 0 1 1-1h3M17 3h3a1 1 0 0 1 1 1v3M21 17v3a1 1 0 0 1-1 1h-3M7 21H4a1 1 0 0 1-1-1v-3"/><path d="M7 12h10M12 7v10"/></symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/><path d="M12 13v3l2 1"/></symbol>
+    <symbol id="icon-report" viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6zM14 2v5h5"/><path d="M9 17v-3M13 17v-6M17 17v-8"/></symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></symbol>
+    <symbol id="icon-activity" viewBox="0 0 24 24"><path d="M3 12h4l2-7 4 14 2-7h6"/></symbol>
+    <symbol id="icon-bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 3v4M8 12h.01M16 12h.01M8 16h8"/></symbol>
+    <symbol id="icon-plug" viewBox="0 0 24 24"><path d="m8 12 8-8M14 4l6 6M6 14l4 4M4 22l5-5M2 16l6 6"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="icon-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/></symbol>
+  </svg>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary navigation">
-      <a class="wordmark" href="/"><span>RAG</span>Scanner</a>
+      <a class="wordmark" href="/" aria-label="RAGScanner overview"><span class="brand-mark">{{ icon('shield-check') }}</span><span class="brand-name"><b>RAG</b>Scanner</span></a>
       <nav>
-        <a class="nav-item {{ 'active' if page == 'overview' }}" href="/">Overview</a>
-        <a class="nav-item {{ 'active' if page == 'sources' }}" href="/sources">Sources</a>
-        <a class="nav-item {{ 'active' if page == 'jobs' }}" href="/jobs">Jobs</a>
-        <a class="nav-item {{ 'active' if page in ['reports', 'report_detail', 'compare'] }}" href="/reports">Reports</a>
-        <a class="nav-item {{ 'active' if page == 'settings' }}" href="/settings">Settings</a>
+        <a class="nav-item {{ 'active' if page == 'overview' }}" href="/">{{ icon('home') }}<span>Overview</span></a>
+        <span class="nav-group-label">Assess</span>
+        <a class="nav-item {{ 'active' if page == 'sources' }}" href="/sources">{{ icon('database') }}<span>Sources</span></a>
+        <a class="nav-item {{ 'active' if page == 'jobs' }}" href="/jobs">{{ icon('scan') }}<span>Scan jobs</span></a>
+        <a class="nav-item nav-subitem" href="/jobs#schedules">{{ icon('calendar') }}<span>Schedules</span></a>
+        <span class="nav-group-label">Understand</span>
+        <a class="nav-item {{ 'active' if page in ['reports', 'report_detail', 'compare'] }}" href="/reports">{{ icon('report') }}<span>Reports</span></a>
+        <a class="nav-item nav-subitem" href="{{ '/reports/' ~ latest.history_id ~ '#findings' if latest else '/reports' }}">{{ icon('alert') }}<span>Findings</span></a>
+        <a class="nav-item nav-subitem" href="/jobs#activity">{{ icon('activity') }}<span>Activity</span></a>
+        <span class="nav-group-label">Configure</span>
+        <a class="nav-item nav-subitem" href="/settings#ai-settings">{{ icon('bot') }}<span>AI settings</span></a>
+        <a class="nav-item nav-subitem" href="/sources#integrations">{{ icon('plug') }}<span>Integrations</span></a>
+        <a class="nav-item {{ 'active' if page == 'settings' }}" href="/settings">{{ icon('settings') }}<span>Settings</span></a>
       </nav>
       <div class="sidebar-footer">
-        <div class="service-health"><i></i><span>Local service healthy</span></div>
+        <div class="service-health"><i></i><span><strong>Scanner status</strong><small>Local service healthy</small></span></div>
         {% if host_auth_enabled %}<form method="post" action="/logout"><button class="text-button" type="submit">Sign out</button></form>{% endif %}
       </div>
     </aside>
@@ -48,9 +74,9 @@
       <header class="topbar">
         <strong>{{ page|replace('_', ' ')|title }}</strong>
         <div class="topbar-actions">
-          <label class="language-picker"><span>Language</span><select data-language-picker aria-label="Language"><option value="en">English</option><option value="tr">Türkçe</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="zh-CN">简体中文</option><option value="it">Italiano</option></select></label>
-          <a class="secondary" href="/reports">Search reports</a>
-          <button class="primary" type="button" data-open-drawer>Create job</button>
+          <label class="language-picker">{{ icon('globe') }}<span>Language</span><select data-language-picker aria-label="Language"><option value="en">English</option><option value="tr">Türkçe</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="zh-CN">简体中文</option><option value="it">Italiano</option></select></label>
+          <a class="secondary" href="/reports">{{ icon('search') }}<span>Search reports</span></a>
+          <button class="primary" type="button" data-open-drawer>{{ icon('plus') }}<span>Create job</span></button>
         </div>
       </header>
       <div class="content">
@@ -81,11 +107,11 @@
           <a href="/settings">View settings</a>
         </section>
         <section class="status-band" aria-label="Current scan posture">
-          <div class="status-item health-score"><span>Latest health score</span><strong>{{ latest.overall_score|round|int if latest and latest.overall_score is not none else '—' }}</strong><small>{{ latest.source_name if latest else 'No scans yet' }}{% if score_delta is not none %} · {{ '+' if score_delta > 0 }}{{ score_delta }} since previous report{% endif %}</small></div>
-          <div class="status-item"><span>Latest findings</span><strong>{{ latest.finding_count if latest else 0 }}</strong><small>Always based on the latest completed report</small></div>
-          <div class="status-item"><span>Assessment coverage</span><strong>{{ coverage }}%</strong><small>Latest report assessed and partial checks</small></div>
-          <div class="status-item"><span>Sources</span><strong>{{ profiles|length }}</strong><small>{{ profiles|selectattr('enabled')|list|length }} enabled profile(s)</small></div>
-          <div class="status-item"><span>Queued work</span><strong>{{ jobs|selectattr('status.value', 'equalto', 'queued')|list|length }}</strong><small>The Host Service processes jobs continuously</small></div>
+          <div class="status-item health-score">{{ icon('shield-check', 'status-icon') }}<span>Latest health score</span><strong>{{ latest.overall_score|round|int if latest and latest.overall_score is not none else '—' }}</strong><small>{{ latest.source_name if latest else 'No scans yet' }}{% if score_delta is not none %} · {{ '+' if score_delta > 0 }}{{ score_delta }} since previous report{% endif %}</small></div>
+          <div class="status-item">{{ icon('alert', 'status-icon') }}<span>Latest findings</span><strong>{{ latest.finding_count if latest else 0 }}</strong><small>Always based on the latest completed report</small></div>
+          <div class="status-item">{{ icon('report', 'status-icon') }}<span>Assessment coverage</span><strong>{{ coverage }}%</strong><small>Latest report assessed and partial checks</small></div>
+          <div class="status-item">{{ icon('database', 'status-icon') }}<span>Sources</span><strong>{{ profiles|length }}</strong><small>{{ profiles|selectattr('enabled')|list|length }} enabled profile(s)</small></div>
+          <div class="status-item">{{ icon('activity', 'status-icon') }}<span>Queued work</span><strong>{{ jobs|selectattr('status.value', 'equalto', 'queued')|list|length }}</strong><small>The Host Service processes jobs continuously</small></div>
         </section>
         <section class="health-trend" aria-labelledby="health-trend-title"><div class="section-heading"><div><span class="eyebrow">Health over time</span><h2 id="health-trend-title">Latest report history</h2></div><a href="/reports">Compare dates</a></div><div class="trend-bars">{% for scan in all_scans[:10]|reverse %}<a href="/reports/{{ scan.history_id }}" class="trend-point" title="{{ scan.source_name or 'Unnamed source' }} · {{ scan.overall_score|round|int if scan.overall_score is not none else 'Not assessed' }}"><span style="height: {{ scan.overall_score|round|int if scan.overall_score is not none else 4 }}%"></span><small><time datetime="{{ (scan.completed_at or scan.created_at).isoformat() }}" data-local-time>{{ (scan.completed_at or scan.created_at)|display_timestamp }}</time></small></a>{% else %}<p class="empty">Run at least two scans to see health change over time.</p>{% endfor %}</div></section>
         <div class="overview-grid overview-grid-readable">
@@ -104,6 +130,7 @@
         <div class="privacy-line">Discovery checks bounded Docker, Podman, nerdctl, Finch, Kubernetes, and common localhost metadata. It never reads document content.</div>
         <p class="field-note" data-discovery-status aria-live="polite"></p>
         <div class="environment-list" data-discovery-results></div>
+        <span class="section-anchor" id="integrations" aria-hidden="true"></span>
         <section class="data-section">
           <div class="section-heading"><h2>Connected sources</h2><span>{{ profiles|length }} total</span></div>
           <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Capability</th><th>Origin</th><th></th></tr></thead><tbody>
@@ -131,10 +158,12 @@
         {% elif page == 'jobs' %}
         <section class="page-heading split-heading"><div><h1>Scan jobs</h1><p>A scan job tells RAGScanner what source to scan. The machine service runs it and saves the report.</p></div><button class="primary" type="button" data-open-drawer>Create scan job</button></section>
         <div class="toolbar"><form method="post" action="/dashboard/worker/run-once"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary" type="submit">Process one now</button></form><span>The machine-wide Host Service normally processes this queue automatically.</span></div>
+        <span class="section-anchor" id="schedules" aria-hidden="true"></span>
         <section class="data-section schedule-section"><div class="section-heading"><div><span class="eyebrow">Recurring monitoring</span><h2>Scheduled scans</h2><p class="muted">Each due run creates a separate, traceable report.</p></div><span>{{ schedules|length }} schedule(s)</span></div><div class="schedule-grid">{% for schedule in schedules %}<article class="schedule-card"><div><code>{{ schedule.display_id }}</code><span class="state {{ 'state-succeeded' if schedule.enabled else 'state-cancelled' }}">{{ 'Active' if schedule.enabled else 'Paused' }}</span></div><h3>{{ schedule.name }}</h3><p>{{ schedule.payload.get('source_name') or 'Configured source' }}</p><dl><div><dt>Frequency</dt><dd>{% if schedule.interval_minutes == 60 %}Every hour{% elif schedule.interval_minutes == 360 %}Every 6 hours{% elif schedule.interval_minutes == 1440 %}Every day{% elif schedule.interval_minutes == 10080 %}Every week{% elif schedule.interval_minutes == 43200 %}Every 30 days{% else %}Every {{ schedule.interval_minutes }} minute(s){% endif %}</dd></div><div><dt>Next report</dt><dd><time datetime="{{ schedule.next_run_at.isoformat() }}" data-local-time>{{ schedule.next_run_at|display_timestamp }}</time></dd></div></dl><div class="row-actions"><form method="post" action="/dashboard/schedules/{{ schedule.id }}/toggle"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="enabled" value="{{ 'false' if schedule.enabled else 'true' }}"><button class="text-button" type="submit">{{ 'Pause' if schedule.enabled else 'Resume' }}</button></form><form method="post" action="/dashboard/schedules/{{ schedule.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="text-button danger" type="submit">Delete</button></form></div></article>{% else %}<p class="empty">No recurring scans yet. Create a job and choose Recurring.</p>{% endfor %}</div></section>
         <section class="data-section"><div class="section-heading"><div><span class="eyebrow">Execution history</span><h2>One-time and scheduled runs</h2></div><span>{{ job_total }} total</span></div>
         {% include 'job_rows.html' %}
         </section>
+        <span class="section-anchor" id="activity" aria-hidden="true"></span>
         <section><div class="section-heading"><div><h2>Job activity logs</h2><p class="muted">Safe status and error codes from the latest job state. Secret values and raw provider responses are never shown.</p></div><span class="live-indicator" data-job-live-status>Live</span></div><div class="job-log-list" data-job-logs>
           {% for log in job_logs %}<article class="job-log job-log-{{ log.level }}" data-job-log="{{ log.job_id }}"><div><strong>{{ log.code }}</strong><code>{{ log.job_id[:12] }}</code></div><p>{{ log.message }}</p><time>{{ log.timestamp }}</time></article>{% else %}<p class="empty">No job activity yet.</p>{% endfor %}
         </div></section>
@@ -177,6 +206,11 @@
         {% elif page == 'settings' %}
         <section class="page-heading"><h1>Settings</h1><p>Machine-local service, privacy, and connector configuration.</p></section>
         <p class="privacy-line">Reports remain versioned SQLite snapshots; API credentials are stored separately in protected machine files.</p>
+        <section class="model-inventory" id="ai-settings" data-default-ai-inventory>
+          <div><strong>Models available on this machine</strong><p class="model-inventory-status" data-default-ai-status aria-live="polite">Checking the selected local AI provider…</p></div>
+          <label class="hidden" data-default-ai-results-row>Detected models<select data-default-ai-results><option value="">No verified model yet</option></select></label>
+          <button class="secondary" type="button" data-refresh-default-ai>{{ icon('bot') }}<span>Refresh local models</span></button>
+        </section>
         <form class="settings-console" method="post" action="/dashboard/settings"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><section class="settings-card"><div class="settings-card-heading"><span class="settings-icon">Aa</span><div><h2>Language and time</h2><p>Control report labels and readable timestamps.</p></div></div><div class="settings-fields"><label>Interface and report language<select name="locale">{% for value, label in [('en','English'),('tr','Türkçe'),('de','Deutsch'),('fr','Français'),('zh-CN','简体中文'),('it','Italiano')] %}<option value="{{ value }}" {{ 'selected' if settings.locale == value }}>{{ label }}</option>{% endfor %}</select></label><label>Time display<select name="timezone"><option value="local" {{ 'selected' if settings.timezone == 'local' }}>This machine’s local time</option><option value="UTC" {{ 'selected' if settings.timezone == 'UTC' }}>UTC</option></select></label></div></section><section class="settings-card"><div class="settings-card-heading"><span class="settings-icon">▤</span><div><h2>Reports and tables</h2><p>Choose how much detail and history appears by default.</p></div></div><div class="settings-fields"><label>Report detail<select name="report_detail"><option value="detailed" {{ 'selected' if settings.report_detail == 'detailed' }}>Detailed · open priority findings</option><option value="standard" {{ 'selected' if settings.report_detail == 'standard' }}>Standard · collapsed findings</option></select></label><label>Rows per page<input type="number" name="rows_per_page" min="10" max="100" value="{{ settings.rows_per_page }}"></label><label class="switch-row"><input type="checkbox" name="show_absolute_paths" value="true" {{ 'checked' if settings.show_absolute_paths }}><span>Show absolute source paths where permitted</span></label><label class="switch-row"><input type="checkbox" name="reduced_motion" value="true" {{ 'checked' if settings.reduced_motion }}><span>Reduce interface motion</span></label></div></section><section class="settings-card"><div class="settings-card-heading"><span class="settings-icon">AI</span><div><h2>Default AI analysis</h2><p>New jobs inherit these values; each job can still override them.</p></div></div><div class="settings-fields"><label>Provider<select name="ai_provider">{% for provider in ai_providers %}<option value="{{ provider.id }}" {{ 'selected' if settings.ai_provider == provider.id }}>{{ provider.name }}</option>{% endfor %}</select></label><label>Model<input name="ai_model" required maxlength="240" value="{{ settings.ai_model }}"></label><label class="wide">Endpoint<input name="ai_base_url" required maxlength="2048" value="{{ settings.ai_base_url }}"></label><label>New API key<input type="password" name="ai_api_key" maxlength="4096" autocomplete="off" placeholder="{{ 'Saved credential — leave blank to keep' if settings.ai_credential_ref else 'Paste an API key' }}"><small>Stored outside SQLite in an owner-readable machine file.</small></label><label>Environment reference<input name="ai_credential_ref" maxlength="500" placeholder="env:OPENROUTER_API_KEY"><small>Optional alternative for managed environments.</small></label><label class="switch-row"><input type="checkbox" name="ai_remote_consent" value="true" {{ 'checked' if settings.ai_remote_consent }}><span>Allow bounded, redacted context to the selected remote provider</span></label>{% if settings.ai_credential_ref %}<label class="switch-row danger-zone"><input type="checkbox" name="remove_ai_credential" value="true"><span>Remove the saved AI credential</span></label>{% endif %}</div></section><div class="settings-save"><div><strong>Machine-local configuration</strong><p>Secrets never enter reports, jobs, or SQLite.</p></div><button class="primary" type="submit">Save settings</button></div></form>
         {% endif %}
       </div>

@@ -83,7 +83,12 @@ def _store_secret(database_path: Path, secret_id: str, value: str) -> str:
     return MachineSecretStore(database_path.parent).save(secret_id, value)
 
 
-def _effective_source_profile(profile: SourceProfile) -> SourceProfile:
+def _effective_source_profile(
+    profile: SourceProfile,
+    *,
+    repository: SQLiteSourceProfileRepository | None = None,
+    secret_store: MachineSecretStore | None = None,
+) -> SourceProfile:
     if profile.kind == "filesystem":
         status = "scan_ready"
     elif profile.kind != "openwebui":
@@ -94,7 +99,19 @@ def _effective_source_profile(profile: SourceProfile) -> SourceProfile:
                 raise ValueError("missing credential")
             resolve_secret_reference(profile.credential_ref)
         except ValueError:
-            status = "connection_required"
+            rebound = secret_store.rebind(profile.credential_ref) if secret_store else None
+            if rebound:
+                try:
+                    resolve_secret_reference(rebound)
+                except ValueError:
+                    status = "connection_required"
+                else:
+                    profile = profile.model_copy(update={"credential_ref": rebound})
+                    if repository is not None:
+                        repository.save(profile)
+                    status = "scan_ready"
+            else:
+                status = "connection_required"
         else:
             status = "scan_ready"
     return profile.model_copy(update={"capability_status": status})
@@ -357,7 +374,15 @@ def register_dashboard(
                 if baseline_id and candidate_id
                 else None
             )
-            profiles = [_effective_source_profile(profile) for profile in source_repository.list()]
+            secret_store = MachineSecretStore(database_path.parent)
+            profiles = [
+                _effective_source_profile(
+                    profile,
+                    repository=source_repository,
+                    secret_store=secret_store,
+                )
+                for profile in source_repository.list()
+            ]
             schedules = schedule_repository.list(limit=settings.rows_per_page)
             job_logs = [_job_log(job, history_repository) for job in jobs.items]
         finally:

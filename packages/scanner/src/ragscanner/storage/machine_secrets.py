@@ -41,6 +41,32 @@ class MachineSecretStore:
         path.unlink()
         return True
 
+    def rebind(self, reference: str | None) -> str | None:
+        """Rebind a stale absolute reference to the same secret in this data root.
+
+        Older installations encoded the complete machine-data path.  If that root was
+        migrated while preserving the ``secrets`` directory, the credential remained
+        available but its reference no longer resolved.  Only a validated basename is
+        considered; arbitrary paths are never searched or followed.
+        """
+
+        previous = _path_from_reference(reference) if reference else None
+        if previous is None:
+            return None
+        secret_id = previous.name
+        if not secret_id or any(
+            character not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for character in secret_id
+        ):
+            return None
+        candidate = (self.root / secret_id).resolve()
+        if candidate.parent != self.root or candidate.is_symlink():
+            return None
+        try:
+            resolve_file_secret_reference(_reference(candidate))
+        except ValueError:
+            return None
+        return _reference(candidate)
+
 
 def resolve_file_secret_reference(reference: str) -> str:
     """Resolve one opaque file reference after permission, type, and size checks."""

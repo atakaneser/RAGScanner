@@ -18,6 +18,93 @@
     return payload;
   };
 
+  const defaultAIInventory = document.querySelector("[data-default-ai-inventory]");
+  if (defaultAIInventory) {
+    const settingsForm = document.querySelector("form.settings-console");
+    const provider = settingsForm?.querySelector('[name="ai_provider"]');
+    const model = settingsForm?.querySelector('[name="ai_model"]');
+    const endpoint = settingsForm?.querySelector('[name="ai_base_url"]');
+    const resultsRow = defaultAIInventory.querySelector("[data-default-ai-results-row]");
+    const results = defaultAIInventory.querySelector("[data-default-ai-results]");
+    const status = defaultAIInventory.querySelector("[data-default-ai-status]");
+    const refreshButton = defaultAIInventory.querySelector("[data-refresh-default-ai]");
+    const localDefaults = {
+      ollama: "http://127.0.0.1:11434",
+      lmstudio: "http://127.0.0.1:1234/v1",
+      localai: "http://127.0.0.1:8080/v1",
+      vllm: "http://127.0.0.1:8000/v1",
+    };
+    const setInventoryStatus = (message, warning = false) => {
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle("warning", warning);
+    };
+    const clearUnverifiedModel = () => {
+      if (!model) return;
+      model.value = "";
+      model.placeholder = t("No model detected on this machine");
+      model.setAttribute("aria-invalid", "true");
+    };
+    const refreshDefaultModels = async () => {
+      const selectedProvider = provider?.value || "";
+      if (!Object.hasOwn(localDefaults, selectedProvider)) {
+        resultsRow?.classList.add("hidden");
+        setInventoryStatus(t("Automatic discovery checks local providers only. Remote models require an explicit connection."));
+        return;
+      }
+      if (refreshButton) refreshButton.disabled = true;
+      setInventoryStatus(t("Checking the selected local AI provider…"));
+      try {
+        const payload = await postForm("/dashboard/discovery/ai-models", {
+          provider: selectedProvider,
+          base_url: endpoint?.value || localDefaults[selectedProvider],
+          remote_consent: "false",
+        });
+        const models = payload.models || [];
+        results?.replaceChildren(...models.map((name) => new Option(name, name)));
+        resultsRow?.classList.toggle("hidden", models.length === 0);
+        if (!models.length) {
+          clearUnverifiedModel();
+          setInventoryStatus(t("No model was found at this local endpoint. Start the provider or correct its address."), true);
+          return;
+        }
+        const configured = model?.value || "";
+        const selected = models.includes(configured) ? configured : models[0];
+        if (results) results.value = selected;
+        if (model) {
+          model.value = selected;
+          model.removeAttribute("aria-invalid");
+        }
+        if (configured && configured !== selected) {
+          setInventoryStatus(`${t("The saved model is not installed. Selected")} ${selected}. ${t("Save settings to keep this change.")}`, true);
+        } else {
+          setInventoryStatus(`${models.length} ${t("model(s) found")} · ${selected}`);
+        }
+      } catch (error) {
+        resultsRow?.classList.add("hidden");
+        clearUnverifiedModel();
+        const code = error instanceof Error ? error.message.match(/^\[([^\]]+)\]/)?.[1] : "";
+        setInventoryStatus(`${t("Local model discovery failed")}${code ? ` · ${code}` : ""}`, true);
+      } finally {
+        if (refreshButton) refreshButton.disabled = false;
+      }
+    };
+    provider?.addEventListener("change", () => {
+      if (Object.hasOwn(localDefaults, provider.value) && endpoint) endpoint.value = localDefaults[provider.value];
+      refreshDefaultModels();
+    });
+    endpoint?.addEventListener("change", refreshDefaultModels);
+    results?.addEventListener("change", () => {
+      if (model && results.value) {
+        model.value = results.value;
+        model.removeAttribute("aria-invalid");
+        setInventoryStatus(`${t("Selected")} ${results.value}. ${t("Save settings to keep this change.")}`);
+      }
+    });
+    refreshButton?.addEventListener("click", refreshDefaultModels);
+    refreshDefaultModels();
+  }
+
   document.querySelectorAll("[data-open-drawer]").forEach((button) => button.addEventListener("click", () => body.classList.remove("drawer-collapsed")));
   document.querySelector("[data-close-drawer]")?.addEventListener("click", () => body.classList.add("drawer-collapsed"));
   const tabs = [...document.querySelectorAll("[data-source]")];

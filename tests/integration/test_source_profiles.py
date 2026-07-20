@@ -93,6 +93,31 @@ def test_machine_secret_reference_survives_repository_restart_without_entering_s
     assert store.delete(reference)
 
 
+def test_machine_secret_reference_can_rebind_after_machine_data_directory_migration(
+    tmp_path: Path,
+) -> None:
+    old_root = tmp_path / "old-machine-data"
+    new_root = tmp_path / "new-machine-data"
+    old_store = MachineSecretStore(old_root)
+    stale_reference = old_store.save("source-migrated", "synthetic-migrated-credential")
+    new_store = MachineSecretStore(new_root)
+    new_store.root.mkdir(parents=True)
+    (old_store.root / "source-migrated").replace(new_store.root / "source-migrated")
+
+    rebound = new_store.rebind(stale_reference)
+
+    assert rebound is not None
+    assert rebound != stale_reference
+    assert resolve_secret_reference(rebound) == "synthetic-migrated-credential"
+
+
+def test_machine_secret_rebind_rejects_missing_and_unsafe_references(tmp_path: Path) -> None:
+    store = MachineSecretStore(tmp_path / "machine-data")
+
+    assert store.rebind(None) is None
+    assert store.rebind("file-secret:not-valid-base64") is None
+
+
 def test_duplicate_source_locations_are_rejected_after_normalization(tmp_path: Path) -> None:
     repository = SQLiteSourceProfileRepository(tmp_path / "history.sqlite3")
     try:
