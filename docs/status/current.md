@@ -99,6 +99,9 @@
   provider failure preserves the authoritative deterministic report
 - Live two-second dashboard job updates, AI-stage lease heartbeats and progress, complete detected
   model selection, update-safe machine credential files, and secret-safe success/failure activity codes
+- Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
+  inventory in Settings, stale configured-model removal, and safe source-secret reference repair after
+  a machine-data path migration that preserved the protected secret file
 - Stable `RAGSCN-`, `RAGREP-`, and `RAGSCH-` display identifiers, recurring interval schedules,
   source duplicate rejection, localized timestamps, detailed report navigation, and health history
 - Synthetic multilingual quickstart knowledge base and package/build smoke coverage

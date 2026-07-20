@@ -25,6 +25,9 @@ key, so every occurrence has its own job, log, readable ID, and immutable report
 ## Consequences
 
 - Updates and ordinary service restarts preserve dashboard-entered API credentials.
+- If a machine-data migration preserves a protected secret file but changes the absolute data-root
+  path encoded by an older reference, the dashboard may rebind only the validated secret basename
+  inside the current `secrets/` directory and persist the repaired opaque reference.
 - Database copies alone do not contain raw credentials, but machine secret files still require the
   same backup and access controls as other local credentials.
 - This is protected filesystem storage, not application-level encryption or an OS keychain.
