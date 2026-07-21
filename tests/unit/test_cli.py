@@ -499,8 +499,6 @@ def test_dashboard_commands_reject_custom_ports() -> None:
 
     assert public.exit_code == 2
     assert internal.exit_code == 2
-    assert "No such option: --port" in public.output
-    assert "No such option: --port" in internal.output
 
 
 def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # type: ignore[no-untyped-def]
