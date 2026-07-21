@@ -20,8 +20,9 @@
   executable-file failures
 - Retired per-user Agent installation path; always-on delivery uses the machine service
 - Elevated machine-local Host Service with an isolated machine runtime, machine-owned SQLite and
-  temporary storage, a `local.ragscanner.com` loopback hosts-file mapping,
-  a first-run local administrator, and an authenticated local dashboard bootstrap
+  temporary storage, a fixed `http://localhost:8765` address bound only to `127.0.0.1`,
+  a first-run local administrator, authenticated password changes that rotate existing sessions,
+  and an authenticated local dashboard bootstrap
 - Windows Host supervision through a boot-triggered Task Scheduler task under `SYSTEM`, with
   restart-on-failure, explicit registration diagnostics, a LocalSystem SID principal,
   BOM-prefixed UTF-16LE task XML, and no interactive-logon dependency

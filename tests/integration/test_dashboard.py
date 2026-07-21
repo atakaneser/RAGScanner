@@ -118,6 +118,22 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         "Sovrapposizione eccessiva",
     ):
         assert translated_quality_title in i18n.text
+    for translated_password_action in (
+        "Yönetici şifresini değiştir",
+        "Administratorkennwort ändern",
+        "Modifier le mot de passe administrateur",
+        "更改管理员密码",
+        "Cambia password amministratore",
+    ):
+        assert translated_password_action in i18n.text
+    for translated_setup_privacy in (
+        "API anahtarı çalışan makine servisinin belleğinde kalır",
+        "Der API-Schlüssel bleibt im Speicher des laufenden Rechnerdienstes",
+        "La clé API reste en mémoire dans le service actif",
+        "API 密钥仅保留在当前计算机服务的内存中",
+        "La chiave API rimane nella memoria del servizio in esecuzione",
+    ):
+        assert translated_setup_privacy in i18n.text
     assert "Planlı tarama güncellendi." in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303

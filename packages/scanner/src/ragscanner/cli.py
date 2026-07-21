@@ -55,11 +55,11 @@ from ragscanner.host_service import (
 )
 from ragscanner.jobs import JobKind, JobNotFoundError, JobStateError
 from ragscanner.local_site import (
+    DASHBOARD_BIND_HOST,
+    DASHBOARD_PORT,
     dashboard_url,
     hosts_file_path,
-    local_hostname_is_registered,
-    register_local_hostname,
-    unregister_local_hostname,
+    remove_legacy_hostname,
 )
 from ragscanner.logging import configure_logging
 from ragscanner.models import ComponentStatus, DoctorReport
@@ -140,14 +140,12 @@ quality_app = typer.Typer(help="Offline duplicate and chunk-quality analysis com
 history_app = typer.Typer(help="Opt-in local SQLite scan history and comparison commands.")
 jobs_app = typer.Typer(help="Durable local scan job commands.")
 agent_app = typer.Typer(help="Manage the retired per-user Agent compatibility commands.")
-site_app = typer.Typer(help="Configure the machine-local dashboard address.")
 host_app = typer.Typer(help="Run and manage the machine-wide local Host Service.")
 app.add_typer(security_app, name="security")
 app.add_typer(quality_app, name="quality")
 app.add_typer(history_app, name="history")
 app.add_typer(jobs_app, name="jobs")
 app.add_typer(agent_app, name="agent", hidden=True)
-app.add_typer(site_app, name="site", hidden=True)
 app.add_typer(host_app, name="host", hidden=True)
 
 
@@ -422,7 +420,7 @@ def _wait_for_dashboard(*, timeout: float = 10) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with socket.create_connection(("127.0.0.1", 8000), timeout=0.25):
+            with socket.create_connection((DASHBOARD_BIND_HOST, DASHBOARD_PORT), timeout=0.25):
                 return True
         except OSError:
             time.sleep(0.1)
@@ -521,17 +519,10 @@ def install(
     ):
         typer.echo("Installation cancelled. No changes were made.")
         return
-    hostname_path = hosts_file_path()
-    hostname_was_registered = local_hostname_is_registered(hostname_path)
     try:
-        register_local_hostname(hostname_path)
+        remove_legacy_hostname(hosts_file_path())
         definition = install_host_service()
     except OSError as error:
-        if not hostname_was_registered:
-            try:
-                unregister_local_hostname(hostname_path)
-            except OSError:
-                pass
         raise typer.BadParameter(f"RAGScanner installation failed: {error}") from error
     typer.echo("RAGScanner installation completed.")
     typer.echo(f"Machine data: {system_data_dir()}")
@@ -572,6 +563,7 @@ def update() -> None:
     typer.echo("Updating the machine-wide RAGScanner runtime...")
     try:
         launcher = install_machine_runtime(upgrade=True)
+        remove_legacy_hostname(hosts_file_path())
         if sys.platform == "win32":
             install_host_service(launcher=launcher)
         else:
@@ -589,7 +581,7 @@ def repair() -> None:
     typer.echo("Repairing the machine-wide RAGScanner runtime...")
     try:
         launcher = install_machine_runtime(reinstall=True, upgrade=True)
-        register_local_hostname(hosts_file_path())
+        remove_legacy_hostname(hosts_file_path())
         install_host_service(launcher=launcher)
     except OSError as error:
         raise typer.BadParameter(f"RAGScanner repair failed: {error}") from error
@@ -620,7 +612,7 @@ def uninstall(
     data_dir = get_settings().data_dir.expanduser().resolve()
     remove_autostart(data_dir)
     remove_host_service()
-    unregister_local_hostname(hosts_file_path())
+    remove_legacy_hostname(hosts_file_path())
     remove_machine_runtime()
     if purge_data:
         if not yes and not typer.confirm(f"Permanently delete all RAGScanner data in {data_dir}?"):
@@ -663,80 +655,18 @@ def agent_status() -> None:
     state = "installed" if registration.exists() else "not installed"
     typer.echo(f"Agent autostart: {state}")
     typer.echo(f"Registration: {registration}")
-    typer.echo("Dashboard address: http://127.0.0.1:8000")
+    typer.echo(f"Dashboard address: {dashboard_url()}")
 
 
 @agent_app.command("run")
 def agent_run(
-    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
     history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
     poll_interval: Annotated[float, typer.Option("--poll-interval", min=0.1, max=60)] = 1,
 ) -> None:
     """Run the local dashboard and durable worker in one foreground Agent process."""
     database = _history_database(history_db)
-    typer.echo(f"RAGScanner Agent listening at http://127.0.0.1:{port}", err=True)
-    run_agent(database, port=port, poll_interval=poll_interval)
-
-
-@site_app.command("status")
-def site_status() -> None:
-    """Show whether this machine maps the dashboard name to loopback."""
-    path = hosts_file_path()
-    state = "registered" if local_hostname_is_registered(path) else "not registered"
-    typer.echo(f"Local hostname: {state}")
-    typer.echo(f"Hosts file: {path}")
-    typer.echo(f"Dashboard address: {dashboard_url()}")
-
-
-@site_app.command("register")
-def site_register(
-    yes: Annotated[
-        bool, typer.Option("--yes", "-y", help="Skip the hosts-file confirmation.")
-    ] = False,
-) -> None:
-    """Map local.ragscanner.com to 127.0.0.1 on this machine only."""
-    path = hosts_file_path()
-    if not yes and not typer.confirm(
-        f"Add a machine-local loopback mapping for {dashboard_url()} in {path}?"
-    ):
-        typer.echo("Local hostname registration cancelled. No changes were made.")
-        return
-    try:
-        register_local_hostname(path)
-    except PermissionError as error:
-        raise typer.BadParameter(
-            "administrator permission is required to update the hosts file; rerun this command "
-            "from an elevated terminal"
-        ) from error
-    except OSError as error:
-        raise typer.BadParameter(f"cannot update the hosts file: {error}") from error
-    typer.echo(f"Local dashboard hostname registered: {dashboard_url()}")
-
-
-@site_app.command("unregister")
-def site_unregister(
-    yes: Annotated[
-        bool, typer.Option("--yes", "-y", help="Skip the hosts-file confirmation.")
-    ] = False,
-) -> None:
-    """Remove only RAGScanner's machine-local hosts-file mapping."""
-    path = hosts_file_path()
-    if not local_hostname_is_registered(path):
-        typer.echo("Local dashboard hostname is not registered.")
-        return
-    if not yes and not typer.confirm(f"Remove RAGScanner's local mapping from {path}?"):
-        typer.echo("Local hostname removal cancelled. No changes were made.")
-        return
-    try:
-        unregister_local_hostname(path)
-    except PermissionError as error:
-        raise typer.BadParameter(
-            "administrator permission is required to update the hosts file; rerun this command "
-            "from an elevated terminal"
-        ) from error
-    except OSError as error:
-        raise typer.BadParameter(f"cannot update the hosts file: {error}") from error
-    typer.echo("Local dashboard hostname removed.")
+    typer.echo(f"RAGScanner Agent listening at {dashboard_url()}", err=True)
+    run_agent(database, poll_interval=poll_interval)
 
 
 @host_app.command("install")
@@ -754,8 +684,6 @@ def host_status() -> None:
     typer.echo(f"Service data: {system_data_dir()}")
     typer.echo(f"Service definition: {service_definition_path()}")
     typer.echo(f"Machine command: {machine_command_path()}")
-    hostname = "registered" if local_hostname_is_registered(hosts_file_path()) else "not registered"
-    typer.echo(f"Local hostname: {hostname}")
     typer.echo(f"Dashboard: {dashboard_url()}")
 
 
@@ -778,14 +706,14 @@ def host_uninstall(
         return
     try:
         remove_host_service()
-        unregister_local_hostname(hosts_file_path())
+        remove_legacy_hostname(hosts_file_path())
         remove_machine_runtime()
         if purge_data:
             shutil.rmtree(system_data_dir(), ignore_errors=True)
     except OSError as error:
         raise typer.BadParameter(f"cannot remove the Host Service: {error}") from error
     typer.echo(
-        "RAGScanner Host Service, machine runtime, and local hostname mapping were removed. "
+        "RAGScanner Host Service and machine runtime were removed. "
         + ("Machine data was deleted." if purge_data else "Machine data was preserved.")
     )
 
@@ -793,7 +721,6 @@ def host_uninstall(
 @host_app.command("run")
 def host_run(
     data_dir: Annotated[Path | None, typer.Option("--data-dir", file_okay=False)] = None,
-    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
     poll_interval: Annotated[float, typer.Option("--poll-interval", min=0.1, max=60)] = 1,
 ) -> None:
     """Run the Host Service in the foreground; used only by a service manager."""
@@ -802,10 +729,9 @@ def host_run(
     temporary_dir = service_temp_dir(selected_data_dir)
     temporary_dir.mkdir(parents=True, exist_ok=True)
     tempfile.tempdir = str(temporary_dir)
-    typer.echo(f"RAGScanner Host Service listening at {dashboard_url(port=port)}", err=True)
+    typer.echo(f"RAGScanner Host Service listening at {dashboard_url()}", err=True)
     run_agent(
         selected_data_dir / "history.sqlite3",
-        port=port,
         poll_interval=poll_interval,
         local_administrator_data_dir=selected_data_dir,
     )
@@ -829,9 +755,7 @@ def setup(
         return
     if selected == "dashboard":
         url = dashboard_url()
-        typer.echo(
-            f"Open {url} after running `ragscanner site register` from an elevated terminal."
-        )
+        typer.echo(f"Open {url}.")
         webbrowser.open(url)
         return
     if selected == "terminal":
@@ -1373,20 +1297,19 @@ def worker_command(
 
 @app.command("serve")
 def serve_api(
-    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8000,
     history_db: Annotated[Path | None, typer.Option("--history-db", dir_okay=False)] = None,
 ) -> None:
     """Serve the local dashboard and authenticated job API on loopback only."""
     database = _history_database(history_db)
     typer.echo(
-        f"Starting the local dashboard and API at http://127.0.0.1:{port} "
+        f"Starting the local dashboard and API at {dashboard_url()} "
         f"with history/job database {database}.",
         err=True,
     )
     uvicorn.run(
         create_app(database),
-        host="127.0.0.1",
-        port=port,
+        host=DASHBOARD_BIND_HOST,
+        port=DASHBOARD_PORT,
         access_log=False,
         server_header=False,
     )

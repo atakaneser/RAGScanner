@@ -38,7 +38,6 @@ from ragscanner.config import get_settings
 from ragscanner.history import ScanComparison, ScanHistoryPage
 from ragscanner.jobs import JobNotFoundError, JobPage, JobRecord, JobStateError
 from ragscanner.local_auth import LocalAdministratorStore
-from ragscanner.local_site import LOCAL_DASHBOARD_HOST
 from ragscanner.reporting.models import ReportDocument
 from ragscanner.storage import SQLiteJobRepository, SQLiteScanHistoryRepository
 from ragscanner.storage.database import StorageError
@@ -49,9 +48,7 @@ API_VERSION = "1.0.0-alpha"
 MAX_REQUEST_BYTES = 1_000_000
 _HISTORY_ID_PATTERN = r"^[a-f0-9]{32}$"
 _JOB_ID_PATTERN = r"^[a-f0-9]{32}$"
-_LOCAL_HOST = re.compile(
-    rf"^(?:127\.0\.0\.1|localhost|testserver|{re.escape(LOCAL_DASHBOARD_HOST)}|\[::1\])(?::\d{{1,5}})?$"
-)
+_LOCAL_HOST = re.compile(r"^(?:(?:127\.0\.0\.1|localhost):8765|testserver(?::\d{1,5})?)$")
 ALL_API_SCOPES = {"scans:write", "jobs:read", "jobs:cancel", "jobs:retry"}
 
 

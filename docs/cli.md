@@ -32,7 +32,7 @@ CLI process memory; durable `jobs enqueue-openwebui` remains available for autom
 The bare-command menu contains only two scan routes: a local file or folder, and an OpenWebUI API
 knowledge base. Detection-only platform inventory is not presented as a scan route.
 
-The dashboard at `http://127.0.0.1:8000` offers the same consented local environment discovery,
+The dashboard at `http://localhost:8765` offers the same consented local environment discovery,
 can transfer a discovered reachable OpenWebUI URL into its scan form, and can list knowledge bases
 using an `env:` credential reference. The key is resolved only in the local dashboard/worker process
 and is never sent to the browser, report, SQLite database, or job payload. The dashboard can process
@@ -106,9 +106,9 @@ job. All default to the central `history.sqlite3` file shown by `ragscanner path
 selects another file.
 
 `ragscanner install` is the single elevated installation entry point. It creates the isolated
-machine runtime, registers `local.ragscanner.com` to `127.0.0.1`, starts the always-on Host Service,
-and opens the first-run local-administrator dashboard. The mapping is local to the machine; it does
-not use public DNS or expose the dashboard on the network. Use `--mode terminal` to complete initial
+machine runtime, starts the always-on Host Service on the fixed `http://localhost:8765` address,
+and opens the first-run local-administrator dashboard. The server binds only to `127.0.0.1`; it does
+not register a custom hostname or expose the dashboard on the network. Use `--mode terminal` to complete initial
 source setup in the CLI or `--no-open-dashboard` for a headless installation. Running bare
 `ragscanner` or `ragscanner open` opens the dashboard; `ragscanner status` reports installation
 locations. `update`, `repair`, and `uninstall` manage the same installation.
@@ -117,11 +117,12 @@ On Windows, the Host process is a boot-triggered Task Scheduler task running und
 not depend on an interactive sign-in and is configured to restart after failure. Linux uses a system
 `systemd` unit and macOS uses a system `LaunchDaemon`.
 
-Legacy `agent`, `host`, `site`, and `setup` command groups remain hidden only for alpha compatibility
+Legacy `agent`, `host`, and `setup` command groups remain hidden only for alpha compatibility
 and internal service-manager execution. They are not separate installation choices.
 
-`ragscanner serve` starts the dashboard and versioned API on `127.0.0.1:8000` without a worker. `--port` changes the
-loopback port and `--history-db` selects another database. History reads are local; API scan/job
+`ragscanner serve` starts the dashboard and versioned API at the same fixed
+`http://localhost:8765` address without a worker. `--history-db` selects another database; the port
+cannot be changed. History reads are local; API scan/job
 mutation requires `RAGSCANNER_API_KEY`. See the [local API](api.md) and [durable jobs](jobs.md).
 
 ## Path rules

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded in part by [ADR-0038](0038-fixed-localhost-address-and-password-rotation.md)
 
 ## Context
 

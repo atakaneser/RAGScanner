@@ -53,7 +53,9 @@ ragscanner paths
 ```
 
 Makine kurulumu ve yaşam döngüsü komutları yönetici izni gerektirir. Dashboard varsayılan olarak
-yalnızca loopback’te çalışır ve kurulumdan sonra `http://local.ragscanner.com` adresindedir.
+yalnızca `127.0.0.1` üzerinde çalışır ve tek sabit adresi `http://localhost:8765` olur. Hosts dosyasını
+değiştirmez; özel bir hostname veya port kabul etmez. Yerel yönetici şifresini Ayarlar’dan
+değiştirebilirsiniz; bu işlem diğer tüm açık dashboard oturumlarını kapatır.
 
 ## Güncelleyin, onarın veya kaldırın
 

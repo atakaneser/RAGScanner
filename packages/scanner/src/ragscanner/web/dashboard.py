@@ -563,6 +563,30 @@ def register_dashboard(
         )
         return response
 
+    @app.post("/dashboard/password", include_in_schema=False)
+    async def dashboard_change_password(
+        request: Request,
+        csrf_token: Annotated[str, Form()],
+        current_password: Annotated[str, Form(min_length=1, max_length=512)],
+        new_password: Annotated[str, Form(min_length=1, max_length=512)],
+        confirm_password: Annotated[str, Form(min_length=1, max_length=512)],
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        if administrator_store is None:
+            return RedirectResponse("/settings?notice=password-unavailable", status_code=303)
+        if new_password != confirm_password:
+            return RedirectResponse("/settings?notice=password-mismatch", status_code=303)
+        try:
+            administrator = administrator_store.change_password(current_password, new_password)
+        except PermissionError:
+            return RedirectResponse("/settings?notice=password-current-invalid", status_code=303)
+        except ValueError as error:
+            notice = "password-reused" if "must differ" in str(error) else "password-invalid"
+            return RedirectResponse(f"/settings?notice={notice}", status_code=303)
+        response = RedirectResponse("/settings?notice=password-changed", status_code=303)
+        _set_session_cookie(response, administrator_store.issue_session(administrator.username))
+        return response
+
     @app.post("/dashboard/sources", include_in_schema=False)
     async def dashboard_add_source(
         request: Request,

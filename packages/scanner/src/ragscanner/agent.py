@@ -19,6 +19,7 @@ import uvicorn
 from ragscanner.api import create_app
 from ragscanner.application import DurableWorker, StaticScanApplicationService, StaticScanJobHandler
 from ragscanner.jobs import JobKind
+from ragscanner.local_site import DASHBOARD_BIND_HOST, DASHBOARD_PORT
 from ragscanner.storage import (
     SQLiteJobRepository,
     SQLiteScanHistoryRepository,
@@ -130,7 +131,6 @@ def remove_autostart(data_dir: Path, *, platform: str | None = None) -> None:
 def run_agent(
     database_path: Path,
     *,
-    port: int = 8000,
     poll_interval: float = 1.0,
     local_administrator_data_dir: Path | None = None,
 ) -> None:
@@ -162,8 +162,8 @@ def run_agent(
     try:
         uvicorn.run(
             create_app(database_path, local_administrator_data_dir=local_administrator_data_dir),
-            host="127.0.0.1",
-            port=port,
+            host=DASHBOARD_BIND_HOST,
+            port=DASHBOARD_PORT,
             access_log=False,
             server_header=False,
         )

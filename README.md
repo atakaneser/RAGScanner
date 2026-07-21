@@ -53,7 +53,9 @@ ragscanner paths
 ```
 
 Administrator permission is required for machine installation and lifecycle commands. The default
-dashboard is loopback-only and is also available at `http://local.ragscanner.com` after installation.
+dashboard has one fixed address: `http://localhost:8765`. It binds only to `127.0.0.1`, never edits
+the hosts file, and does not accept a custom public hostname or port. Change the local administrator
+password from Settings; doing so closes every other signed-in dashboard session.
 
 ## Update, repair, and uninstall
 

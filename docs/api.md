@@ -8,13 +8,13 @@ export RAGSCANNER_API_KEY="replace-with-a-long-random-local-key"
 ragscanner serve
 ```
 
-Choose a port or shared history/job database when needed:
+Choose a shared history/job database when needed. The loopback port is fixed:
 
 ```bash
-ragscanner serve --port 8123 --history-db ./private/history.sqlite3
+ragscanner serve --history-db ./private/history.sqlite3
 ```
 
-The server always binds to `127.0.0.1`. It is not a public or multi-user API. External bind
+The server always binds to `127.0.0.1:8765`. It is not a public or multi-user API. External bind
 addresses, built-in accounts, sessions, RBAC, CORS, and reverse-proxy configuration are not
 provided. Any exposure beyond localhost requires an independent trusted access boundary.
 
@@ -59,7 +59,7 @@ Every scan-create request requires an `Idempotency-Key` header of 8–160 charac
 with the same payload returns the existing job; reusing it for different work returns a conflict.
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/scans \
+curl -X POST http://localhost:8765/api/v1/scans \
   -H "Authorization: Bearer $RAGSCANNER_API_KEY" \
   -H "Idempotency-Key: manual-local-20260714-001" \
   -H "Content-Type: application/json" \
