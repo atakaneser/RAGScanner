@@ -134,7 +134,6 @@ class ReportBuilder:
                 name: None
                 for name in (
                     "overall",
-                    "consistency",
                     "knowledge_quality",
                     "retrieval_quality",
                     "answer_reliability",

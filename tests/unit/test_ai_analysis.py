@@ -53,7 +53,14 @@ def test_scan_ai_config_requires_remote_consent_and_never_contains_a_secret() ->
     )
     provider = create_analysis_provider(config, secret_resolver=lambda _reference: "runtime-key")
     assert provider.provider_id == "openrouter"
+    assert provider.timeout_seconds == 180
     assert "runtime-key" not in config.model_dump_json()
+
+    slower = config.model_copy(update={"timeout_seconds": 300})
+    slower_provider = create_analysis_provider(
+        slower, secret_resolver=lambda _reference: "runtime-key"
+    )
+    assert slower_provider.timeout_seconds == 300
 
 
 def test_ollama_ignores_unknown_finding_ids_without_discarding_valid_analysis(

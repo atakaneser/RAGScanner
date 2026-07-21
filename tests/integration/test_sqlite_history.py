@@ -97,6 +97,34 @@ def test_repeated_core_scan_identity_creates_distinct_execution_history(
         repository.close()
 
 
+def test_repository_hides_retired_consistency_results_in_detail_and_summary(
+    tmp_path: Path, report, finding
+) -> None:  # type: ignore[no-untyped-def]
+    legacy_finding = finding("c").model_copy(
+        update={"scanner": "consistency_scanner", "category": "consistency_conflict"}
+    )
+    legacy_report = report("scan-legacy", findings=[legacy_finding]).model_copy(
+        update={
+            "scores": {"overall": 20.0, "consistency": 0.0, "security": 90.0},
+            "assessment_coverage": {"consistency": {"status": "assessed"}},
+        }
+    )
+    repository = SQLiteScanHistoryRepository(tmp_path / "history.sqlite3")
+    try:
+        history_id = repository.save(legacy_report)
+
+        displayed = repository.get(history_id)
+        summary = repository.list().items[0]
+
+        assert displayed is not None
+        assert displayed.findings == []
+        assert displayed.scores == {"overall": 90.0, "security": 90.0}
+        assert summary.finding_count == 0
+        assert summary.overall_score == 90.0
+    finally:
+        repository.close()
+
+
 def test_database_does_not_store_secret_like_configuration_values(tmp_path: Path, report) -> None:  # type: ignore[no-untyped-def]
     safe = report("scan-1").model_copy(
         update={"configuration": {"api_key": "[REDACTED]", "mode": "offline"}}

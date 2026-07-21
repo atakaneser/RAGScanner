@@ -124,7 +124,7 @@ class _BaseAnalysisProvider:
         base_url: str,
         model: str,
         consent_remote: bool = False,
-        timeout_seconds: float = 45,
+        timeout_seconds: float = 180,
     ) -> None:
         self.base_url, self.remote = _validate_url(base_url, consent_remote=consent_remote)
         if not model.strip():
@@ -584,6 +584,7 @@ def create_analysis_provider(
         "base_url": base_url,
         "model": validated.model,
         "consent_remote": validated.remote_consent,
+        "timeout_seconds": validated.timeout_seconds,
     }
     api_key = secret_resolver(validated.credential_ref) if validated.credential_ref else ""
     if definition.protocol == "ollama":

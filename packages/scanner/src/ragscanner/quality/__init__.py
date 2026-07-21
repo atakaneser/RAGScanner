@@ -1,6 +1,5 @@
 """Deterministic offline duplicate and chunk-quality analysis."""
 
-from ragscanner.quality.consistency import ConsistencyScanner, ConsistencyScanResult
 from ragscanner.quality.models import (
     ChunkQualityConfig,
     ChunkQualityResult,
@@ -22,8 +21,6 @@ __all__ = [
     "ChunkQualityResult",
     "ChunkQualityScanner",
     "ChunkQualityScore",
-    "ConsistencyScanResult",
-    "ConsistencyScanner",
     "DuplicateGroup",
     "DuplicateScanConfig",
     "DuplicateScanResult",
