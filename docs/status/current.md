@@ -79,8 +79,9 @@
 - Separate one-time execution history and persistent interval schedules, with latest-report health,
   health-over-time visualization, readable public IDs, and safe job activity/error logs
 - Editable interval schedules with an explicit next local run time and recurrence interval
-- Separate density-aware security and explicit-fact consistency scores, shared yellow/orange/red
-  score bands, source page/line provenance, and bounded matched-evidence highlighting
+- Separate density-aware security and explicit-fact consistency scores; consistency comparisons
+  are conservatively scoped to one source and exclude numbered procedure/narrative labels; shared
+  yellow/orange/red score bands, source page/line provenance, and bounded matched-evidence highlighting
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback

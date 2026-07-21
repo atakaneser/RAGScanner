@@ -22,6 +22,29 @@ _LABELLED_VALUE = re.compile(
     r"\s*[:=]\s*(?P<value>[^\n]{1,180})\s*$"
 )
 _SPACE = re.compile(r"\s+")
+_PROCEDURAL_LABEL = re.compile(
+    r"(?ix)^(?:\d+\s*[.)-]?\s*)?"
+    r"(?:adım|step|aşama|stage|madde|item|bölüm|section|sayfa|page|şekil|figure|tablo|table)"
+    r"(?:\s*\d+)?$"
+)
+_NARRATIVE_LABELS = frozenset(
+    {
+        "açıklama",
+        "answer",
+        "başlık",
+        "cevap",
+        "description",
+        "example",
+        "note",
+        "not",
+        "örnek",
+        "question",
+        "soru",
+        "title",
+        "uyarı",
+        "warning",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,16 +66,16 @@ class ConsistencyScanner:
     """Find conflicting values for the same explicit label without semantic inference."""
 
     name = "consistency_scanner"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def scan(self, documents: list[Document]) -> ConsistencyScanResult:
-        facts: dict[str, list[_Fact]] = defaultdict(list)
+        facts: dict[tuple[str, str], list[_Fact]] = defaultdict(list)
         for document in documents:
             for match in _LABELLED_VALUE.finditer(document.normalized_content):
-                label = self._normalize(match.group("label"))
+                label = self._normalized_label(match.group("label"))
                 value = self._normalize(match.group("value"))
-                if label and value:
-                    facts[label].append(
+                if label is not None and value:
+                    facts[(self._source_scope(document), label)].append(
                         _Fact(
                             label=match.group("label").strip(),
                             value=match.group("value").strip(),
@@ -63,7 +86,7 @@ class ConsistencyScanner:
                     )
         findings: list[Finding] = []
         conflicting_keys = 0
-        for key, candidates in sorted(facts.items()):
+        for (scope, key), candidates in sorted(facts.items()):
             distinct = {self._normalize(item.value) for item in candidates}
             if len(candidates) < 2 or len(distinct) < 2:
                 continue
@@ -72,7 +95,7 @@ class ConsistencyScanner:
                 {truncate_text(mask_secret_like_values(item.value), 120) for item in candidates}
             )
             for candidate in candidates:
-                findings.append(self._finding(key, candidate, display_values))
+                findings.append(self._finding(scope, key, candidate, display_values))
         return ConsistencyScanResult(
             findings=findings,
             facts_compared=sum(len(items) for items in facts.values() if len(items) > 1),
@@ -83,13 +106,28 @@ class ConsistencyScanner:
     def _normalize(value: str) -> str:
         return _SPACE.sub(" ", value).strip(" .;\t").casefold()
 
-    def _finding(self, key: str, fact: _Fact, values: list[str]) -> Finding:
+    @classmethod
+    def _normalized_label(cls, value: str) -> str | None:
+        label = cls._normalize(value)
+        if _PROCEDURAL_LABEL.fullmatch(label) or label in _NARRATIVE_LABELS:
+            return None
+        return label
+
+    @staticmethod
+    def _source_scope(document: Document) -> str:
+        source = document.source
+        identity = (
+            source.source_path or f"{source.source_type}:{source.source_name}:{source.source_id}"
+        )
+        return _SPACE.sub(" ", identity).strip().casefold()
+
+    def _finding(self, scope: str, key: str, fact: _Fact, values: list[str]) -> Finding:
         source = self._source_location(fact)
         safe_value = truncate_text(mask_secret_like_values(fact.value), 180)
         evidence = f"{fact.label}: {safe_value}"
         fingerprint = hashlib.sha256(
             (
-                f"consistency:v1:{key}:{source.source_id}:{fact.document.id}:"
+                f"consistency:v2:{scope}:{key}:{source.source_id}:{fact.document.id}:"
                 f"{fact.start}:{'|'.join(values)}"
             ).encode()
         ).hexdigest()

@@ -108,6 +108,34 @@ def test_consistency_scanner_does_not_flag_repeated_identical_values() -> None:
     assert result.findings == []
 
 
+def test_consistency_scanner_ignores_numbered_procedure_steps_and_narrative_labels() -> None:
+    source = doc(
+        "guide",
+        "2.Adım: Para sayma Makinesi entegrasyon kablosunu bağlayın.\n"
+        "2.Adım: Add Server simgesine çift tıklayın.\n"
+        "3.Adım: Devices and Printers seçeneğini açın.\n"
+        "3.Adım: Kurulumu tamamlayın.\n"
+        "Not: Bu işlem yönetici yetkisi gerektirir.\n"
+        "Not: Uygulamayı yeniden başlatın.\n",
+        "chatbot-guide.pdf",
+    )
+
+    result = ConsistencyScanner().scan([source])
+
+    assert result.findings == []
+    assert result.conflicting_keys == 0
+
+
+def test_consistency_scanner_does_not_compare_same_label_across_unrelated_sources() -> None:
+    first = doc("first", "Version: 1.0\n", "product-a.md")
+    second = doc("second", "Version: 2.0\n", "product-b.md")
+
+    result = ConsistencyScanner().scan([first, second])
+
+    assert result.findings == []
+    assert result.conflicting_keys == 0
+
+
 def test_exact_document_duplicates_formatting_canonical_and_stability() -> None:
     docs = [
         doc("b", "Same   normalized content", "z.txt"),
