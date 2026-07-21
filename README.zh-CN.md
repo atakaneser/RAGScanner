@@ -49,8 +49,9 @@ ragscanner status
 ragscanner paths
 ```
 
-机器安装和生命周期命令需要管理员权限。dashboard 默认仅监听 loopback，安装后可通过
-`http://local.ragscanner.com` 访问。
+机器安装和生命周期命令需要管理员权限。dashboard 仅绑定 `127.0.0.1`，固定地址为
+`http://localhost:8765`。它不会修改 hosts 文件，也不接受自定义主机名或端口。可在“设置”中
+更改本地管理员密码；更改后会关闭所有其他 dashboard 会话。
 
 ## 更新、修复和卸载
 

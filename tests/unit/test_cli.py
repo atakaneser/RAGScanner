@@ -47,7 +47,7 @@ def test_bare_command_opens_the_dashboard(monkeypatch) -> None:  # type: ignore[
     result = runner.invoke(app, [])
 
     assert result.exit_code == 0
-    assert opened == ["http://local.ragscanner.com:8000"]
+    assert opened == ["http://localhost:8765"]
     assert "Opening the RAGScanner dashboard" in result.stdout
 
 
@@ -82,7 +82,7 @@ def test_install_configures_the_machine_service_and_opens_dashboard(monkeypatch)
     calls: list[object] = []
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr(
-        "ragscanner.cli.register_local_hostname", lambda path: calls.append(("hostname", path))
+        "ragscanner.cli.remove_legacy_hostname", lambda path: calls.append("legacy-cleanup")
     )
     monkeypatch.setattr(
         "ragscanner.cli.install_host_service", lambda: calls.append("service") or Path("service")
@@ -95,14 +95,14 @@ def test_install_configures_the_machine_service_and_opens_dashboard(monkeypatch)
     result = runner.invoke(app, ["install", "--yes"])
 
     assert result.exit_code == 0
-    assert calls[1:] == ["service", ("browser", "http://local.ragscanner.com:8000")]
+    assert calls == ["legacy-cleanup", "service", ("browser", "http://localhost:8765")]
     assert "installation completed" in result.stdout
 
 
 def test_install_can_complete_setup_in_the_terminal(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     modes: list[str] = []
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
-    monkeypatch.setattr("ragscanner.cli.register_local_hostname", lambda path: None)
+    monkeypatch.setattr("ragscanner.cli.remove_legacy_hostname", lambda path: False)
     monkeypatch.setattr("ragscanner.cli.install_host_service", lambda: Path("service"))
     monkeypatch.setattr("ragscanner.cli.setup", lambda mode: modes.append(mode))
 
@@ -121,15 +121,11 @@ def test_install_requires_machine_administrator_permission(monkeypatch) -> None:
     assert "administrator permission" in result.output
 
 
-def test_failed_install_rolls_back_a_new_hostname_mapping(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_failed_install_reports_service_registration_error(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     calls: list[str] = []
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
-    monkeypatch.setattr("ragscanner.cli.local_hostname_is_registered", lambda path: False)
     monkeypatch.setattr(
-        "ragscanner.cli.register_local_hostname", lambda path: calls.append("register")
-    )
-    monkeypatch.setattr(
-        "ragscanner.cli.unregister_local_hostname", lambda path: calls.append("unregister")
+        "ragscanner.cli.remove_legacy_hostname", lambda path: calls.append("legacy-cleanup")
     )
 
     def fail_install() -> Path:
@@ -140,7 +136,7 @@ def test_failed_install_rolls_back_a_new_hostname_mapping(monkeypatch) -> None: 
     result = runner.invoke(app, ["install", "--yes"])
 
     assert result.exit_code == 2
-    assert calls == ["register", "unregister"]
+    assert calls == ["legacy-cleanup"]
     assert "registration failed" in result.output
 
 
@@ -180,11 +176,14 @@ def test_machine_update_replaces_runtime_and_restarts_service(monkeypatch) -> No
         lambda **kwargs: calls.append(("runtime", kwargs)) or Path("machine/ragscanner"),
     )
     monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
+    monkeypatch.setattr(
+        "ragscanner.cli.remove_legacy_hostname", lambda path: calls.append("legacy-cleanup")
+    )
 
     result = runner.invoke(app, ["update"])
 
     assert result.exit_code == 0
-    assert calls == [("runtime", {"upgrade": True}), "restart"]
+    assert calls == [("runtime", {"upgrade": True}), "legacy-cleanup", "restart"]
     assert "update completed" in result.stdout
 
 
@@ -202,12 +201,16 @@ def test_windows_machine_update_hands_the_service_to_the_new_generation(monkeypa
         lambda **kwargs: calls.append(("service", kwargs)),
     )
     monkeypatch.setattr("ragscanner.cli.restart_host_service", lambda: calls.append("restart"))
+    monkeypatch.setattr(
+        "ragscanner.cli.remove_legacy_hostname", lambda path: calls.append("legacy-cleanup")
+    )
 
     result = runner.invoke(app, ["update"])
 
     assert result.exit_code == 0
     assert calls == [
         ("runtime", {"upgrade": True}),
+        "legacy-cleanup",
         ("service", {"launcher": launcher}),
     ]
 
@@ -235,7 +238,7 @@ def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) 
         lambda **kwargs: calls.append(("runtime", kwargs)) or launcher,
     )
     monkeypatch.setattr(
-        "ragscanner.cli.register_local_hostname", lambda path: calls.append("hostname")
+        "ragscanner.cli.remove_legacy_hostname", lambda path: calls.append("legacy-cleanup")
     )
     monkeypatch.setattr(
         "ragscanner.cli.install_host_service",
@@ -247,7 +250,7 @@ def test_machine_repair_reinstalls_and_reregisters_every_component(monkeypatch) 
     assert result.exit_code == 0
     assert calls == [
         ("runtime", {"reinstall": True, "upgrade": True}),
-        "hostname",
+        "legacy-cleanup",
         ("service", {"launcher": launcher}),
     ]
     assert "registered and started" in result.stdout
@@ -258,7 +261,7 @@ def test_machine_repair_reports_service_registration_failure_without_traceback(m
     monkeypatch.setattr(
         "ragscanner.cli.install_machine_runtime", lambda **kwargs: Path("machine/ragscanner")
     )
-    monkeypatch.setattr("ragscanner.cli.register_local_hostname", lambda path: None)
+    monkeypatch.setattr("ragscanner.cli.remove_legacy_hostname", lambda path: False)
     monkeypatch.setattr(
         "ragscanner.cli.install_host_service",
         lambda **kwargs: (_ for _ in ()).throw(OSError("synthetic registration failure")),
@@ -296,7 +299,7 @@ def test_windows_uninstall_is_deferred_until_the_launcher_exits(
     monkeypatch.setattr("ragscanner.cli.sys.platform", "win32")
     monkeypatch.setattr("ragscanner.cli.is_elevated", lambda: True)
     monkeypatch.setattr("ragscanner.cli.remove_host_service", lambda: None)
-    monkeypatch.setattr("ragscanner.cli.unregister_local_hostname", lambda _path: None)
+    monkeypatch.setattr("ragscanner.cli.remove_legacy_hostname", lambda _path: False)
     monkeypatch.setattr("ragscanner.cli.remove_machine_runtime", lambda: None)
     monkeypatch.setattr("ragscanner.cli.remove_autostart", lambda _path: None)
     monkeypatch.setattr("ragscanner.cli.shutil.which", lambda name: "C:\\Tools\\uv.exe")
@@ -476,18 +479,26 @@ def test_serve_command_binds_local_dashboard_and_api_to_loopback(
     monkeypatch.setattr("ragscanner.cli.uvicorn.run", run)
     database = tmp_path / "history.sqlite3"
 
-    result = runner.invoke(app, ["serve", "--port", "8123", "--history-db", str(database)])
+    result = runner.invoke(app, ["serve", "--history-db", str(database)])
 
     assert result.exit_code == 0
     assert calls == [
         {
             "host": "127.0.0.1",
-            "port": 8123,
+            "port": 8765,
             "access_log": False,
             "server_header": False,
         }
     ]
     assert "local dashboard and API" in result.stderr
+
+
+def test_dashboard_commands_reject_custom_ports() -> None:
+    public = runner.invoke(app, ["serve", "--port", "8123"])
+    internal = runner.invoke(app, ["host", "run", "--port", "8123"])
+
+    assert public.exit_code == 2
+    assert internal.exit_code == 2
 
 
 def test_guided_openwebui_discovery_requires_consent(monkeypatch) -> None:  # type: ignore[no-untyped-def]

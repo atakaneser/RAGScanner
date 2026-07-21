@@ -53,7 +53,9 @@ ragscanner paths
 ```
 
 Installation und Lebenszyklusbefehle benötigen Administratorrechte. Das Dashboard ist standardmäßig
-nur über Loopback und nach der Installation unter `http://local.ragscanner.com` erreichbar.
+nur an `127.0.0.1` gebunden und hat die feste Adresse `http://localhost:8765`. Es ändert die Hosts-Datei
+nicht und akzeptiert weder einen eigenen Hostnamen noch einen eigenen Port. Das lokale Administratorkennwort kann
+unter Einstellungen geändert werden; dadurch enden alle anderen Dashboard-Sitzungen.
 
 ## Aktualisieren, reparieren und entfernen
 

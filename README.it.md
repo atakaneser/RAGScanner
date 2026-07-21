@@ -52,7 +52,9 @@ ragscanner paths
 ```
 
 Installazione e comandi del ciclo di vita richiedono privilegi amministrativi. La dashboard è
-limitata al loopback e disponibile su `http://local.ragscanner.com` dopo l’installazione.
+associata solo a `127.0.0.1` e usa l’indirizzo fisso `http://localhost:8765`. Non modifica il file
+hosts e non accetta hostname o porte personalizzate. La password dell’amministratore locale si può
+cambiare nelle Impostazioni; l’operazione chiude tutte le altre sessioni della dashboard.
 
 ## Aggiorna, ripara e disinstalla
 

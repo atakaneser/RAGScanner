@@ -53,7 +53,9 @@ ragscanner paths
 ```
 
 Les commandes d’installation et de cycle de vie exigent les droits administrateur. Le dashboard
-reste limité au loopback et répond à `http://local.ragscanner.com` après installation.
+est lié uniquement à `127.0.0.1` et utilise l’adresse fixe `http://localhost:8765`. Il ne modifie pas
+le fichier hosts et n’accepte ni nom d’hôte ni port personnalisé. Le mot de passe administrateur
+local se modifie dans Paramètres ; cette action ferme toutes les autres sessions.
 
 ## Mettre à jour, réparer et désinstaller
 

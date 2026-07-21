@@ -412,6 +412,11 @@
   Object.assign(catalogs.fr, {"Recurring scan status updated.":"L’analyse planifiée a été mise à jour."});
   Object.assign(catalogs["zh-CN"], {"Recurring scan status updated.":"计划扫描已更新。"});
   Object.assign(catalogs.it, {"Recurring scan status updated.":"La scansione pianificata è stata aggiornata."});
+  Object.assign(catalogs.tr, {"Change administrator password":"Yönetici şifresini değiştir","Changing the password closes every other signed-in dashboard session.":"Şifreyi değiştirmek diğer tüm açık dashboard oturumlarını kapatır.","Current password":"Mevcut şifre","New password":"Yeni şifre","Use at least 14 characters.":"En az 14 karakter kullanın.","Confirm new password":"Yeni şifreyi doğrula","Local administrator":"Yerel yönetici","The password is stored only as a memory-hard hash.":"Şifre yalnızca bellek-zorlu bir özet olarak saklanır.","Change password":"Şifreyi değiştir","Password changed. Other signed-in sessions were closed.":"Şifre değiştirildi. Diğer açık oturumlar kapatıldı.","The current password is incorrect.":"Mevcut şifre yanlış.","The new password confirmation does not match.":"Yeni şifre doğrulaması eşleşmiyor.","The new password must differ from the current password.":"Yeni şifre mevcut şifreden farklı olmalıdır.","The new password must contain at least 14 characters.":"Yeni şifre en az 14 karakter içermelidir.","Password changes are unavailable in this dashboard mode.":"Bu dashboard modunda şifre değiştirilemez."});
+  Object.assign(catalogs.de, {"Change administrator password":"Administratorkennwort ändern","Changing the password closes every other signed-in dashboard session.":"Die Kennwortänderung beendet alle anderen Dashboard-Sitzungen.","Current password":"Aktuelles Kennwort","New password":"Neues Kennwort","Use at least 14 characters.":"Mindestens 14 Zeichen verwenden.","Confirm new password":"Neues Kennwort bestätigen","Local administrator":"Lokaler Administrator","The password is stored only as a memory-hard hash.":"Das Kennwort wird nur als speicherharter Hash gespeichert.","Change password":"Kennwort ändern","Password changed. Other signed-in sessions were closed.":"Kennwort geändert. Andere Sitzungen wurden beendet.","The current password is incorrect.":"Das aktuelle Kennwort ist falsch.","The new password confirmation does not match.":"Die Bestätigung des neuen Kennworts stimmt nicht überein.","The new password must differ from the current password.":"Das neue Kennwort muss sich vom aktuellen unterscheiden.","The new password must contain at least 14 characters.":"Das neue Kennwort muss mindestens 14 Zeichen enthalten.","Password changes are unavailable in this dashboard mode.":"Kennwortänderungen sind in diesem Dashboard-Modus nicht verfügbar."});
+  Object.assign(catalogs.fr, {"Change administrator password":"Modifier le mot de passe administrateur","Changing the password closes every other signed-in dashboard session.":"La modification ferme toutes les autres sessions du tableau de bord.","Current password":"Mot de passe actuel","New password":"Nouveau mot de passe","Use at least 14 characters.":"Utilisez au moins 14 caractères.","Confirm new password":"Confirmer le nouveau mot de passe","Local administrator":"Administrateur local","The password is stored only as a memory-hard hash.":"Le mot de passe est stocké uniquement sous forme de hachage résistant.","Change password":"Modifier le mot de passe","Password changed. Other signed-in sessions were closed.":"Mot de passe modifié. Les autres sessions ont été fermées.","The current password is incorrect.":"Le mot de passe actuel est incorrect.","The new password confirmation does not match.":"La confirmation du nouveau mot de passe ne correspond pas.","The new password must differ from the current password.":"Le nouveau mot de passe doit être différent de l’actuel.","The new password must contain at least 14 characters.":"Le nouveau mot de passe doit contenir au moins 14 caractères.","Password changes are unavailable in this dashboard mode.":"La modification du mot de passe est indisponible dans ce mode."});
+  Object.assign(catalogs["zh-CN"], {"Change administrator password":"更改管理员密码","Changing the password closes every other signed-in dashboard session.":"更改密码会关闭所有其他已登录的仪表板会话。","Current password":"当前密码","New password":"新密码","Use at least 14 characters.":"请至少使用 14 个字符。","Confirm new password":"确认新密码","Local administrator":"本地管理员","The password is stored only as a memory-hard hash.":"密码仅以高内存成本哈希形式存储。","Change password":"更改密码","Password changed. Other signed-in sessions were closed.":"密码已更改，其他会话已关闭。","The current password is incorrect.":"当前密码不正确。","The new password confirmation does not match.":"新密码确认不匹配。","The new password must differ from the current password.":"新密码必须与当前密码不同。","The new password must contain at least 14 characters.":"新密码必须至少包含 14 个字符。","Password changes are unavailable in this dashboard mode.":"此仪表板模式不支持更改密码。"});
+  Object.assign(catalogs.it, {"Change administrator password":"Cambia password amministratore","Changing the password closes every other signed-in dashboard session.":"La modifica chiude tutte le altre sessioni del dashboard.","Current password":"Password attuale","New password":"Nuova password","Use at least 14 characters.":"Usa almeno 14 caratteri.","Confirm new password":"Conferma nuova password","Local administrator":"Amministratore locale","The password is stored only as a memory-hard hash.":"La password viene salvata solo come hash resistente.","Change password":"Cambia password","Password changed. Other signed-in sessions were closed.":"Password modificata. Le altre sessioni sono state chiuse.","The current password is incorrect.":"La password attuale non è corretta.","The new password confirmation does not match.":"La conferma della nuova password non corrisponde.","The new password must differ from the current password.":"La nuova password deve essere diversa da quella attuale.","The new password must contain at least 14 characters.":"La nuova password deve contenere almeno 14 caratteri.","Password changes are unavailable in this dashboard mode.":"La modifica della password non è disponibile in questa modalità."});
   Object.assign(catalogs.tr, {
     "Assessed-dimension weighted result":"Değerlendirilen boyutların ağırlıklı sonucu",
     "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.":"AI tarafından üretilen analiz danışman niteliğindedir. İşlem yapmadan önce deterministik bulgular ve temel kanıtlarla doğrulayın.",
@@ -436,6 +441,52 @@
     "Assessed-dimension weighted result":"Risultato ponderato delle dimensioni valutate",
     "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.":"L’analisi generata dall’AI è consultiva. Verificala con i risultati deterministici e le prove prima di agire.",
     "AI provider timeout":"Il provider AI non ha risposto entro {seconds} secondi. Verifica il modello locale o scegline uno più piccolo."
+  });
+
+  Object.assign(catalogs.tr, {
+    "Current scan posture":"Güncel tarama durumu",
+    "RAGScanner fills in common defaults. You can skip this step and add sources later.":"RAGScanner yaygın varsayılanları doldurur. Bu adımı atlayıp kaynakları daha sonra ekleyebilirsiniz.",
+    "Use the common local address and paste an API key":"Yaygın yerel adresi kullanın ve bir API anahtarı yapıştırın",
+    "Add a source later or run a temporary file or folder scan":"Daha sonra kaynak ekleyin veya geçici bir dosya ya da klasör taraması çalıştırın",
+    "The API key stays in this running machine service's memory and is never stored in SQLite, reports, or scan jobs.":"API anahtarı çalışan makine servisinin belleğinde kalır; SQLite'a, raporlara veya tarama işlerine asla kaydedilmez.",
+    "Advanced: use an environment variable":"Gelişmiş: ortam değişkeni kullan",
+    "Paste the OpenWebUI API key":"OpenWebUI API anahtarını yapıştırın"
+  });
+  Object.assign(catalogs.de, {
+    "Current scan posture":"Aktueller Scanstatus",
+    "RAGScanner fills in common defaults. You can skip this step and add sources later.":"RAGScanner trägt gängige Standardwerte ein. Sie können diesen Schritt überspringen und Quellen später hinzufügen.",
+    "Use the common local address and paste an API key":"Die übliche lokale Adresse verwenden und einen API-Schlüssel einfügen",
+    "Add a source later or run a temporary file or folder scan":"Später eine Quelle hinzufügen oder einen temporären Datei- bzw. Ordnerscan ausführen",
+    "The API key stays in this running machine service's memory and is never stored in SQLite, reports, or scan jobs.":"Der API-Schlüssel bleibt im Speicher des laufenden Rechnerdienstes und wird nie in SQLite, Berichten oder Scanaufträgen gespeichert.",
+    "Advanced: use an environment variable":"Erweitert: Umgebungsvariable verwenden",
+    "Paste the OpenWebUI API key":"OpenWebUI-API-Schlüssel einfügen"
+  });
+  Object.assign(catalogs.fr, {
+    "Current scan posture":"État actuel des analyses",
+    "RAGScanner fills in common defaults. You can skip this step and add sources later.":"RAGScanner renseigne les valeurs courantes. Vous pouvez ignorer cette étape et ajouter des sources plus tard.",
+    "Use the common local address and paste an API key":"Utilisez l’adresse locale habituelle et collez une clé API",
+    "Add a source later or run a temporary file or folder scan":"Ajoutez une source plus tard ou lancez une analyse temporaire de fichier ou dossier",
+    "The API key stays in this running machine service's memory and is never stored in SQLite, reports, or scan jobs.":"La clé API reste en mémoire dans le service actif et n’est jamais enregistrée dans SQLite, les rapports ou les tâches d’analyse.",
+    "Advanced: use an environment variable":"Avancé : utiliser une variable d’environnement",
+    "Paste the OpenWebUI API key":"Collez la clé API OpenWebUI"
+  });
+  Object.assign(catalogs["zh-CN"], {
+    "Current scan posture":"当前扫描状态",
+    "RAGScanner fills in common defaults. You can skip this step and add sources later.":"RAGScanner 会填写常用默认值。您可以跳过此步骤，稍后再添加数据源。",
+    "Use the common local address and paste an API key":"使用常用本地地址并粘贴 API 密钥",
+    "Add a source later or run a temporary file or folder scan":"稍后添加数据源，或运行临时文件或文件夹扫描",
+    "The API key stays in this running machine service's memory and is never stored in SQLite, reports, or scan jobs.":"API 密钥仅保留在当前计算机服务的内存中，绝不会存入 SQLite、报告或扫描任务。",
+    "Advanced: use an environment variable":"高级：使用环境变量",
+    "Paste the OpenWebUI API key":"粘贴 OpenWebUI API 密钥"
+  });
+  Object.assign(catalogs.it, {
+    "Current scan posture":"Stato attuale delle scansioni",
+    "RAGScanner fills in common defaults. You can skip this step and add sources later.":"RAGScanner inserisce i valori predefiniti più comuni. Puoi saltare questo passaggio e aggiungere le origini in seguito.",
+    "Use the common local address and paste an API key":"Usa l’indirizzo locale comune e incolla una chiave API",
+    "Add a source later or run a temporary file or folder scan":"Aggiungi un’origine in seguito oppure esegui una scansione temporanea di file o cartella",
+    "The API key stays in this running machine service's memory and is never stored in SQLite, reports, or scan jobs.":"La chiave API rimane nella memoria del servizio in esecuzione e non viene mai salvata in SQLite, nei rapporti o nelle attività di scansione.",
+    "Advanced: use an environment variable":"Avanzate: usa una variabile d’ambiente",
+    "Paste the OpenWebUI API key":"Incolla la chiave API OpenWebUI"
   });
 
   const cookieLocale = document.cookie.split("; ").find((item) => item.startsWith("ragscanner_locale="))?.split("=")[1];

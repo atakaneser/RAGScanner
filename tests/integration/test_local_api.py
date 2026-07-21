@@ -149,7 +149,23 @@ async def test_local_api_uses_stable_bounded_errors_without_existence_details(
 
 
 @pytest.mark.anyio
-async def test_local_api_accepts_the_explicit_machine_local_dashboard_hostname(
+async def test_local_api_accepts_the_fixed_localhost_dashboard_hostname(
+    tmp_path: Path,
+) -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(tmp_path / "history.sqlite3")),
+        base_url="http://localhost:8765",
+    ) as client:
+        response = await client.get("/health")
+        wrong_port = await client.get("/health", headers={"host": "localhost:8123"})
+
+    assert response.status_code == 200
+    assert wrong_port.status_code == 400
+    assert wrong_port.json()["error"]["code"] == "invalid_host"
+
+
+@pytest.mark.anyio
+async def test_local_api_rejects_the_retired_custom_dashboard_hostname(
     tmp_path: Path,
 ) -> None:
     async with httpx.AsyncClient(
@@ -158,7 +174,8 @@ async def test_local_api_accepts_the_explicit_machine_local_dashboard_hostname(
     ) as client:
         response = await client.get("/health")
 
-    assert response.status_code == 200
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_host"
 
 
 @pytest.mark.anyio
@@ -168,7 +185,7 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
     )
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
-        base_url="http://local.ragscanner.com",
+        base_url="http://localhost:8765",
         follow_redirects=False,
     ) as client:
         initial = await client.get("/")
@@ -202,12 +219,121 @@ async def test_host_dashboard_bootstraps_and_requires_a_local_administrator(tmp_
 
 
 @pytest.mark.anyio
+async def test_host_dashboard_changes_password_and_invalidates_other_sessions(
+    tmp_path: Path,
+) -> None:
+    app = create_app(
+        tmp_path / "history.sqlite3", local_administrator_data_dir=tmp_path / "host-data"
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        httpx.AsyncClient(
+            transport=transport,
+            base_url="http://localhost:8765",
+            follow_redirects=False,
+        ) as primary,
+        httpx.AsyncClient(
+            transport=transport,
+            base_url="http://localhost:8765",
+            follow_redirects=False,
+        ) as secondary,
+    ):
+        setup = await primary.get("/setup")
+        setup_csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text)
+        assert setup_csrf is not None
+        created = await primary.post(
+            "/setup",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+                "csrf_token": setup_csrf.group(1),
+            },
+        )
+        signed_in = await secondary.post(
+            "/login",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+            },
+        )
+        settings = await primary.get("/settings")
+        settings_csrf = re.search(r'name="csrf_token" value="([^"]+)"', settings.text)
+        assert settings_csrf is not None
+        invalid_current = await primary.post(
+            "/dashboard/password",
+            data={
+                "csrf_token": settings_csrf.group(1),
+                "current_password": "incorrect password",
+                "new_password": "a different long local password",
+                "confirm_password": "a different long local password",
+            },
+        )
+        weak_password = await primary.post(
+            "/dashboard/password",
+            data={
+                "csrf_token": settings_csrf.group(1),
+                "current_password": "a long local-only password",
+                "new_password": "too short",
+                "confirm_password": "too short",
+            },
+        )
+        mismatch = await primary.post(
+            "/dashboard/password",
+            data={
+                "csrf_token": settings_csrf.group(1),
+                "current_password": "a long local-only password",
+                "new_password": "a different long local password",
+                "confirm_password": "another different local password",
+            },
+        )
+        changed = await primary.post(
+            "/dashboard/password",
+            data={
+                "csrf_token": settings_csrf.group(1),
+                "current_password": "a long local-only password",
+                "new_password": "a different long local password",
+                "confirm_password": "a different long local password",
+            },
+        )
+        primary_after = await primary.get("/settings")
+        secondary_after = await secondary.get("/")
+        old_login = await secondary.post(
+            "/login",
+            data={
+                "username": "host-admin",
+                "password": "a long local-only password",
+            },
+        )
+        new_login = await secondary.post(
+            "/login",
+            data={
+                "username": "host-admin",
+                "password": "a different long local password",
+            },
+        )
+
+    assert created.status_code == 303
+    assert signed_in.status_code == 303
+    assert "Change administrator password" in settings.text
+    assert invalid_current.headers["location"] == "/settings?notice=password-current-invalid"
+    assert weak_password.headers["location"] == "/settings?notice=password-invalid"
+    assert mismatch.headers["location"] == "/settings?notice=password-mismatch"
+    assert changed.status_code == 303
+    assert changed.headers["location"] == "/settings?notice=password-changed"
+    assert primary_after.status_code == 200
+    assert secondary_after.status_code == 303
+    assert secondary_after.headers["location"] == "/login"
+    assert old_login.status_code == 401
+    assert new_login.status_code == 303
+
+
+@pytest.mark.anyio
 async def test_host_setup_persists_interface_and_first_source_profile(tmp_path: Path) -> None:
     database = tmp_path / "history.sqlite3"
     app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
-        base_url="http://local.ragscanner.com",
+        base_url="http://localhost:8765",
         follow_redirects=False,
     ) as client:
         setup = await client.get("/setup")
@@ -249,7 +375,7 @@ async def test_host_setup_rejects_raw_api_key_without_echoing_or_persisting_it(
     app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
-        base_url="http://local.ragscanner.com",
+        base_url="http://localhost:8765",
         follow_redirects=False,
     ) as client:
         setup = await client.get("/setup")
@@ -285,7 +411,7 @@ async def test_host_setup_persists_api_key_outside_sqlite(
     app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
-        base_url="http://local.ragscanner.com",
+        base_url="http://localhost:8765",
         follow_redirects=False,
     ) as client:
         setup = await client.get("/setup")
@@ -325,7 +451,7 @@ async def test_host_setup_allows_openwebui_connection_to_be_completed_later(
     app = create_app(database, local_administrator_data_dir=tmp_path / "host-data")
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
-        base_url="http://local.ragscanner.com",
+        base_url="http://localhost:8765",
         follow_redirects=False,
     ) as client:
         setup = await client.get("/setup")

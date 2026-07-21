@@ -38,3 +38,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0035 Bounded website and accessible SharePoint URL scans](0035-bounded-website-and-sharepoint-url-scans.md)
 - [ADR-0036 Density-aware security and consistency scores](0036-density-aware-security-and-consistency-scores.md)
 - [ADR-0037 Remove labelled-value contradiction scoring](0037-remove-contradiction-scoring.md)
+- [ADR-0038 Fixed localhost address and password rotation](0038-fixed-localhost-address-and-password-rotation.md)

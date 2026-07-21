@@ -1,6 +1,7 @@
 # Local dashboard
 
-`ragscanner serve` exposes a server-rendered dashboard at `http://127.0.0.1:8000/`. It shows the
+`ragscanner serve` exposes a server-rendered dashboard only at `http://localhost:8765/`; the socket
+binds to `127.0.0.1` and the port is intentionally fixed. It shows the
 latest risk posture and assessment coverage, recent persisted scans, and durable job status.
 
 The New scan drawer can queue a one-time or recurring local file/folder scan, an explicitly
@@ -16,6 +17,10 @@ The dashboard is a single-user localhost surface. It never receives or embeds th
 Mutating forms use a strict SameSite HttpOnly CSRF cookie plus form token and call application
 services directly. This is not a substitute for authentication if the service is exposed beyond
 loopback.
+
+The Settings page changes the local administrator password after verifying the current password.
+Passwords require at least 14 characters, remain stored only as an scrypt hash, and changing one
+rotates the session secret so every other signed-in dashboard session is closed.
 
 The responsive UI includes localized timestamps and labels in six languages, persistent display and
 AI defaults, date/source report filters, coverage-aware comparison, detailed expandable reports,

@@ -64,6 +64,37 @@ class LocalAdministratorStore:
         actual = self._derive(password, salt)
         return username == administrator.username and hmac.compare_digest(actual, expected)
 
+    def change_password(self, current_password: str, new_password: str) -> LocalAdministrator:
+        """Replace the password atomically and rotate all existing dashboard sessions."""
+        administrator = self._read()
+        if administrator is None:
+            raise ValueError("the local administrator is not configured")
+        if not self.verify(administrator.username, current_password):
+            raise PermissionError("current password is incorrect")
+        if len(new_password) < 14:
+            raise ValueError("password must contain at least 14 characters")
+        if hmac.compare_digest(current_password, new_password):
+            raise ValueError("new password must differ from the current password")
+        salt = os.urandom(16)
+        updated = LocalAdministrator(
+            username=administrator.username,
+            password_salt=base64.b64encode(salt).decode("ascii"),
+            password_hash=base64.b64encode(self._derive(new_password, salt)).decode("ascii"),
+            session_secret=base64.b64encode(os.urandom(32)).decode("ascii"),
+        )
+        temporary = self._path.with_name(f".{self._path.name}.{os.urandom(8).hex()}.tmp")
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                json.dump(updated.__dict__, handle, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, self._path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return updated
+
     def issue_session(self, username: str) -> str:
         administrator = self._read()
         if administrator is None or username != administrator.username:
