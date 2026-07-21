@@ -101,6 +101,8 @@ Les fournisseurs distants exigent HTTPS, une référence d’identifiants et un 
 Seul un résumé limité et expurgé est envoyé—jamais les documents bruts ni les preuves. La sortie est
 validée par schéma. Si un serveur local compatible refuse les champs structurés avec HTTP 400,
 RAGScanner tente une fois le mode JSON compatible puis consigne un code explicite en cas d’échec.
+Les écarts de schéma courants sont normalisés, les références inventées sont ignorées en sécurité et
+l’analyse acceptée peut associer correction et vérification à chaque constat réel.
 
 ## Rapports et exploitation
 
@@ -108,6 +110,9 @@ La santé de l’aperçu repose toujours sur le dernier rapport achevé restant.
 être filtrés, comparés dans le temps, examinés ou supprimés définitivement après confirmation. Les
 tâches uniques et définitions récurrentes sont séparées. L’activité affiche des codes et raisons sûrs
 sans réponse brute du fournisseur ni identifiants.
+La prochaine exécution et l’intervalle des planifications récurrentes sont modifiables. Les rapports
+séparent sécurité et cohérence, indiquent fichier/page/ligne, surlignent la preuve correspondante et
+emploient partout les mêmes seuils : sous 85 jaune, sous 70 orange, sous 55 rouge.
 
 Commandes utiles :
 

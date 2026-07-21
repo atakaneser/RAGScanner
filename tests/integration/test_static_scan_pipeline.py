@@ -285,12 +285,12 @@ def test_single_large_markdown_runs_all_stages_and_intra_document_duplicates(
     for check in (
         "cross_document_exact_duplicates",
         "cross_document_near_duplicates",
-        "version_conflict",
         "cross_document_freshness",
     ):
         assessment = result.assessment_coverage[check]
         assert assessment.status.value == "not_assessed"
         assert "single-source knowledge base" in assessment.reason
+    assert result.assessment_coverage["version_conflict"].status.value == "partial"
 
 
 @pytest.mark.parametrize("extension", [".txt", ".md", ".pdf", ".docx"])
@@ -310,10 +310,9 @@ def test_single_supported_file_cli_and_report_mode(tmp_path: Path, extension: st
     assert result.exit_code == 0
     payload = json.loads(output.read_text())
     assert payload["knowledge_base_mode"] == "single_source"
-    assert payload["assessment_coverage"]["version_conflict"]["status"] == "not_assessed"
+    assert payload["assessment_coverage"]["version_conflict"]["status"] == "partial"
     assert (
-        "single-source knowledge base"
-        in payload["assessment_coverage"]["version_conflict"]["reason"]
+        "Explicit repeated labels" in payload["assessment_coverage"]["version_conflict"]["reason"]
     )
     assert payload["scan"]["status"] in {"completed", "completed_with_warnings"}
 
@@ -366,8 +365,8 @@ def test_small_populated_multi_source_collection_assessments(
     assert result.scan.warnings == []
     assert result.assessment_coverage["cross_document_exact_duplicates"].status.value == "assessed"
     assert result.assessment_coverage["cross_document_near_duplicates"].status.value == "assessed"
-    assert result.assessment_coverage["version_conflict"].status.value == "not_assessed"
-    assert "not implemented" in result.assessment_coverage["version_conflict"].reason
+    assert result.assessment_coverage["version_conflict"].status.value == "partial"
+    assert "Explicit repeated labels" in result.assessment_coverage["version_conflict"].reason
     assert result.assessment_coverage["cross_document_freshness"].status.value == "not_assessed"
 
 

@@ -102,6 +102,8 @@ Nur eine begrenzte, geschwärzte Befundzusammenfassung wird gesendet—keine Roh
 Die Ausgabe wird gegen ein Schema geprüft. Lehnt ein kompatibler lokaler Server strukturierte Felder
 mit HTTP 400 ab, wird einmal der JSON-Kompatibilitätsmodus versucht und andernfalls ein hilfreicher
 Fehlercode gespeichert.
+Übliche Schemaabweichungen werden normalisiert, erfundene Befundreferenzen sicher verworfen und
+akzeptierte Analysen können jedem echten Befund Behebungs- und Prüfschritte zuordnen.
 
 ## Berichte und Betrieb
 
@@ -109,6 +111,9 @@ Die Übersicht verwendet immer den neuesten verbleibenden abgeschlossenen Berich
 sich filtern, zeitlich vergleichen, detailliert prüfen oder nach Bestätigung dauerhaft löschen.
 Einmalige Aufträge und wiederkehrende Definitionen erscheinen getrennt. Aktivitätsprotokolle zeigen
 stabile Codes und sichere Gründe ohne Anbieter-Rohantworten oder Anmeldedaten.
+Bei wiederkehrenden Zeitplänen lassen sich nächste Ausführung und Intervall ändern. Berichte trennen
+Sicherheits- und Konsistenzbewertung, zeigen Datei/Seite/Zeile, markieren den Treffer und verwenden
+überall dieselben Farbschwellen: unter 85 gelb, unter 70 orange, unter 55 rot.
 
 Nützliche Betriebsbefehle:
 

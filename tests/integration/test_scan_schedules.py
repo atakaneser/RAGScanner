@@ -30,15 +30,25 @@ def test_due_schedule_creates_one_idempotent_job_and_advances(tmp_path) -> None:
         )
 
         assert schedule.display_id == "RAGSCH-0001"
-        assert schedules.materialize_due(jobs, now=start + timedelta(minutes=59)) == 0
-        assert schedules.materialize_due(jobs, now=start + timedelta(minutes=60)) == 1
-        assert schedules.materialize_due(jobs, now=start + timedelta(minutes=60)) == 0
+        assert schedules.update_schedule(
+            schedule.id,
+            name="Weekly knowledge health",
+            interval_minutes=10080,
+            next_run_at=start + timedelta(days=1),
+        )
+        updated = schedules.list()[0]
+        assert updated.name == "Weekly knowledge health"
+        assert updated.interval_minutes == 10080
+        assert updated.next_run_at == start + timedelta(days=1)
+        assert schedules.materialize_due(jobs, now=start + timedelta(hours=23)) == 0
+        assert schedules.materialize_due(jobs, now=start + timedelta(days=1)) == 1
+        assert schedules.materialize_due(jobs, now=start + timedelta(days=1)) == 0
         queued = jobs.list().items
         assert len(queued) == 1
         assert queued[0].status is JobStatus.QUEUED
         assert queued[0].payload["execution_mode"] == "scheduled"
         advanced = schedules.list()[0]
-        assert advanced.next_run_at == start + timedelta(minutes=120)
+        assert advanced.next_run_at == start + timedelta(days=8)
     finally:
         jobs.close()
         schedules.close()

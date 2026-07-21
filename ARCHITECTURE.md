@@ -160,6 +160,9 @@ coverage, and up to 25 findings; it never receives raw documents or finding evid
 output is schema-validated and stored as an advisory section on the report. A model failure leaves
 the deterministic report complete and records a retryable analysis-unavailable state. Remote
 providers require HTTPS, an external credential reference, and explicit consent on that scan.
+Common structured-output drift is normalized within the declared schema. References to findings
+outside the bounded request are discarded and recorded rather than failing otherwise valid analysis.
+Accepted output may attach advisory remediation and verification steps only to supplied findings.
 
 ## OpenWebUI content flow
 
@@ -188,6 +191,10 @@ renders overview, job, source, report archive, report detail, and coverage-aware
 from application services. Date/source filtering is performed by the history port. Dashboard work
 does not create a standalone HTML report artifact; explicit CLI HTML/JSON exports remain separate
 delivery adapters.
+
+Reports preserve file, page, and line provenance where parsers can supply it, plus a bounded matched
+text fragment for safe highlighting. Security and explicit labelled-fact consistency are separate
+score dimensions; the overall product score uses the density-aware policy in ADR-0036.
 
 ## Active-security flow
 

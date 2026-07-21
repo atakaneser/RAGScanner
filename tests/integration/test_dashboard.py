@@ -15,6 +15,23 @@ from ragscanner.storage import (
     SQLiteJobRepository,
     SQLiteSourceProfileRepository,
 )
+from ragscanner.web.dashboard import _score_band
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, "unassessed"),
+        (85, "healthy"),
+        (84.99, "warning"),
+        (70, "warning"),
+        (69.99, "poor"),
+        (55, "poor"),
+        (54.99, "critical"),
+    ],
+)
+def test_score_bands_match_product_thresholds(value, expected) -> None:  # type: ignore[no-untyped-def]
+    assert _score_band(value) == expected
 
 
 @pytest.mark.anyio
@@ -44,8 +61,9 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         assert csrf is not None and request_id is not None
         assert 'id="icon-shield-check"' in dashboard.text
         assert "Scan jobs" in dashboard.text
-        assert "AI settings" in dashboard.text
-        assert "Integrations" in dashboard.text
+        assert 'href="/settings"' in dashboard.text
+        assert 'href="/settings#ai-settings"' not in dashboard.text
+        assert 'href="/sources#integrations"' not in dashboard.text
         assert 'data-source-choice="website"' in sources_page.text
         assert 'data-source-choice="sharepoint"' in sources_page.text
         queued = await client.post(
@@ -82,6 +100,15 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert '"Overview": "Vue d’ensemble"' in i18n.text
     assert '"Overview": "概览"' in i18n.text
     assert '"Overview": "Panoramica"' in i18n.text
+    for translated_rule_title in (
+        "Prompt injection talimatı",
+        "Prompt-Injection-Anweisung",
+        "Instruction d’injection de prompt",
+        "提示词注入指令",
+        "Istruzione di prompt injection",
+    ):
+        assert translated_rule_title in i18n.text
+    assert "Planlı tarama güncellendi." in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303
     assert queued.headers["location"] == "/jobs?notice=scan-queued"
@@ -380,9 +407,15 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     database = tmp_path / "history.sqlite3"
     from ragscanner.storage import SQLiteScanHistoryRepository
 
+    located = finding("a")
+    located.source = "policy-tr.pdf"
+    located.page = 4
+    located.line_start = 18
+    located.line_end = 18
+    located.evidence_highlight = "MFA'yı devre dışı bırak"
     history = SQLiteScanHistoryRepository(database)
     try:
-        baseline = history.save(report("scan-a", findings=[finding("a")]))
+        baseline = history.save(report("scan-a", findings=[located], overall=80))
         candidate = history.save(report("scan-b", findings=[finding("b")]))
     finally:
         history.close()
@@ -421,6 +454,12 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert "RAGREP-0001" in reports.text
     assert "<td><strong>Knowledge</strong></td>" in reports.text
     assert "Finding a" in detail.text
+    assert "policy-tr.pdf" in detail.text
+    assert "Page</span> 4" in detail.text
+    assert "Line</span> 18" in detail.text
+    assert "<mark>MFA&#39;yı devre dışı bırak</mark>" in detail.text
+    assert "· <span>completed</span>" in detail.text
+    assert "score-warning" in detail.text
     assert 'class="finding" open' in detail.text
     assert "Report comparison" in comparison.text
     assert "A scan job tells RAGScanner what source to scan" in jobs.text
@@ -610,8 +649,23 @@ async def test_dashboard_creates_recurring_scan_separately_from_job_history(
             },
         )
         refreshed = await client.get("/jobs")
+        schedule_id = re.search(r"/dashboard/schedules/([a-f0-9]{32})/update", refreshed.text)
+        assert schedule_id is not None
+        updated = await client.post(
+            f"/dashboard/schedules/{schedule_id.group(1)}/update",
+            data={
+                "csrf_token": csrf.group(1),
+                "name": "Weekly support health",
+                "interval_minutes": "10080",
+                "next_run_at": "2026-08-01T07:30:00+03:00",
+            },
+        )
+        updated_page = await client.get("/jobs")
 
     assert saved.headers["location"] == "/jobs?notice=schedule-saved"
     assert "Daily support health" in refreshed.text
     assert "RAGSCH-0001" in refreshed.text
     assert "RAGSCN-" not in refreshed.text
+    assert updated.headers["location"] == "/jobs?notice=schedule-updated"
+    assert "Weekly support health" in updated_page.text
+    assert "2026-08-01T04:30:00+00:00" in updated_page.text

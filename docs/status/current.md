@@ -78,6 +78,9 @@
   source profiles; date/source report filtering; report detail; and coverage-aware comparison
 - Separate one-time execution history and persistent interval schedules, with latest-report health,
   health-over-time visualization, readable public IDs, and safe job activity/error logs
+- Editable interval schedules with an explicit next local run time and recurrence interval
+- Separate density-aware security and explicit-fact consistency scores, shared yellow/orange/red
+  score bands, source page/line provenance, and bounded matched-evidence highlighting
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback
@@ -104,6 +107,8 @@
   model selection, update-safe machine credential files, and secret-safe success/failure activity codes
 - Compatibility retry for Ollama and OpenAI-compatible HTTP 400 structured-output rejection, with
   an actionable `ai_provider_request_invalid` terminal error when compatibility mode also fails
+- Tolerant schema normalization for advisory AI output, safe removal of invented finding references,
+  and per-finding AI remediation plus verification steps
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after
@@ -115,8 +120,8 @@
 
 ## Not available yet
 
-OCR, semantic duplicate analysis, freshness/version-conflict/metadata-quality analysis, complete
-Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, authenticated
+OCR, semantic duplicate analysis, freshness/general semantic contradiction/superseded-version analysis,
+complete Health and RAG Rot formulas, semantic analysis beyond post-processing report enrichment, authenticated
 Microsoft Graph/SharePoint library discovery, broader source connectors, incremental OpenWebUI
 synchronization, remembered per-source content consent, filesystem watch, cron/calendar schedules, configurable
 retention, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not

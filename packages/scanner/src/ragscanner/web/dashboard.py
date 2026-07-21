@@ -71,6 +71,21 @@ def _display_timestamp(value: datetime | None) -> str:
 templates.env.filters["display_timestamp"] = _display_timestamp
 
 
+def _score_band(value: float | None) -> str:
+    if value is None:
+        return "unassessed"
+    if value < 55:
+        return "critical"
+    if value < 70:
+        return "poor"
+    if value < 85:
+        return "warning"
+    return "healthy"
+
+
+templates.env.filters["score_band"] = _score_band
+
+
 def _source_secret_reference(profile_id: str) -> str:
     return f"source-{profile_id}"
 
@@ -1091,6 +1106,35 @@ def register_dashboard(
         repository = SQLiteScheduleRepository(database_path)
         try:
             repository.set_enabled(schedule_id, enabled)
+        finally:
+            repository.close()
+        return RedirectResponse("/jobs?notice=schedule-updated", status_code=303)
+
+    @app.post("/dashboard/schedules/{schedule_id}/update", include_in_schema=False)
+    async def dashboard_update_schedule(
+        request: Request,
+        schedule_id: str,
+        csrf_token: Annotated[str, Form()],
+        name: Annotated[str, Form(min_length=1, max_length=160)],
+        interval_minutes: Annotated[int, Form(ge=15, le=525600)],
+        next_run_at: Annotated[str, Form(min_length=10, max_length=80)],
+    ) -> RedirectResponse:
+        _validate_csrf(request, csrf_token)
+        try:
+            parsed = datetime.fromisoformat(next_run_at.replace("Z", "+00:00"))
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                parsed = parsed.astimezone()
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail="Invalid schedule date or time.") from error
+        repository = SQLiteScheduleRepository(database_path)
+        try:
+            if not repository.update_schedule(
+                schedule_id,
+                name=name,
+                interval_minutes=interval_minutes,
+                next_run_at=parsed,
+            ):
+                raise HTTPException(status_code=404, detail="Schedule not found.")
         finally:
             repository.close()
         return RedirectResponse("/jobs?notice=schedule-updated", status_code=303)

@@ -101,7 +101,8 @@ harici kimlik bilgisi referansı ve tarama başına açık onay gerektirir.
 Seçilen modele yalnızca sınırlandırılmış ve maskelenmiş bulgu özeti gönderilir; ham belgeler ve bulgu
 kanıtları gönderilmez. Çıktı şemayla doğrulanır. Yerel uyumlu sunucu yapılandırılmış çıktı alanlarını
 HTTP 400 ile reddederse JSON uyumluluk modunda bir kez denenir; o da başarısızsa açıklayıcı hata kodu
-kaydedilir.
+kaydedilir. Yaygın şema sapmaları normalleştirilir, uydurulan bulgu referansları güvenle atılır ve
+kabul edilen analiz her gerçek bulguya düzeltme ile doğrulama adımları bağlayabilir.
 
 ## Raporlar ve işletim
 
@@ -109,6 +110,9 @@ Genel bakış sağlığı her zaman kalan en yeni tamamlanmış raporu kullanır
 tarihe göre karşılaştırılabilir, ayrıntılı incelenebilir veya onaydan sonra kalıcı silinebilir. Tek
 seferlik işler ve tekrarlanan tanımlar ayrı gösterilir. Aktivite bölümü, ham sağlayıcı yanıtı veya
 kimlik bilgisi göstermeden kararlı başarı/hata kodlarını ve güvenli nedenleri sunar.
+Tekrarlanan planların sonraki çalışma zamanı ve aralığı düzenlenebilir. Raporlar güvenlik ve açık
+bilgi tutarlılığı puanlarını ayırır; dosya/sayfa/satır konumunu gösterir, eşleşen kanıtı vurgular ve
+her yerde aynı eşikleri kullanır: 85 altı sarı, 70 altı turuncu, 55 altı kırmızı.
 
 Yararlı işletim komutları:
 
