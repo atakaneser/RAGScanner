@@ -111,9 +111,10 @@ Overview health always uses the latest remaining completed report. Reports can b
 compared by date, inspected in detail, or permanently deleted after confirmation. One-time jobs and
 recurring definitions are displayed separately. The Activity section shows stable success/failure
 codes and safe reasons without raw provider responses or credentials. Recurring schedules expose
-their next run time and interval for editing. Reports separate security and explicit-fact
-consistency scores, show file/page/line provenance, highlight matched evidence, and apply the same
-score bands everywhere: below 85 yellow, below 70 orange, and below 55 red.
+their next run time and interval for editing. Reports show security, content-quality, and efficiency
+scores, file/page/line provenance, highlighted evidence, and the same score bands everywhere: below
+85 yellow, below 70 orange, and below 55 red. AI analysis waits up to 180 seconds by default for
+slower local models; provider errors and report UI data follow the selected dashboard language.
 
 Useful operational commands include:
 

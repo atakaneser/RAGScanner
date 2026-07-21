@@ -111,8 +111,9 @@ La santé de l’aperçu repose toujours sur le dernier rapport achevé restant.
 tâches uniques et définitions récurrentes sont séparées. L’activité affiche des codes et raisons sûrs
 sans réponse brute du fournisseur ni identifiants.
 La prochaine exécution et l’intervalle des planifications récurrentes sont modifiables. Les rapports
-séparent sécurité et cohérence, indiquent fichier/page/ligne, surlignent la preuve correspondante et
-emploient partout les mêmes seuils : sous 85 jaune, sous 70 orange, sous 55 rouge.
+affichent sécurité, qualité du contenu, efficacité, fichier/page/ligne et preuve surlignée. Les mêmes
+seuils s’appliquent partout : sous 85 jaune, sous 70 orange, sous 55 rouge. L’analyse IA attend par
+défaut 180 secondes pour les modèles locaux lents ; erreurs et données suivent la langue choisie.
 
 Commandes utiles :
 

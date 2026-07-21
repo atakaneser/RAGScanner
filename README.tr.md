@@ -110,9 +110,10 @@ Genel bakış sağlığı her zaman kalan en yeni tamamlanmış raporu kullanır
 tarihe göre karşılaştırılabilir, ayrıntılı incelenebilir veya onaydan sonra kalıcı silinebilir. Tek
 seferlik işler ve tekrarlanan tanımlar ayrı gösterilir. Aktivite bölümü, ham sağlayıcı yanıtı veya
 kimlik bilgisi göstermeden kararlı başarı/hata kodlarını ve güvenli nedenleri sunar.
-Tekrarlanan planların sonraki çalışma zamanı ve aralığı düzenlenebilir. Raporlar güvenlik ve açık
-bilgi tutarlılığı puanlarını ayırır; dosya/sayfa/satır konumunu gösterir, eşleşen kanıtı vurgular ve
-her yerde aynı eşikleri kullanır: 85 altı sarı, 70 altı turuncu, 55 altı kırmızı.
+Tekrarlanan planların sonraki çalışma zamanı ve aralığı düzenlenebilir. Raporlar güvenlik, içerik
+kalitesi ve verimlilik puanlarını; dosya/sayfa/satır konumunu ve vurgulanan kanıtı gösterir. Her yerde
+aynı eşikler kullanılır: 85 altı sarı, 70 altı turuncu, 55 altı kırmızı. AI analizi yavaş yerel
+modeller için varsayılan olarak 180 saniye bekler; sağlayıcı hataları ve rapor verileri seçili dili izler.
 
 Yararlı işletim komutları:
 

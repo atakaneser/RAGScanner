@@ -110,8 +110,9 @@ filtrati, confrontati nel tempo, esaminati o eliminati definitivamente dopo conf
 definizioni ricorrenti sono separati. L’attività mostra codici e cause sicure senza risposte grezze o
 credenziali.
 Per le pianificazioni ricorrenti si possono modificare prossima esecuzione e intervallo. I rapporti
-separano sicurezza e coerenza, mostrano file/pagina/riga, evidenziano la prova corrispondente e usano
-ovunque le stesse soglie: sotto 85 giallo, sotto 70 arancione, sotto 55 rosso.
+mostrano sicurezza, qualità dei contenuti, efficienza, file/pagina/riga e prove evidenziate. Ovunque
+valgono le stesse soglie: sotto 85 giallo, sotto 70 arancione, sotto 55 rosso. L’analisi AI attende
+180 secondi per i modelli locali lenti; errori e dati seguono la lingua selezionata.
 
 Comandi operativi utili:
 

@@ -193,8 +193,8 @@ does not create a standalone HTML report artifact; explicit CLI HTML/JSON export
 delivery adapters.
 
 Reports preserve file, page, and line provenance where parsers can supply it, plus a bounded matched
-text fragment for safe highlighting. Security and explicit labelled-fact consistency are separate
-score dimensions; the overall product score uses the density-aware policy in ADR-0036.
+text fragment for safe highlighting. Security, knowledge quality, and efficiency feed the assessed-
+dimension product score. Contradiction inference is not part of the pipeline; see ADR-0037.
 
 ## Active-security flow
 

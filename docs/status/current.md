@@ -79,9 +79,10 @@
 - Separate one-time execution history and persistent interval schedules, with latest-report health,
   health-over-time visualization, readable public IDs, and safe job activity/error logs
 - Editable interval schedules with an explicit next local run time and recurrence interval
-- Separate density-aware security and explicit-fact consistency scores; consistency comparisons
-  are conservatively scoped to one source and exclude numbered procedure/narrative labels; shared
-  yellow/orange/red score bands, source page/line provenance, and bounded matched-evidence highlighting
+- Assessed-dimension scoring across security, content quality, and efficiency; shared yellow/orange/red
+  score bands, source page/line provenance, and bounded matched-evidence highlighting
+- AI provider timeout increased from 45 to 180 seconds for slower local models; localized timeout
+  guidance and selected-locale AI narratives across all six dashboard languages
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,
   reports, settings, and dynamic status messages for English, Turkish, German, French, Simplified
   Chinese, and Italian; English remains the fallback

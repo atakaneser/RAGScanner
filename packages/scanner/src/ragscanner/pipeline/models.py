@@ -22,7 +22,6 @@ from ragscanner.parsers import DocxParserConfig, ParserWarning, PdfParserConfig
 from ragscanner.pipeline.registry import DEFAULT_DOCUMENT_PATTERNS, SUPPORTED_DOCUMENT_EXTENSIONS
 from ragscanner.quality import (
     ChunkQualityConfig,
-    ConsistencyScanResult,
     DuplicateGroup,
     DuplicateScanConfig,
     NearDuplicateConfig,
@@ -110,7 +109,6 @@ class StaticPipelineConfig(BaseModel):
     near_duplicates: NearDuplicateConfig = Field(default_factory=NearDuplicateConfig)
     chunk_quality_enabled: bool = True
     chunk_quality: ChunkQualityConfig = Field(default_factory=ChunkQualityConfig)
-    consistency_enabled: bool = True
     output_format: OutputFormat = OutputFormat.TERMINAL
     output_path: Path | None = None
     minimum_severity: Severity | None = None
@@ -142,7 +140,6 @@ class StaticPipelineConfig(BaseModel):
                 self.exact_duplicates_enabled,
                 self.near_duplicates_enabled,
                 self.chunk_quality_enabled,
-                self.consistency_enabled,
             )
         ):
             raise ValueError("at least one scanner must be enabled")
@@ -160,7 +157,6 @@ class StaticPipelineResult(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     duplicate_groups: list[DuplicateGroup] = Field(default_factory=list)
     quality_statistics: ChunkQualityStatistics | None = None
-    consistency_result: ConsistencyScanResult | None = None
     security_statistics: StaticScanStatistics | None = None
     score_summary: ScoreSummary
     parser_warnings: dict[str, list[ParserWarning]] = Field(default_factory=dict)

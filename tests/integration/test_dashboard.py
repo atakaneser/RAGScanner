@@ -100,6 +100,8 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert '"Overview": "Vue d’ensemble"' in i18n.text
     assert '"Overview": "概览"' in i18n.text
     assert '"Overview": "Panoramica"' in i18n.text
+    assert "Değerlendirilen boyutların ağırlıklı sonucu" in i18n.text
+    assert "AI sağlayıcısı {seconds} saniye içinde yanıt vermedi" in i18n.text
     for translated_rule_title in (
         "Prompt injection talimatı",
         "Prompt-Injection-Anweisung",
@@ -108,6 +110,14 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         "Istruzione di prompt injection",
     ):
         assert translated_rule_title in i18n.text
+    for translated_quality_title in (
+        "Aşırı Örtüşme",
+        "Übermäßige Überlappung",
+        "Chevauchement excessif",
+        "重叠过多",
+        "Sovrapposizione eccessiva",
+    ):
+        assert translated_quality_title in i18n.text
     assert "Planlı tarama güncellendi." in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303

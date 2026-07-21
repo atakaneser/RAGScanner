@@ -109,7 +109,6 @@ class Scan(BaseModel):
 
 class ScoreSummary(BaseModel):
     overall: float | None = Field(default=None, ge=0, le=100)
-    consistency: float | None = Field(default=None, ge=0, le=100)
     knowledge_quality: float | None = Field(default=None, ge=0, le=100)
     retrieval_quality: float | None = Field(default=None, ge=0, le=100)
     answer_reliability: float | None = Field(default=None, ge=0, le=100)

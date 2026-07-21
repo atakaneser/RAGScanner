@@ -60,9 +60,7 @@ def test_local_scan_job_runs_pipeline_and_persists_report(tmp_path: Path) -> Non
         jobs.close()
 
 
-def test_local_scan_scores_security_and_explicit_consistency_separately(
-    tmp_path: Path,
-) -> None:
+def test_local_scan_scores_security_without_removed_consistency_dimension(tmp_path: Path) -> None:
     source = tmp_path / "policy.md"
     source.write_text(
         "VPN address: vpn-a.example.test\nVPN address: vpn-b.example.test\n"
@@ -76,11 +74,11 @@ def test_local_scan_scores_security_and_explicit_consistency_separately(
         history.close()
 
     assert report.scores["security"] is not None
-    assert report.scores["consistency"] is not None
+    assert "consistency" not in report.scores
     assert report.scores["overall"] is not None
-    assert any(item.category == "consistency_conflict" for item in report.findings)
-    assert report.assessment_coverage["consistency"]["status"] == "assessed"
-    assert report.assessment_coverage["version_conflict"]["status"] == "partial"
+    assert not any(item.category == "consistency_conflict" for item in report.findings)
+    assert "consistency" not in report.assessment_coverage
+    assert report.assessment_coverage["version_conflict"]["status"] == "not_assessed"
 
 
 def test_ai_provider_failure_preserves_authoritative_scan_report(

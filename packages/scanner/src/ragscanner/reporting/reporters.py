@@ -72,7 +72,6 @@ class TerminalReporter:
         labels = {
             "overall": "Overall RAG Health",
             "security": "Security",
-            "consistency": "Consistency",
             "knowledge_quality": "Knowledge Quality",
             "retrieval_quality": "Retrieval Quality",
             "answer_reliability": "Answer Reliability",

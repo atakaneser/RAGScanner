@@ -10,7 +10,6 @@ from ragscanner.normalization import DocumentNormalizer
 from ragscanner.quality import (
     ChunkQualityConfig,
     ChunkQualityScanner,
-    ConsistencyScanner,
     DuplicateScanConfig,
     ExactDuplicateScanner,
     NearDuplicateConfig,
@@ -77,63 +76,6 @@ def chunk(
 
 def finding_rules(result) -> set[str]:  # type: ignore[no-untyped-def]
     return {finding.rule_id for finding in result.findings}
-
-
-def test_consistency_scanner_reports_conflicting_labelled_values_with_locations() -> None:
-    source = doc(
-        "policy",
-        "VPN address: vpn-a.example.test\nPassword minimum: 8\n"
-        "VPN address: vpn-b.example.test\nPassword minimum: 14\n",
-        "policy-tr.md",
-    )
-
-    result = ConsistencyScanner().scan([source])
-
-    assert result.conflicting_keys == 2
-    assert result.facts_compared == 4
-    assert {finding.category for finding in result.findings} == {"consistency_conflict"}
-    assert {finding.source.line_start for finding in result.findings if finding.source} == {
-        1,
-        2,
-        3,
-        4,
-    }
-    assert all(finding.metadata["matched_text"] for finding in result.findings)
-
-
-def test_consistency_scanner_does_not_flag_repeated_identical_values() -> None:
-    result = ConsistencyScanner().scan(
-        [doc("policy", "VPN address: vpn.example.test\nVPN address: vpn.example.test\n")]
-    )
-    assert result.findings == []
-
-
-def test_consistency_scanner_ignores_numbered_procedure_steps_and_narrative_labels() -> None:
-    source = doc(
-        "guide",
-        "2.Adım: Para sayma Makinesi entegrasyon kablosunu bağlayın.\n"
-        "2.Adım: Add Server simgesine çift tıklayın.\n"
-        "3.Adım: Devices and Printers seçeneğini açın.\n"
-        "3.Adım: Kurulumu tamamlayın.\n"
-        "Not: Bu işlem yönetici yetkisi gerektirir.\n"
-        "Not: Uygulamayı yeniden başlatın.\n",
-        "chatbot-guide.pdf",
-    )
-
-    result = ConsistencyScanner().scan([source])
-
-    assert result.findings == []
-    assert result.conflicting_keys == 0
-
-
-def test_consistency_scanner_does_not_compare_same_label_across_unrelated_sources() -> None:
-    first = doc("first", "Version: 1.0\n", "product-a.md")
-    second = doc("second", "Version: 2.0\n", "product-b.md")
-
-    result = ConsistencyScanner().scan([first, second])
-
-    assert result.findings == []
-    assert result.conflicting_keys == 0
 
 
 def test_exact_document_duplicates_formatting_canonical_and_stability() -> None:

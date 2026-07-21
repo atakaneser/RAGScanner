@@ -1,5 +1,6 @@
 """Public reporting API."""
 
+from ragscanner.reporting.compatibility import without_removed_consistency
 from ragscanner.reporting.engine import ReportBuilder
 from ragscanner.reporting.models import (
     REPORT_SCHEMA_VERSION,
@@ -22,4 +23,5 @@ __all__ = [
     "ReportInput",
     "ReportLimits",
     "TerminalReporter",
+    "without_removed_consistency",
 ]

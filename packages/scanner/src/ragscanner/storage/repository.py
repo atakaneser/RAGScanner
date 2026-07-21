@@ -6,11 +6,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import Integer, cast, delete, func, insert, select
+from sqlalchemy import Integer, cast, delete, func, insert, or_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ragscanner.domain.helpers import contains_unreferenced_secret
 from ragscanner.history.models import ScanHistoryPage, ScanHistorySummary
+from ragscanner.reporting import without_removed_consistency
 from ragscanner.reporting.models import ReportDocument
 from ragscanner.storage.database import StorageError, create_sqlite_engine
 from ragscanner.storage.schema import finding_occurrences, findings, scans
@@ -92,7 +93,9 @@ class SQLiteScanHistoryRepository:
             payload = connection.execute(
                 select(scans.c.report_json).where(scans.c.id == history_id)
             ).scalar_one_or_none()
-        return ReportDocument.model_validate_json(payload) if payload is not None else None
+        if payload is None:
+            return None
+        return without_removed_consistency(ReportDocument.model_validate_json(payload))
 
     def list(
         self,
@@ -134,28 +137,63 @@ class SQLiteScanHistoryRepository:
                 count_query = count_query.where(*conditions)
                 rows_query = rows_query.where(*conditions)
             total = connection.execute(count_query).scalar_one()
-            rows = connection.execute(
-                rows_query.order_by(scans.c.created_at.desc(), scans.c.id.desc())
-                .limit(limit)
-                .offset(offset)
-            ).mappings()
-            items = [
-                ScanHistorySummary(
-                    history_id=row["id"],
-                    display_id=row["display_id"],
-                    scan_id=row["scan_id"],
-                    scan_type=row["scan_type"],
-                    status=row["status"],
-                    source_name=row["source_name"],
-                    started_at=row["started_at"],
-                    completed_at=row["completed_at"],
-                    overall_score=row["overall_score"],
-                    finding_count=row["finding_count"],
-                    schema_version=row["report_schema_version"],
-                    created_at=row["created_at"],
+            rows = list(
+                connection.execute(
+                    rows_query.order_by(scans.c.created_at.desc(), scans.c.id.desc())
+                    .limit(limit)
+                    .offset(offset)
+                ).mappings()
+            )
+            row_ids = [row["id"] for row in rows]
+            legacy_payloads = (
+                {
+                    row["id"]: row["report_json"]
+                    for row in connection.execute(
+                        select(scans.c.id, scans.c.report_json).where(
+                            scans.c.id.in_(row_ids),
+                            or_(
+                                scans.c.report_json.like('%"consistency":%'),
+                                scans.c.report_json.like('%"consistency_conflict"%'),
+                                scans.c.report_json.like('%"consistency_scanner"%'),
+                            ),
+                        )
+                    ).mappings()
+                }
+                if row_ids
+                else {}
+            )
+            items = []
+            for row in rows:
+                legacy_payload = legacy_payloads.get(row["id"])
+                displayed_report = (
+                    without_removed_consistency(ReportDocument.model_validate_json(legacy_payload))
+                    if legacy_payload is not None
+                    else None
                 )
-                for row in rows
-            ]
+                items.append(
+                    ScanHistorySummary(
+                        history_id=row["id"],
+                        display_id=row["display_id"],
+                        scan_id=row["scan_id"],
+                        scan_type=row["scan_type"],
+                        status=row["status"],
+                        source_name=row["source_name"],
+                        started_at=row["started_at"],
+                        completed_at=row["completed_at"],
+                        overall_score=(
+                            displayed_report.scores.get("overall")
+                            if displayed_report is not None
+                            else row["overall_score"]
+                        ),
+                        finding_count=(
+                            len(displayed_report.findings)
+                            if displayed_report is not None
+                            else row["finding_count"]
+                        ),
+                        schema_version=row["report_schema_version"],
+                        created_at=row["created_at"],
+                    )
+                )
         return ScanHistoryPage(items=items, total=total, limit=limit, offset=offset)
 
     def delete(self, history_id: str) -> bool:

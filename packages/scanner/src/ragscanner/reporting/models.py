@@ -163,8 +163,8 @@ class ReportDocument(BaseModel):
     processing: ReportProcessingSummary
     scores: dict[str, float | None]
     score_policy: str = (
-        "RAGScanner product-defined density-aware weighted scores; security and consistency "
-        "receive the highest weights, and missing dimensions are not assessed."
+        "RAGScanner product-defined assessed-dimension weighted scores; security receives the "
+        "highest weight, and missing dimensions are not assessed."
     )
     severity_summary: dict[str, int]
     classification_summary: dict[str, int]

@@ -44,8 +44,6 @@ from ragscanner.pipeline.registry import ParserRegistry
 from ragscanner.quality import (
     ChunkQualityResult,
     ChunkQualityScanner,
-    ConsistencyScanner,
-    ConsistencyScanResult,
     DuplicateGroup,
     DuplicateScanResult,
     ExactDuplicateScanner,
@@ -389,7 +387,6 @@ class StaticScanPipeline:
         exact_result: DuplicateScanResult | None = None
         near_result: DuplicateScanResult | None = None
         quality_result: ChunkQualityResult | None = None
-        consistency_result: ConsistencyScanResult | None = None
         if documents and self.config.security_enabled:
             try:
                 await self._emit(StaticScanEventType.SECURITY_SCAN_STARTED, scan_id)
@@ -464,21 +461,12 @@ class StaticScanPipeline:
                 await self._emit(StaticScanEventType.QUALITY_SCAN_COMPLETED, scan_id)
             except Exception as error:
                 errors.append(self._stage_error(StageName.QUALITY, "quality_scanner_failed", error))
-        if documents and self.config.consistency_enabled:
-            try:
-                consistency_result = ConsistencyScanner().scan(documents)
-                findings.extend(consistency_result.findings)
-            except Exception as error:
-                errors.append(
-                    self._stage_error(StageName.QUALITY, "consistency_scanner_failed", error)
-                )
         scores = self._scores(
             findings,
             quality_result,
             exact_result,
             near_result,
             security_assessed=security_stats is not None,
-            consistency_assessed=consistency_result is not None,
             document_count=len(documents),
         )
         await self._emit(StaticScanEventType.SCORING_COMPLETED, scan_id)
@@ -500,7 +488,6 @@ class StaticScanPipeline:
             started,
             cancelled=False,
             scores=scores,
-            consistency_result=consistency_result,
         )
 
     async def _discover(self, scan_id: str, skipped: list[SkippedItem]) -> list[SourceItem]:
@@ -554,7 +541,6 @@ class StaticScanPipeline:
         started: datetime,
         cancelled: bool,
         scores: ScoreSummary | None = None,
-        consistency_result: ConsistencyScanResult | None = None,
     ) -> StaticPipelineResult:
         completed = self._now()
         if cancelled:
@@ -602,7 +588,6 @@ class StaticScanPipeline:
             findings=sorted(findings, key=lambda item: item.fingerprint),
             duplicate_groups=sorted(duplicate_groups, key=lambda item: (item.category, item.id)),
             quality_statistics=quality_stats,
-            consistency_result=consistency_result,
             security_statistics=security_stats,
             score_summary=scores or ScoreSummary(),
             parser_warnings=parser_warnings,
@@ -626,7 +611,6 @@ class StaticScanPipeline:
                 chunks=chunks,
                 security_stats=security_stats,
                 quality_stats=quality_stats,
-                consistency_result=consistency_result,
                 errors=errors,
             ),
         )
@@ -638,7 +622,6 @@ class StaticScanPipeline:
         chunks: list[Chunk],
         security_stats: StaticScanStatistics | None,
         quality_stats: ChunkQualityStatistics | None,
-        consistency_result: ConsistencyScanResult | None,
         errors: list[StageError],
     ) -> dict[str, AssessmentCoverage]:
         single = self._single_source or len(documents) == 1
@@ -665,22 +648,6 @@ class StaticScanPipeline:
                 reason="Chunk-quality heuristics were evaluated."
                 if quality_stats is not None
                 else "Chunk-quality scanning was disabled or unavailable.",
-            ),
-            "consistency": AssessmentCoverage(
-                status=AssessmentStatus.ASSESSED
-                if consistency_result is not None
-                else AssessmentStatus.NOT_ASSESSED,
-                reason=(
-                    "Repeated labelled facts were compared for conflicting values."
-                    if consistency_result is not None
-                    else "Consistency scanning was disabled or unavailable."
-                ),
-                metadata={
-                    "facts_compared": consistency_result.facts_compared,
-                    "conflicting_keys": consistency_result.conflicting_keys,
-                }
-                if consistency_result is not None
-                else {},
             ),
             "within_document_repeated_chunks": AssessmentCoverage(
                 status=AssessmentStatus.ASSESSED
@@ -725,14 +692,8 @@ class StaticScanPipeline:
                 ),
             ),
             "version_conflict": AssessmentCoverage(
-                status=AssessmentStatus.PARTIAL
-                if consistency_result is not None
-                else AssessmentStatus.NOT_ASSESSED,
-                reason=(
-                    "Explicit repeated labels were checked; semantic contradictions and superseded-version inference remain out of scope."
-                    if consistency_result is not None
-                    else (collection_reason if single else unavailable_reason)
-                ),
+                status=AssessmentStatus.NOT_ASSESSED,
+                reason=collection_reason if single else unavailable_reason,
             ),
             "cross_document_freshness": AssessmentCoverage(
                 status=AssessmentStatus.NOT_ASSESSED,
@@ -765,7 +726,6 @@ class StaticScanPipeline:
         near_result: DuplicateScanResult | None,
         *,
         security_assessed: bool,
-        consistency_assessed: bool,
         document_count: int,
     ) -> ScoreSummary:
         penalties = {
@@ -783,15 +743,6 @@ class StaticScanPipeline:
                 100.0
                 - sum(penalties[item.severity] * item.confidence for item in security_findings),
             )
-        consistency_findings = [item for item in findings if item.scanner == "consistency_scanner"]
-        consistency = None
-        if consistency_assessed:
-            consistency = max(
-                0.0,
-                100.0
-                - sum(penalties[item.severity] * item.confidence for item in consistency_findings)
-                / max(1, document_count),
-            )
         knowledge: float | None = None
         if quality_result is not None and quality_result.scores:
             knowledge = sum(item.overall for item in quality_result.scores.values()) / len(
@@ -808,10 +759,6 @@ class StaticScanPipeline:
                 security,
                 0.35 + min(0.15, len(security_findings) / max(1, document_count) * 0.03),
             ),
-            "consistency": (
-                consistency,
-                0.30 + min(0.15, len(consistency_findings) / max(1, document_count) * 0.05),
-            ),
             "knowledge": (knowledge, 0.20),
             "efficiency": (efficiency, 0.15),
         }
@@ -825,7 +772,6 @@ class StaticScanPipeline:
         return ScoreSummary(
             overall=overall,
             knowledge_quality=knowledge,
-            consistency=consistency,
             security=security,
             efficiency=efficiency,
         )

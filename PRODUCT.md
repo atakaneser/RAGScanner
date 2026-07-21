@@ -69,18 +69,19 @@ never healthy by assumption.
 ## Health Scan and scores
 
 Health analysis includes exact/near/semantic duplicates, malformed content, chunk quality,
-metadata, freshness, superseded versions, source-index mismatch, contradiction candidates, and
-retrieval/answer signals. A check without required source capability or ground truth is
+metadata, freshness, superseded versions, source-index mismatch, and retrieval/answer signals.
+Contradiction candidates may return only after an implementation meets the product accuracy bar.
+A check without required source capability or ground truth is
 `not_assessed`, never successful by assumption.
 
 RAG Health Score and RAG Rot are configurable, versioned product metrics rather than scientific
 standards. Reports expose coverage, skipped/failed checks, and policy version. Critical security
 findings may cap an overall score once the score policy is finalized.
 
-The implemented report score separates security and explicit labelled-fact consistency. The
-overall score is a normalized density-aware weighted average of assessed security, consistency,
-knowledge-quality, and efficiency dimensions. General semantic contradictions, freshness, and
-superseded-version inference remain unassessed unless a dedicated scanner provides coverage.
+The implemented report score combines assessed security, knowledge-quality, and efficiency
+dimensions. Contradiction detection was removed because the bounded labelled-value heuristic did
+not meet the product's accuracy bar. General semantic contradictions, freshness, and
+superseded-version inference remain unassessed.
 
 ## Local operation and authentication
 

@@ -111,9 +111,10 @@ Die Übersicht verwendet immer den neuesten verbleibenden abgeschlossenen Berich
 sich filtern, zeitlich vergleichen, detailliert prüfen oder nach Bestätigung dauerhaft löschen.
 Einmalige Aufträge und wiederkehrende Definitionen erscheinen getrennt. Aktivitätsprotokolle zeigen
 stabile Codes und sichere Gründe ohne Anbieter-Rohantworten oder Anmeldedaten.
-Bei wiederkehrenden Zeitplänen lassen sich nächste Ausführung und Intervall ändern. Berichte trennen
-Sicherheits- und Konsistenzbewertung, zeigen Datei/Seite/Zeile, markieren den Treffer und verwenden
-überall dieselben Farbschwellen: unter 85 gelb, unter 70 orange, unter 55 rot.
+Bei wiederkehrenden Zeitplänen lassen sich nächste Ausführung und Intervall ändern. Berichte zeigen
+Sicherheit, Inhaltsqualität, Effizienz, Datei/Seite/Zeile und markierte Nachweise. Überall gelten
+dieselben Farbschwellen: unter 85 gelb, unter 70 orange, unter 55 rot. Die KI-Analyse wartet für
+langsame lokale Modelle standardmäßig 180 Sekunden; Fehler und Berichtsdaten folgen der gewählten Sprache.
 
 Nützliche Betriebsbefehle:
 
