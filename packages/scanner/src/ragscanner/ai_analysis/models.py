@@ -21,6 +21,14 @@ REMOTE_PROVIDER_IDS = frozenset(
 PROVIDER_IDS = LOCAL_PROVIDER_IDS | REMOTE_PROVIDER_IDS
 
 
+class AIFindingAction(BaseModel):
+    """Advisory remediation tied to one deterministic finding."""
+
+    finding_id: str = Field(min_length=1, max_length=512)
+    remediation: str = Field(min_length=1, max_length=1_500)
+    verification_steps: list[str] = Field(default_factory=list, max_length=6)
+
+
 class AIProviderConfig(BaseModel):
     """Non-secret, persistable model selection attached to one scan job."""
 
@@ -60,6 +68,7 @@ class AIAnalysisContent(BaseModel):
     verification_steps: list[str] = Field(default_factory=list, max_length=8)
     limitations: list[str] = Field(default_factory=list, max_length=8)
     finding_ids: list[str] = Field(default_factory=list, max_length=25)
+    finding_actions: list[AIFindingAction] = Field(default_factory=list, max_length=25)
 
 
 class AIReportAnalysis(AIAnalysisContent):
@@ -71,6 +80,7 @@ class AIReportAnalysis(AIAnalysisContent):
     remote: bool
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     prompt_version: str = "1.0.0"
+    ignored_finding_ids: list[str] = Field(default_factory=list, max_length=25)
     disclaimer: str = (
         "AI-generated analysis is advisory. Verify it against the deterministic findings "
         "and underlying evidence before acting."

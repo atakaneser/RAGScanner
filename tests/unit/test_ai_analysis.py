@@ -56,7 +56,9 @@ def test_scan_ai_config_requires_remote_consent_and_never_contains_a_secret() ->
     assert "runtime-key" not in config.model_dump_json()
 
 
-def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -> None:
+def test_ollama_ignores_unknown_finding_ids_without_discarding_valid_analysis(
+    report, finding, monkeypatch
+) -> None:
     adapter = OllamaAnalysisProvider(base_url="http://127.0.0.1:11434", model="llama3")
 
     async def fake_post(*_args, **_kwargs):
@@ -69,11 +71,11 @@ def test_ollama_validates_referenced_finding_ids(report, finding, monkeypatch) -
         }
 
     monkeypatch.setattr(adapter, "_post", fake_post)
-    with pytest.raises(ModelProviderError, match="referenced findings") as captured:
-        asyncio.run(
-            adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
-        )
-    assert captured.value.code == "ai_output_unknown_finding"
+    analysis = asyncio.run(
+        adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
+    )
+    assert analysis.finding_ids == []
+    assert analysis.ignored_finding_ids == ["other"]
 
 
 def test_ollama_discovers_installed_models(monkeypatch) -> None:
@@ -143,6 +145,45 @@ def test_provider_recovers_common_structured_output_formatting_drift(
     assert analysis.executive_summary == "Review now."
     if "priorityActions" in content:
         assert analysis.priority_actions == ["Fix it"]
+
+
+def test_provider_normalizes_finding_actions_and_drops_only_unknown_references(
+    report, finding, monkeypatch
+) -> None:
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+
+    async def fake_post(*_args, **_kwargs):
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Review now.",
+                                "findingActions": [
+                                    {
+                                        "finding_id": "finding-a",
+                                        "remediation": "Apply the documented control.",
+                                        "verification_steps": ["Re-scan the source."],
+                                    },
+                                    {
+                                        "finding_id": "invented",
+                                        "remediation": "Do not show this.",
+                                    },
+                                ],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    analysis = asyncio.run(
+        adapter.analyze(build_analysis_request(report("scan-a", findings=[finding("a")])))
+    )
+    assert [item.finding_id for item in analysis.finding_actions] == ["finding-a"]
+    assert analysis.ignored_finding_ids == ["invented"]
 
 
 def test_provider_still_rejects_non_json_analysis(report, monkeypatch) -> None:

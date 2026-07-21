@@ -119,6 +119,36 @@ class SQLiteScheduleRepository:
             )
         return bool(result.rowcount)
 
+    def update_schedule(
+        self,
+        schedule_id: str,
+        *,
+        name: str,
+        interval_minutes: int,
+        next_run_at: datetime,
+    ) -> bool:
+        """Update recurrence and the next explicit execution time."""
+
+        clean_name = name.strip()
+        if not clean_name or len(clean_name) > 160:
+            raise ValueError("schedule name must contain 1-160 characters")
+        if not 15 <= interval_minutes <= 525600:
+            raise ValueError("schedule interval must be between 15 and 525600 minutes")
+        next_run = _now(next_run_at)
+        now = datetime.now(UTC)
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                update(schedules)
+                .where(schedules.c.id == schedule_id)
+                .values(
+                    name=clean_name,
+                    interval_minutes=interval_minutes,
+                    next_run_at=next_run.isoformat(),
+                    updated_at=now.isoformat(),
+                )
+            )
+        return bool(result.rowcount)
+
     def materialize_due(self, job_repository: Any, *, now: datetime | None = None) -> int:
         current = _now(now)
         created = 0

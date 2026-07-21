@@ -101,14 +101,19 @@ providers require HTTPS, an external credential reference, and explicit per-scan
 Only a bounded, redacted finding summary is sent to the selected model—never raw documents or
 finding evidence. Output is schema-validated. If a local compatible server rejects structured-output
 fields with HTTP 400, RAGScanner retries once in JSON compatibility mode and records an actionable
-error code if that also fails.
+error code if that also fails. Common schema drift is normalized, invented finding references are
+discarded safely, and accepted analysis can attach remediation and verification steps to each real
+finding.
 
 ## Reports and operations
 
 Overview health always uses the latest remaining completed report. Reports can be filtered,
 compared by date, inspected in detail, or permanently deleted after confirmation. One-time jobs and
 recurring definitions are displayed separately. The Activity section shows stable success/failure
-codes and safe reasons without raw provider responses or credentials.
+codes and safe reasons without raw provider responses or credentials. Recurring schedules expose
+their next run time and interval for editing. Reports separate security and explicit-fact
+consistency scores, show file/page/line provenance, highlight matched evidence, and apply the same
+score bands everywhere: below 85 yellow, below 70 orange, and below 55 red.
 
 Useful operational commands include:
 

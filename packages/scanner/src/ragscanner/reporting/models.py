@@ -17,8 +17,8 @@ from ragscanner.quality import DuplicateGroup
 from ragscanner.quality.models import ChunkQualityStatistics
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.2.0"
-REPORTER_VERSION = "1.2.0"
+REPORT_SCHEMA_VERSION = "1.3.0"
+REPORTER_VERSION = "1.3.0"
 
 
 class ReportFilter(BaseModel):
@@ -103,11 +103,14 @@ class ReportFinding(BaseModel):
     source: str | None = None
     document_id: str | None = None
     page: int | None = None
+    line_start: int | None = None
+    line_end: int | None = None
     chunk_id: str | None = None
     target_id: str | None = None
     test_case_id: str | None = None
     execution_id: str | None = None
     evidence: str
+    evidence_highlight: str | None = None
     impact: str
     recommendation: str
     references: list[str] = Field(default_factory=list)
@@ -159,7 +162,10 @@ class ReportDocument(BaseModel):
     scan: dict[str, Any]
     processing: ReportProcessingSummary
     scores: dict[str, float | None]
-    score_policy: str = "RAGScanner product-defined scores; missing values are not assessed."
+    score_policy: str = (
+        "RAGScanner product-defined density-aware weighted scores; security and consistency "
+        "receive the highest weights, and missing dimensions are not assessed."
+    )
     severity_summary: dict[str, int]
     classification_summary: dict[str, int]
     findings: list[ReportFinding]

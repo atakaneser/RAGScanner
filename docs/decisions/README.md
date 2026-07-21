@@ -35,3 +35,5 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0032 Stable Windows machine command ownership](0032-stable-windows-machine-command.md)
 - [ADR-0033 Dashboard ephemeral source secrets](0033-dashboard-ephemeral-source-secrets.md)
 - [ADR-0034 Machine secret files and interval schedules](0034-machine-secret-files-and-interval-schedules.md)
+- [ADR-0035 Bounded website and accessible SharePoint URL scans](0035-bounded-website-and-sharepoint-url-scans.md)
+- [ADR-0036 Density-aware security and consistency scores](0036-density-aware-security-and-consistency-scores.md)

@@ -612,6 +612,7 @@ class StaticSecurityScanner:
             "decoded_content_executed": False,
             "url_fetched": False,
             "match_metadata": self._safe_metadata(match.metadata or {}),
+            "matched_text": self._safe_evidence(match.value, secret),
         }
         return Finding(
             id=fingerprint,

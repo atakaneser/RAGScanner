@@ -44,7 +44,8 @@
         {
           "type": "regex",
           "patterns": [
-            "<!--[\\s\\S]{0,300}(?:ignore previous instructions|reveal system prompt|önceki talimatları yok say)[\\s\\S]{0,300}-->"
+            "<!--[\\s\\S]{0,300}(?:ignore previous instructions|reveal system prompt|önceki talimatları yok say)[\\s\\S]{0,300}-->",
+            "<(?:div|span|p|section)[^>]{0,300}(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|hidden(?:\\s|=|>))[^>]*>[\\s\\S]{0,500}(?:ignore previous instructions|disable mfa|reveal system prompt|önceki talimatları yok say|mfa'yı devre dışı bırak)[\\s\\S]{0,500}</(?:div|span|p|section)>"
           ],
           "flags": [],
           "metadata_fields": [],

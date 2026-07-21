@@ -134,6 +134,7 @@ class ReportBuilder:
                 name: None
                 for name in (
                     "overall",
+                    "consistency",
                     "knowledge_quality",
                     "retrieval_quality",
                     "answer_reliability",
@@ -301,11 +302,18 @@ class ReportBuilder:
             source=_safe_string(path, 1_024) if path else None,
             document_id=item.document_id,
             page=item.source.page_number if item.source else None,
+            line_start=item.source.line_start if item.source else None,
+            line_end=item.source.line_end if item.source else None,
             chunk_id=item.chunk_id,
             target_id=item.target_id,
             test_case_id=item.test_case_id,
             execution_id=item.execution_id,
             evidence=_safe_string(item.evidence, self.limits.maximum_evidence_length),
+            evidence_highlight=(
+                _safe_string(str(item.metadata.get("matched_text")), 512)
+                if item.metadata.get("matched_text")
+                else None
+            ),
             impact=_safe_string(item.impact, self.limits.maximum_string_length),
             recommendation=_safe_string(item.recommendation, self.limits.maximum_string_length),
             references=[_safe_string(value, 1_024) for value in item.references[:50]],

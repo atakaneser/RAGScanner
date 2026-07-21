@@ -100,6 +100,8 @@ remoti richiedono HTTPS, riferimento credenziali esterno e consenso per scansion
 Viene inviato solo un riepilogo limitato e oscurato, mai documenti grezzi o prove. L’output è validato
 da schema. Se un server locale compatibile rifiuta i campi strutturati con HTTP 400, RAGScanner tenta
 una volta la modalità JSON compatibile e registra un codice utile se fallisce ancora.
+Le deviazioni comuni dallo schema vengono normalizzate, i riferimenti inventati sono scartati in
+sicurezza e l’analisi accettata può associare correzione e verifica a ogni risultato reale.
 
 ## Rapporti e operazioni
 
@@ -107,6 +109,9 @@ La salute della panoramica usa sempre l’ultimo rapporto completato rimasto. I 
 filtrati, confrontati nel tempo, esaminati o eliminati definitivamente dopo conferma. Job singoli e
 definizioni ricorrenti sono separati. L’attività mostra codici e cause sicure senza risposte grezze o
 credenziali.
+Per le pianificazioni ricorrenti si possono modificare prossima esecuzione e intervallo. I rapporti
+separano sicurezza e coerenza, mostrano file/pagina/riga, evidenziano la prova corrispondente e usano
+ovunque le stesse soglie: sotto 85 giallo, sotto 70 arancione, sotto 55 rosso.
 
 Comandi operativi utili:
 

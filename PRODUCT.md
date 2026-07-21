@@ -18,8 +18,8 @@ entitlement, license server, private rule feed, or artificial feature restrictio
 ## Usage and analysis modes
 
 - One-time local file/folder scans and offline security/health analysis
-- Opt-in local SQLite history and coverage-aware CLI comparison; scheduling and change-triggered
-  scans remain planned
+- Opt-in local SQLite history, coverage-aware comparison, and editable recurring interval schedules;
+  calendar rules and change-triggered scans remain planned
 - Localhost history/detail/comparison API plus scoped Bearer-authenticated asynchronous scan and job
   control
 - Durable SQLite static-scan jobs with CLI enqueue/control and a user-facing worker process
@@ -76,6 +76,11 @@ retrieval/answer signals. A check without required source capability or ground t
 RAG Health Score and RAG Rot are configurable, versioned product metrics rather than scientific
 standards. Reports expose coverage, skipped/failed checks, and policy version. Critical security
 findings may cap an overall score once the score policy is finalized.
+
+The implemented report score separates security and explicit labelled-fact consistency. The
+overall score is a normalized density-aware weighted average of assessed security, consistency,
+knowledge-quality, and efficiency dimensions. General semantic contradictions, freshness, and
+superseded-version inference remain unassessed unless a dedicated scanner provides coverage.
 
 ## Local operation and authentication
 

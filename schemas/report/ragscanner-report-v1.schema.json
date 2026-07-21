@@ -13,7 +13,7 @@
     "knowledge_base_mode", "source_count", "assessment_coverage", "ingestion_issues"
   ],
   "properties": {
-    "schema_version": {"const": "1.2.0"},
+    "schema_version": {"const": "1.3.0"},
     "reporter_version": {"type": "string"},
     "generated_at": {"type": "string", "format": "date-time"},
     "scan": {"type": "object"},
@@ -62,7 +62,7 @@
     "ai_analysis": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["schema_version", "provider", "model", "remote", "generated_at", "prompt_version", "disclaimer", "executive_summary", "priority_actions", "review_questions", "limitations", "finding_ids"],
+      "required": ["schema_version", "provider", "model", "remote", "generated_at", "prompt_version", "disclaimer", "executive_summary", "priority_actions", "review_questions", "limitations", "finding_ids", "finding_actions", "ignored_finding_ids"],
       "properties": {
         "schema_version": {"const": "1.0.0"},
         "provider": {"type": "string"}, "model": {"type": "string"}, "remote": {"type": "boolean"},
@@ -70,7 +70,21 @@
         "executive_summary": {"type": "string"}, "risk_interpretation": {"type": "string"},
         "priority_actions": {"$ref": "#/$defs/strings"},
         "review_questions": {"$ref": "#/$defs/strings"}, "verification_steps": {"$ref": "#/$defs/strings"},
-        "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"}
+        "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"},
+        "finding_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["finding_id", "remediation", "verification_steps"],
+            "properties": {
+              "finding_id": {"type": "string"},
+              "remediation": {"type": "string"},
+              "verification_steps": {"$ref": "#/$defs/strings"}
+            }
+          }
+        },
+        "ignored_finding_ids": {"$ref": "#/$defs/strings"}
       }
     },
     "ai_analysis_error_code": {"type": ["string", "null"]},

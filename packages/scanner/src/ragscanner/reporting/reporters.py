@@ -72,6 +72,7 @@ class TerminalReporter:
         labels = {
             "overall": "Overall RAG Health",
             "security": "Security",
+            "consistency": "Consistency",
             "knowledge_quality": "Knowledge Quality",
             "retrieval_quality": "Retrieval Quality",
             "answer_reliability": "Answer Reliability",
@@ -152,8 +153,19 @@ class HtmlReporter:
         def esc(value: Any) -> str:
             return html.escape(_display(value), quote=True)
 
+        def score_band(value: float | None) -> str:
+            if value is None:
+                return "unassessed"
+            if value < 55:
+                return "score-critical"
+            if value < 70:
+                return "score-poor"
+            if value < 85:
+                return "score-warning"
+            return "score-healthy"
+
         score_cards = "".join(
-            f'<article class="card"><h3>{esc(name.replace("_", " ").title())}</h3>'
+            f'<article class="card {score_band(value)}"><h3>{esc(name.replace("_", " ").title())}</h3>'
             f"<p>{esc(value)}</p><small>Product-defined</small></article>"
             for name, value in report.scores.items()
         )
@@ -243,7 +255,7 @@ class HtmlReporter:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <title>RAGScanner report {esc(report.scan["id"])}</title><style>
-:root{{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968;--accent:#176b5b}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}}header,main,footer{{max-width:1180px;margin:auto;padding:1.25rem}}header{{background:#17202a;color:#fff;max-width:none}}header>div{{max-width:1140px;margin:auto}}h1,h2,h3{{line-height:1.2}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}}.card,section{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}}.card{{margin:0}}.summary{{border-left:5px solid var(--accent)}}.metric{{font-size:1.6rem;font-weight:750;margin:.25rem 0}}.notice{{background:#eef7f5;border:1px solid #b8d9d2;border-radius:6px;padding:.75rem}}table{{width:100%;border-collapse:collapse}}th,td{{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}}.badge{{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}}.critical{{color:var(--critical)}}.high{{color:var(--high)}}.medium{{color:var(--medium)}}.low{{color:var(--low)}}.info{{color:var(--info)}}code,pre{{white-space:pre-wrap;overflow-wrap:anywhere}}summary{{cursor:pointer;font-weight:700}}.muted{{color:var(--muted)}}@media(max-width:650px){{table{{display:block;overflow-x:auto}}header,main,footer{{padding:.8rem}}}}@media print{{body{{background:#fff}}header{{color:#000;background:#fff;border-bottom:2px solid #000}}section,.card{{break-inside:avoid;box-shadow:none}}details{{display:block}}details>*{{display:block}}}}
+:root{{--bg:#f6f7f9;--panel:#fff;--text:#17202a;--muted:#586474;--line:#d8dee6;--critical:#8b1e2d;--high:#a34710;--medium:#766000;--low:#285c85;--info:#4d5968;--accent:#176b5b}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}}header,main,footer{{max-width:1180px;margin:auto;padding:1.25rem}}header{{background:#17202a;color:#fff;max-width:none}}header>div{{max-width:1140px;margin:auto}}h1,h2,h3{{line-height:1.2}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}}.card,section{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}}.card{{margin:0}}.score-healthy{{border-top:5px solid #138a4b}}.score-warning{{border-top:5px solid #d29a00;background:#fffbed}}.score-poor{{border-top:5px solid #c2530a;background:#fff4eb}}.score-critical{{border-top:5px solid #c92d39;background:#fff0f1}}.score-unassessed{{border-top:5px solid #7b8794}}.summary{{border-left:5px solid var(--accent)}}.metric{{font-size:1.6rem;font-weight:750;margin:.25rem 0}}.notice{{background:#eef7f5;border:1px solid #b8d9d2;border-radius:6px;padding:.75rem}}table{{width:100%;border-collapse:collapse}}th,td{{text-align:left;padding:.6rem;border-bottom:1px solid var(--line);vertical-align:top}}.badge{{display:inline-block;border:1px solid currentColor;border-radius:99px;padding:.1rem .5rem;font-weight:700}}.critical{{color:var(--critical)}}.high{{color:var(--high)}}.medium{{color:var(--medium)}}.low{{color:var(--low)}}.info{{color:var(--info)}}code,pre{{white-space:pre-wrap;overflow-wrap:anywhere}}summary{{cursor:pointer;font-weight:700}}.muted{{color:var(--muted)}}@media(max-width:650px){{table{{display:block;overflow-x:auto}}header,main,footer{{padding:.8rem}}}}@media print{{body{{background:#fff}}header{{color:#000;background:#fff;border-bottom:2px solid #000}}section,.card{{break-inside:avoid;box-shadow:none}}details{{display:block}}details>*{{display:block}}}}
 </style></head><body><header role="banner"><div><h1>RAGScanner report</h1><p>{esc(report.scan["id"])} · {esc(report.scan["type"])} · {esc(report.scan["status"])}</p></div></header>
 <main id="main-content"><section class="summary" aria-labelledby="summary"><h2 id="summary">Executive summary</h2><p class="metric">{esc(status_label)}</p><div class="grid"><div><strong>Discovered</strong><p class="metric">{report.processing.files_discovered}</p></div><div><strong>Processed</strong><p class="metric">{report.processing.files_scanned}</p></div><div><strong>Skipped</strong><p class="metric">{report.processing.files_skipped}</p></div><div><strong>Findings</strong><p class="metric">{len(report.findings)}</p></div></div><p class="notice">{esc(coverage_notice)}</p><h3>What to do next</h3><ol>{priority_actions}</ol></section>
 {ai_section}
@@ -279,8 +291,8 @@ class HtmlReporter:
             f"<dl><dt>Finding ID</dt><dd>{esc(item.id)}</dd><dt>Category</dt><dd>{esc(item.category)}</dd>"
             f"<dt>Confidence</dt><dd>{item.confidence:.2f}</dd><dt>Rule</dt><dd>{esc(item.rule_id)} / {esc(item.rule_version)}</dd>"
             f"<dt>Source</dt><dd>{esc(item.source)}</dd><dt>Document</dt><dd>{esc(item.document_id)}</dd>"
-            f"<dt>Page</dt><dd>{esc(item.page)}</dd><dt>Chunk</dt><dd>{esc(item.chunk_id)}</dd>"
+            f"<dt>Page</dt><dd>{esc(item.page)}</dd><dt>Line</dt><dd>{esc(item.line_start)}</dd><dt>Chunk</dt><dd>{esc(item.chunk_id)}</dd>"
             f"<dt>Target</dt><dd>{esc(item.target_id)}</dd><dt>Test case</dt><dd>{esc(item.test_case_id)}</dd></dl>"
-            f"<h3>Evidence</h3><pre>{esc(item.evidence)}</pre><h3>Impact</h3><p>{esc(item.impact)}</p>"
+            f"<h3>Evidence</h3>{f'<p><mark>{esc(item.evidence_highlight)}</mark></p>' if item.evidence_highlight else ''}<pre>{esc(item.evidence)}</pre><h3>Impact</h3><p>{esc(item.impact)}</p>"
             f'<h3>Recommendation</h3><p>{esc(item.recommendation)}</p><p class="muted">Fingerprint: {esc(item.fingerprint)}</p></details>'
         )

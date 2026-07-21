@@ -422,6 +422,27 @@
     scheduleFields?.querySelectorAll("input,select").forEach((field) => { field.disabled = true; });
   });
 
+  document.querySelectorAll("[data-schedule-editor]").forEach((form) => {
+    const localInput = form.querySelector("[data-next-run-local]");
+    const utcInput = form.querySelector("[data-next-run-utc]");
+    const parsed = new Date(localInput?.dataset.initialValue || "");
+    if (localInput && !Number.isNaN(parsed.valueOf())) {
+      const pad = (value) => String(value).padStart(2, "0");
+      localInput.value = `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+    }
+    form.addEventListener("submit", (event) => {
+      const next = new Date(localInput?.value || "");
+      if (Number.isNaN(next.valueOf())) {
+        event.preventDefault();
+        localInput?.setCustomValidity(t("Choose a valid next run date and time."));
+        localInput?.reportValidity();
+        return;
+      }
+      localInput?.setCustomValidity("");
+      if (utcInput) utcInput.value = next.toISOString();
+    });
+  });
+
   const compareForm = document.querySelector("[data-compare-form]");
   const choices = [...document.querySelectorAll("[data-report-choice]")];
   const compareButton = document.querySelector("[data-compare-button]");
