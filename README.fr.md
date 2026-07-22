@@ -119,6 +119,9 @@ défaut 180 secondes pour les modèles locaux lents ; erreurs et données suiven
 Chaque rapport enregistré se télécharge depuis sa page détaillée en HTML autonome sans réseau,
 classeur Excel structuré à plusieurs feuilles ou PDF paginé. Les exports utilisent la langue de
 l’interface sélectionnée et conservent les preuves sources dans leur langue d’origine.
+Les nouveaux scans préservent correctement la ponctuation source, notamment les apostrophes, dans
+le tableau de bord et les PDF. Les réponses naturellement courtes d’un seul document et les
+positions approximatives dues uniquement à la normalisation ne sont pas signalées comme défauts de chunk.
 
 Commandes utiles :
 

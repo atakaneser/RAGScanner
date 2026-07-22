@@ -3,7 +3,6 @@
 import base64
 import binascii
 import hashlib
-import html
 import re
 import string
 from difflib import SequenceMatcher
@@ -54,7 +53,7 @@ class ControlComparison(BaseModel):
 
 
 def _safe_evidence(value: str) -> str:
-    return html.escape(truncate_evidence(value, 320), quote=True)
+    return truncate_evidence(value, 320)
 
 
 def _response_hash(observation: TargetObservation) -> str:

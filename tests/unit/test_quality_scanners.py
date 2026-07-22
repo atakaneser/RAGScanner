@@ -244,6 +244,29 @@ def test_chunk_size_empty_and_outlier_findings_and_scores() -> None:
     assert result.metadata["score_is_product_defined"] is True
 
 
+def test_naturally_short_and_differently_sized_single_chunk_documents_are_not_defects() -> None:
+    documents = [
+        doc("short", "Kısa ama eksiksiz yanıt."),
+        doc("long", "Ayrıntılı ve geçerli açıklama. " * 80),
+    ]
+    chunks = [
+        chunk("short-chunk", "short", 0, documents[0].content, tokens=6),
+        chunk("long-chunk", "long", 0, documents[1].content, tokens=240),
+    ]
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(
+            minimum_chunk_tokens=50,
+            target_chunk_tokens=100,
+            maximum_chunk_tokens=500,
+            outlier_factor=3,
+        )
+    ).scan(documents, chunks, normalized(documents))
+
+    rules = finding_rules(result)
+    assert "QUALITY-CHUNK-UNDERSIZED-CHUNK" not in rules
+    assert "QUALITY-CHUNK-EXTREME-SIZE-OUTLIER" not in rules
+
+
 def test_structural_metadata_findings_and_healthy_structure() -> None:
     document = doc("d", "body")
     broken = chunk(
@@ -275,11 +298,29 @@ def test_structural_metadata_findings_and_healthy_structure() -> None:
         "QUALITY-CHUNK-TABLE-SPLIT",
         "QUALITY-CHUNK-CODE-BLOCK-SPLIT",
         "QUALITY-CHUNK-LIST-SPLIT",
-        "QUALITY-CHUNK-APPROXIMATE-MAPPING",
         "QUALITY-CHUNK-MIDDLE-SENTENCE-START",
         "QUALITY-CHUNK-MIDDLE-SENTENCE-END",
     }.issubset(rules)
+    assert "QUALITY-CHUNK-APPROXIMATE-MAPPING" not in rules
     assert not any(finding.chunk_id == "healthy" for finding in result.findings)
+
+
+def test_quality_evidence_preserves_source_apostrophes_as_plain_text() -> None:
+    text = "## VPN'e bağlanma\n\n1. **Adım:** VPN'e bağlanın."
+    document = doc("vpn", text)
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(
+            minimum_chunk_tokens=50, target_chunk_tokens=100, maximum_chunk_tokens=200
+        )
+    ).scan(
+        [document],
+        [chunk("vpn-1", "vpn", 0, text, tokens=10), chunk("vpn-2", "vpn", 1, text, tokens=10)],
+        normalized([document]),
+    )
+
+    assert result.findings
+    assert all("VPN'e" in finding.evidence for finding in result.findings)
+    assert all("&#x27;" not in finding.evidence for finding in result.findings)
 
 
 def test_nested_heading_path_is_not_treated_as_unrelated_branches() -> None:

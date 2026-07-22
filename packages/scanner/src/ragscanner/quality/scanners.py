@@ -1,7 +1,6 @@
 """Offline exact/near duplicate and chunk-quality scanners."""
 
 import hashlib
-import html
 import json
 import re
 import statistics
@@ -67,7 +66,7 @@ def _stable_hash(namespace: str, value: Any) -> str:
 
 
 def _safe_evidence(value: str, limit: int) -> str:
-    return html.escape(mask_secret_like_values(value[:limit]), quote=True)
+    return mask_secret_like_values(value[:limit])
 
 
 def _finding(
@@ -601,7 +600,7 @@ class NearDuplicateScanner(ExactDuplicateScanner):
 
 class ChunkQualityScanner:
     name = "chunk_quality_scanner"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def __init__(
         self,
@@ -629,7 +628,14 @@ class ChunkQualityScanner:
             )
         docs = {document.id: document for document in documents}
         token_values = [chunk.token_count for chunk in values]
-        median = statistics.median(token_values) if token_values else 0.0
+        collection_median = statistics.median(token_values) if token_values else 0.0
+        chunks_by_document: defaultdict[str, list[Chunk]] = defaultdict(list)
+        for chunk in values:
+            chunks_by_document[chunk.document_id].append(chunk)
+        document_medians = {
+            document_id: statistics.median(item.token_count for item in document_chunks)
+            for document_id, document_chunks in chunks_by_document.items()
+        }
         findings: list[Finding] = []
         scores: dict[str, ChunkQualityScore] = {}
         redundant_tokens = 0
@@ -649,7 +655,13 @@ class ChunkQualityScanner:
             if document is None:
                 skipped.append(chunk.id)
                 continue
-            issues = self._issues(chunk, median, boilerplate)
+            document_chunks = chunks_by_document[chunk.document_id]
+            issues = self._issues(
+                chunk,
+                document_medians[chunk.document_id],
+                boilerplate,
+                document_chunk_count=len(document_chunks),
+            )
             if index > 0 and values[index - 1].document_id == chunk.document_id:
                 overlap_issue, overlap_tokens = self._overlap_issue(values[index - 1], chunk)
                 if overlap_issue:
@@ -670,10 +682,7 @@ class ChunkQualityScanner:
             scores[chunk.id] = self._score(issues)
             if len(findings) >= self.config.maximum_findings:
                 break
-        by_doc = defaultdict(list)
-        for chunk in values:
-            by_doc[chunk.document_id].append(chunk)
-        for document_id, document_chunks in sorted(by_doc.items()):
+        for document_id, document_chunks in sorted(chunks_by_document.items()):
             document = docs.get(document_id)
             if (
                 document
@@ -712,7 +721,7 @@ class ChunkQualityScanner:
                 empty_chunks=empty,
                 structurally_broken_chunks=len(broken_ids),
                 average_chunk_tokens=sum(token_values) / max(1, len(token_values)),
-                median_chunk_tokens=float(median),
+                median_chunk_tokens=float(collection_median),
                 estimated_redundant_tokens=redundant_tokens,
             ),
             scanner_name=self.name,
@@ -726,7 +735,12 @@ class ChunkQualityScanner:
         )
 
     def _issues(
-        self, chunk: Chunk, median: float, boilerplate: set[str]
+        self,
+        chunk: Chunk,
+        median: float,
+        boilerplate: set[str],
+        *,
+        document_chunk_count: int,
     ) -> list[tuple[str, Severity, str, str, dict[str, Any]]]:
         text = chunk.normalized_content
         stripped = text.strip()
@@ -745,7 +759,7 @@ class ChunkQualityScanner:
                     {"tokens": chunk.token_count},
                 )
             )
-        elif chunk.token_count < self.config.minimum_chunk_tokens:
+        elif document_chunk_count > 1 and chunk.token_count < self.config.minimum_chunk_tokens:
             add(
                 (
                     "undersized_chunk",
@@ -755,7 +769,11 @@ class ChunkQualityScanner:
                     {"tokens": chunk.token_count},
                 )
             )
-        if median and chunk.token_count > median * self.config.outlier_factor:
+        if (
+            document_chunk_count > 1
+            and median
+            and chunk.token_count > median * self.config.outlier_factor
+        ):
             add(
                 (
                     "extreme_size_outlier",
@@ -781,7 +799,6 @@ class ChunkQualityScanner:
             "table_present": "table_split",
             "code_block_present": "code_block_split",
             "list_present": "list_split",
-            "approximate_source_mapping": "approximate_mapping",
         }
         if chunk.metadata.get("forced_split"):
             for key, issue_id in metadata_flags.items():
@@ -789,22 +806,12 @@ class ChunkQualityScanner:
                     add(
                         (
                             issue_id,
-                            Severity.MEDIUM if issue_id != "approximate_mapping" else Severity.LOW,
+                            Severity.MEDIUM,
                             f"Chunk metadata indicates {issue_id.replace('_', ' ')}.",
                             "structure",
                             {},
                         )
                     )
-        elif chunk.metadata.get("approximate_source_mapping"):
-            add(
-                (
-                    "approximate_mapping",
-                    Severity.LOW,
-                    "Chunk has approximate source mapping.",
-                    "structure",
-                    {},
-                )
-            )
         headings = chunk.headings
         if not headings and chunk.index > 0 and stripped[0].islower():
             add(

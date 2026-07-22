@@ -200,8 +200,11 @@ HTML exports escape untrusted fields and prohibit scripts and connections throug
 neutralize formula-leading cells, and PDF uses embedded/local font resources with bounded report data.
 PDF groups repeated occurrences by rule and limits the printed locations per group; exhaustive rows
 remain available in HTML and XLSX. Chunk-quality findings exclude scanner-owned whitespace,
-front-matter delimiters, normal heading ancestry, and generated overlap within its configured ratio;
-see ADR-0040.
+front-matter delimiters, normal heading ancestry, generated overlap within its configured ratio,
+naturally short single-chunk sources, cross-document size comparisons, and approximate offsets
+caused by lossless normalization; see ADR-0040 and ADR-0041. Finding evidence is stored as bounded,
+redacted plain source text. Delivery adapters, not Core scanners, apply context-specific HTML or PDF
+markup escaping.
 
 ## Active-security flow
 

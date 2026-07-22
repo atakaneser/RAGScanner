@@ -14,7 +14,8 @@ Severity expresses impact; confidence expresses evidence strength. Documentation
 canaries, no-op text, and explicit refusal context reduce confidence/classification rather than
 hiding evidence. Static matching never confirms that a running target followed an instruction.
 
-Evidence is bounded, escaped, secret-masked, and mapped to page/line/chunk where possible. Rule
+Evidence is bounded, secret-masked, stored as plain source text, and mapped to page/line/chunk where
+possible. HTML and PDF escaping happens only in their delivery adapters. Rule
 provenance records pack/rule/matcher/range and confirms that decoded content was not executed and
 URLs were not fetched.
 

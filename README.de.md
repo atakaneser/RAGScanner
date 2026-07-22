@@ -120,6 +120,9 @@ langsame lokale Modelle standardmäßig 180 Sekunden; Fehler und Berichtsdaten f
 Jeder gespeicherte Bericht kann auf seiner Detailseite als netzwerkfreies eigenständiges HTML,
 strukturierte Excel-Arbeitsmappe mit mehreren Blättern oder paginiertes PDF heruntergeladen werden.
 Exporte verwenden die gewählte Sprache; Quellnachweise bleiben in ihrer Originalsprache.
+Neue Scans bewahren Quellzeichensetzung wie Apostrophe in Dashboard- und PDF-Nachweisen korrekt.
+Natürlich kurze Einzeldokument-Antworten und nur durch Normalisierung angenäherte Positionen werden
+nicht als Chunk-Fehler gemeldet.
 
 Nützliche Betriebsbefehle:
 

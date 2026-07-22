@@ -118,6 +118,9 @@ valgono le stesse soglie: sotto 85 giallo, sotto 70 arancione, sotto 55 rosso. L
 Ogni rapporto salvato può essere scaricato dalla pagina di dettaglio come HTML autonomo senza rete,
 cartella Excel strutturata con più fogli o PDF impaginato. Gli export usano la lingua selezionata e
 mantengono le prove sorgente nella lingua originale.
+Le nuove scansioni conservano correttamente la punteggiatura sorgente, inclusi gli apostrofi, nelle
+prove del dashboard e dei PDF. Le risposte naturalmente brevi di un singolo documento e le posizioni
+approssimative dovute solo alla normalizzazione non vengono segnalate come difetti dei chunk.
 
 Comandi operativi utili:
 

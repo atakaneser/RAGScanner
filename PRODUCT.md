@@ -91,7 +91,9 @@ bounded review summary; HTML and Excel retain the complete finding list.
 
 Chunk-quality findings describe source or upstream chunk risks, not artifacts introduced by
 RAGScanner itself. Generated whitespace/delimiter blocks, normal heading ancestry, and bounded
-configured overlap do not become source findings.
+configured overlap do not become source findings. Naturally short single-chunk documents,
+cross-document length differences, and approximate offsets caused by lossless normalization also do
+not become source defects.
 
 ## Local operation and authentication
 

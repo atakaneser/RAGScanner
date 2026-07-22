@@ -41,3 +41,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0038 Fixed localhost address and password rotation](0038-fixed-localhost-address-and-password-rotation.md)
 - [ADR-0039 Local saved-report export adapters](0039-local-saved-report-export-adapters.md)
 - [ADR-0040 Source-owned chunk-quality findings](0040-source-owned-chunk-quality-findings.md)
+- [ADR-0041 Plain evidence and source-relative chunk sizing](0041-plain-evidence-and-source-relative-chunk-sizing.md)

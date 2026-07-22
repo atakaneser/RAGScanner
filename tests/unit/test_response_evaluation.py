@@ -201,13 +201,14 @@ def test_control_response_reduces_false_positive_and_identical_is_typed() -> Non
     assert result.confidence <= 0.45
 
 
-def test_evidence_is_redacted_bounded_and_html_escaped() -> None:
+def test_evidence_is_redacted_bounded_and_kept_as_plain_text() -> None:
     selected_case = case(unsafe_indicators=["contains:<unsafe>"])
     response = observation("<unsafe> token=super-secret-token-value " + "x" * 1000)
     result = evaluate(selected_case, response)
     serialized = result.model_dump_json()
     assert "super-secret" not in serialized
-    assert "&lt;unsafe&gt;" in serialized
+    assert "<unsafe>" in serialized
+    assert "&lt;unsafe&gt;" not in serialized
     assert all(len(item) <= 320 for item in result.evidence)
 
 
