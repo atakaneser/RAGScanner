@@ -204,7 +204,9 @@ front-matter delimiters, normal heading ancestry, generated overlap within its c
 naturally short single-chunk sources, cross-document size comparisons, and approximate offsets
 caused by lossless normalization; see ADR-0040 and ADR-0041. Finding evidence is stored as bounded,
 redacted plain source text. Delivery adapters, not Core scanners, apply context-specific HTML or PDF
-markup escaping.
+markup escaping. Source-ownership markers distinguish RAGScanner-generated chunks from upstream
+chunks so statistical heuristics do not grade the scanner's own headings, overlap, or structural
+boundaries as source defects; see ADR-0042.
 
 ## Active-security flow
 

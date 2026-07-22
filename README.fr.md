@@ -122,6 +122,9 @@ l’interface sélectionnée et conservent les preuves sources dans leur langue 
 Les nouveaux scans préservent correctement la ponctuation source, notamment les apostrophes, dans
 le tableau de bord et les PDF. Les réponses naturellement courtes d’un seul document et les
 positions approximatives dues uniquement à la normalisation ne sont pas signalées comme défauts de chunk.
+Les tests de variation empêchent aussi les titres, listes, tableaux, blocs de code et chevauchements
+générés, les écritures sans casse et les petits échantillons lexicaux de créer des constats sans
+preuve appartenant à la source.
 
 Commandes utiles :
 

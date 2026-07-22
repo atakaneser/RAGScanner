@@ -1195,7 +1195,7 @@ def test_quality_scan_json_duplicates_and_filters(tmp_path) -> None:  # type: ig
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     categories = {group["category"] for group in payload["exact_duplicates"]["groups"]}
-    assert categories == {"exact_duplicate_document", "exact_duplicate_chunk"}
+    assert categories == {"exact_duplicate_document"}
     assert "near_duplicates" not in payload
 
 
@@ -1207,6 +1207,7 @@ def test_quality_scan_validation_and_fail_on(tmp_path) -> None:  # type: ignore[
         ["quality", "scan", str(source), "--min-chunk-tokens", "20", "--max-chunk-tokens", "10"],
     )
     assert invalid.exit_code == 2
+    source.write_text("!!!", encoding="utf-8")
     failed = runner.invoke(
         app,
         [

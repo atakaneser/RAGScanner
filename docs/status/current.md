@@ -58,6 +58,9 @@
   single-chunk sources, cross-document size variation, and normalization-only approximate mappings
 - Plain-text bounded finding evidence with output-context escaping, preserving apostrophes and
   quotation marks in dashboard and PDF views without weakening HTML safety
+- Multilingual false-positive variation coverage for uncased scripts, headings, lists, tables, code,
+  identifiers, numeric answers, small lexical samples, forced split runs, and upstream boundaries;
+  generated full-document/heading chunks do not duplicate document-level findings
 - Unified filesystem-to-report static pipeline with isolated file failures and assessed-only scoring
 - Concise terminal summaries and versioned JSON/standalone HTML reports
 - Authenticated saved-report downloads as localized standalone HTML, structured multi-sheet XLSX,

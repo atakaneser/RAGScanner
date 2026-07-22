@@ -123,6 +123,8 @@ Exporte verwenden die gewählte Sprache; Quellnachweise bleiben in ihrer Origina
 Neue Scans bewahren Quellzeichensetzung wie Apostrophe in Dashboard- und PDF-Nachweisen korrekt.
 Natürlich kurze Einzeldokument-Antworten und nur durch Normalisierung angenäherte Positionen werden
 nicht als Chunk-Fehler gemeldet.
+Variationstests verhindern außerdem Befunde aus erzeugten Überschriften, Listen, Tabellen, Code,
+Überlappung, Schriften ohne Groß-/Kleinschreibung und zu kleinen Wortstichproben ohne Quellnachweis.
 
 Nützliche Betriebsbefehle:
 

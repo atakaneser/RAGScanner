@@ -11,15 +11,23 @@ documents, and identical normalized documents are distinct categories. Each grou
 canonical reporting reference—not an automatic keep/delete decision—and bounded redacted evidence
 plus estimated redundant characters/tokens.
 
+RAGScanner-generated heading-only chunks are structural context, not duplicate content. A generated
+chunk that mirrors its complete normalized document is also excluded from chunk scope so one pair of
+identical single-chunk documents produces one document finding rather than duplicate document and
+chunk findings.
+
 ## Near duplicates
 
-`NearDuplicateScanner` creates fixed-size Unicode token shingles and evaluates Jaccard/containment
+`NearDuplicateScanner` creates fixed-size Unicode token shingles and evaluates Jaccard plus
+size-balanced containment
 within bounded candidate buckets. Defaults are 0.82 similarity, five-token shingles, and 120 minimum
 characters. Exact matches remain owned by the exact scanner.
 
 Boilerplate/page-number annotations may be removed from the comparison signature but never from
 source content. Because lexical similarity does not prove semantic equivalence, findings are
 `probable` and require review. Multilingual text is supported without stemming or semantic analysis.
+Size balancing prevents a common subsection contained in a much longer document from being treated
+as if both complete documents were near duplicates.
 
 Document, chunk, group, finding, shingle, bucket, comparison, evidence, and runtime limits produce
 typed warnings and visible skipped IDs. Identical input, configuration, and scanner version produce

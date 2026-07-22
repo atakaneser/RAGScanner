@@ -122,6 +122,8 @@ kanıtı özgün dilinde korunur.
 Yeni taramalar kesme işareti gibi kaynak noktalama işaretlerini panel ve PDF kanıtında doğru korur.
 Doğal olarak kısa tek belgeli yanıtlar ve yalnız normalleştirmeden doğan yaklaşık konumlar chunk
 hatası olarak raporlanmaz.
+Varyasyon testleri ayrıca üretilmiş başlık, liste, tablo, kod, bindirme, büyük/küçük harfsiz yazı
+sistemleri ve küçük kelime örneklerinin kaynak kanıtı olmadan bulgu oluşturmasını engeller.
 
 Yararlı işletim komutları:
 
