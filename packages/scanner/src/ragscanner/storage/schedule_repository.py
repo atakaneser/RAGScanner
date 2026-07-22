@@ -40,6 +40,7 @@ class ScanScheduleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     payload: dict[str, Any]
     interval_minutes: int = Field(ge=15, le=525600)
+    next_run_at: AwareDatetime | None = None
 
     @field_validator("payload")
     @classmethod
@@ -61,6 +62,11 @@ class SQLiteScheduleRepository:
 
     def create(self, request: ScanScheduleRequest, *, now: datetime | None = None) -> ScanSchedule:
         current = _now(now)
+        next_run_at = (
+            _now(request.next_run_at)
+            if request.next_run_at is not None
+            else current + timedelta(minutes=request.interval_minutes)
+        )
         with self.engine.begin() as connection:
             sequence = connection.execute(
                 select(func.max(cast(func.substr(schedules.c.display_id, 8), Integer)))
@@ -81,7 +87,7 @@ class SQLiteScheduleRepository:
                     enabled=True,
                     created_at=current.isoformat(),
                     updated_at=current.isoformat(),
-                    next_run_at=(current + timedelta(minutes=request.interval_minutes)).isoformat(),
+                    next_run_at=next_run_at.isoformat(),
                 )
             )
             row = (

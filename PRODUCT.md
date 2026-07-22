@@ -18,7 +18,8 @@ entitlement, license server, private rule feed, or artificial feature restrictio
 ## Usage and analysis modes
 
 - One-time local file/folder scans and offline security/health analysis
-- Opt-in local SQLite history, coverage-aware comparison, and editable recurring interval schedules;
+- Opt-in local SQLite history, coverage-aware comparison, and editable recurring interval schedules
+  with an explicit first run date/time;
   calendar rules and change-triggered scans remain planned
 - Localhost history/detail/comparison API plus scoped Bearer-authenticated asynchronous scan and job
   control

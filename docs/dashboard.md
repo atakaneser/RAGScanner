@@ -13,6 +13,13 @@ cross-origin sitemap entries, and enforce page and byte limits. Recurring defini
 generated executions appear separately. Queued/running jobs may be cancelled; failed/cancelled jobs
 may be retried. The machine Host Service materializes due intervals and executes the durable queue.
 
+Job creation progressively reveals four stages instead of displaying every connector and AI field at
+once. The first question separates connected sources from one-job manual input. Source details,
+execution timing, and optional AI analysis follow as independent stages. A recurring definition can
+start at an explicit browser-local date and time; JavaScript converts that value to an aware UTC
+timestamp before the schedule is persisted. Submissions without an explicit timestamp retain the
+legacy `now + interval` behavior.
+
 The dashboard is a single-user localhost surface. It never receives or embeds the API Bearer key.
 Mutating forms use a strict SameSite HttpOnly CSRF cookie plus form token and call application
 services directly. This is not a substitute for authentication if the service is exposed beyond
@@ -51,6 +58,11 @@ by its bounded discovery endpoint. A saved model that is no longer installed is 
 editable form and replaced with the first verified model when available; the user must still save
 the proposed change. Remote-provider discovery remains explicit and is never triggered by opening
 Settings.
+
+The per-job AI stage uses the same bounded discovery endpoint but presents one verified-model
+selector. Local discovery runs when AI is enabled or the local provider changes. Unreachable or empty
+local inventories clear the unverified saved model instead of presenting it as installed. Manual
+model entry, endpoint, and credentials remain available in collapsed fallback/connection controls.
 
 AI adapters first request structured JSON. When an older Ollama or OpenAI-compatible server rejects
 that optional parameter with HTTP 400, RAGScanner retries once in prompt-only JSON compatibility

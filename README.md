@@ -90,6 +90,12 @@ The Create job drawer supports:
 - directly accessible SharePoint URLs, with an optional bearer-token environment reference;
 - one-time execution or recurring interval monitoring.
 
+Job creation is a four-step guided flow: choose a connected or manual source, enter only that
+source's details, select one-time or recurring timing, and optionally enable AI. Recurring jobs accept
+an explicit first local date and time. Local AI providers are checked automatically; verified models
+appear in one selector, while endpoint, credentials, and manual model entry stay under optional
+connection controls.
+
 Remote web scans reject redirects and cross-origin sitemap entries, never execute scripts, and
 apply page, response-size, and timeout limits. Authenticated Microsoft Graph site/library discovery
 is a separate planned connector.

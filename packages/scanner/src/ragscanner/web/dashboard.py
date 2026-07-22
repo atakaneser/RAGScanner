@@ -183,6 +183,17 @@ def _request_locale(request: Request, settings: DashboardSettings | None = None)
     return locale if locale in {"en", "tr", "de", "fr", "zh-CN", "it"} else "en"
 
 
+def _optional_schedule_time(value: str | None) -> datetime | None:
+    """Parse a browser-supplied ISO timestamp while keeping legacy submissions valid."""
+
+    if not value or not value.strip():
+        return None
+    parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("schedule start time must include a timezone")
+    return parsed.astimezone(UTC)
+
+
 def _dashboard_settings(database_path: Path) -> DashboardSettings:
     repository = SQLiteSourceProfileRepository(database_path)
     try:
@@ -769,6 +780,7 @@ def register_dashboard(
         execution_mode: Annotated[str, Form(pattern=r"^(one_time|scheduled)$")] = "one_time",
         schedule_name: Annotated[str | None, Form(max_length=160)] = None,
         interval_minutes: Annotated[int, Form(ge=15, le=525600)] = 1440,
+        schedule_start_at: Annotated[str | None, Form(max_length=80)] = None,
         scan_consent: Annotated[bool, Form()] = False,
         ai_enabled: Annotated[bool, Form()] = False,
         ai_provider: Annotated[str | None, Form(max_length=80)] = None,
@@ -808,6 +820,7 @@ def register_dashboard(
                         ScanScheduleRequest(
                             name=(schedule_name or friendly_name).strip(),
                             interval_minutes=interval_minutes,
+                            next_run_at=_optional_schedule_time(schedule_start_at),
                             payload=StaticScanJobPayload(
                                 source_kind="local",
                                 execution_mode="scheduled",
@@ -931,6 +944,7 @@ def register_dashboard(
         execution_mode: Annotated[str, Form(pattern=r"^(one_time|scheduled)$")] = "one_time",
         schedule_name: Annotated[str | None, Form(max_length=160)] = None,
         interval_minutes: Annotated[int, Form(ge=15, le=525600)] = 1440,
+        schedule_start_at: Annotated[str | None, Form(max_length=80)] = None,
         content_consent: Annotated[bool, Form()] = False,
         ai_enabled: Annotated[bool, Form()] = False,
         ai_provider: Annotated[str | None, Form(max_length=80)] = None,
@@ -967,6 +981,7 @@ def register_dashboard(
                         ScanScheduleRequest(
                             name=(schedule_name or friendly_name).strip(),
                             interval_minutes=interval_minutes,
+                            next_run_at=_optional_schedule_time(schedule_start_at),
                             payload=StaticScanJobPayload(
                                 source_kind="openwebui",
                                 execution_mode="scheduled",
@@ -1010,6 +1025,7 @@ def register_dashboard(
         execution_mode: Annotated[str, Form(pattern=r"^(one_time|scheduled)$")] = "one_time",
         schedule_name: Annotated[str | None, Form(max_length=160)] = None,
         interval_minutes: Annotated[int, Form(ge=15, le=525600)] = 1440,
+        schedule_start_at: Annotated[str | None, Form(max_length=80)] = None,
         content_consent: Annotated[bool, Form()] = False,
         ai_enabled: Annotated[bool, Form()] = False,
         ai_provider: Annotated[str | None, Form(max_length=80)] = None,
@@ -1047,6 +1063,7 @@ def register_dashboard(
                         ScanScheduleRequest(
                             name=(schedule_name or friendly_name).strip(),
                             interval_minutes=interval_minutes,
+                            next_run_at=_optional_schedule_time(schedule_start_at),
                             payload=StaticScanJobPayload(
                                 source_kind="website",
                                 execution_mode="scheduled",

@@ -87,9 +87,9 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert "Recent jobs" in dashboard.text
     assert "RAGScanner service is running" in dashboard.text
     assert "Create job" in dashboard.text
-    assert "Add AI analysis to this report" in dashboard.text
+    assert "Add AI guidance" in dashboard.text
     assert "NVIDIA NIM" in dashboard.text
-    assert "Detect available models" in dashboard.text
+    assert "Refresh models" in dashboard.text
     assert css.status_code == 200
     assert i18n.status_code == 200
     assert 'data-language-picker aria-label="Language"' in dashboard.text
@@ -516,6 +516,12 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert 'class="finding" open' in detail.text
     assert "Report comparison" in comparison.text
     assert "A scan job tells RAGScanner what source to scan" in jobs.text
+    assert "How do you want to choose the source?" in jobs.text
+    assert "Use a connected source" in jobs.text
+    assert "Enter source manually" in jobs.text
+    assert "First run date and time" in jobs.text
+    assert "Available models" in jobs.text
+    assert 'data-form-step="4"' in jobs.text
     assert "versioned SQLite snapshots" in settings.text
 
 
@@ -699,6 +705,7 @@ async def test_dashboard_creates_recurring_scan_separately_from_job_history(
                 "execution_mode": "scheduled",
                 "schedule_name": "Daily support health",
                 "interval_minutes": "1440",
+                "schedule_start_at": "2026-07-24T06:15:00Z",
             },
         )
         refreshed = await client.get("/jobs")
@@ -717,6 +724,7 @@ async def test_dashboard_creates_recurring_scan_separately_from_job_history(
 
     assert saved.headers["location"] == "/jobs?notice=schedule-saved"
     assert "Daily support health" in refreshed.text
+    assert "2026-07-24T06:15:00+00:00" in refreshed.text
     assert "RAGSCH-0001" in refreshed.text
     assert "RAGSCN-" not in refreshed.text
     assert updated.headers["location"] == "/jobs?notice=schedule-updated"

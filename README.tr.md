@@ -90,6 +90,12 @@ ragscanner serve
 - isteğe bağlı bearer-token ortam referansıyla doğrudan erişilebilir SharePoint URL’leri;
 - tek seferlik çalışma veya aralıklı izleme.
 
+İş oluşturma dört adımlı yönlendirmeli bir akıştır: bağlı veya manuel kaynağı seçin, yalnızca o
+kaynağın bilgilerini girin, tek seferlik ya da periyodik zamanlamayı belirleyin ve isterseniz AI'ı
+açın. Periyodik işler için ilk yerel tarih ve saat seçilebilir. Yerel AI sağlayıcıları otomatik
+kontrol edilir; doğrulanan modeller tek bir seçim alanında, uç nokta, kimlik bilgileri ve manuel
+model girişi ise isteğe bağlı bağlantı ayarlarında gösterilir.
+
 Uzak web taramaları yönlendirmeleri ve farklı kaynaklı sitemap kayıtlarını reddeder, betik çalıştırmaz
 ve sayfa, yanıt boyutu ile zaman aşımı sınırları uygular. Kimlik doğrulamalı Microsoft Graph
 site/kitaplık keşfi ayrı ve planlanan bir connector’dır.
