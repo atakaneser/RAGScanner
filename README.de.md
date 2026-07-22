@@ -90,6 +90,12 @@ Der Dialog „Auftrag erstellen“ unterstützt:
 - direkt zugängliche SharePoint-URLs mit optionaler Bearer-Token-Umgebungsreferenz;
 - einmalige Ausführung oder wiederkehrende Intervallüberwachung.
 
+Die Auftragserstellung führt durch vier Schritte: verbundene oder manuelle Quelle wählen, nur deren
+Details eingeben, einmalige oder wiederkehrende Zeitplanung festlegen und KI optional aktivieren.
+Für wiederkehrende Aufträge lassen sich erstes lokales Datum und Uhrzeit festlegen. Lokale
+KI-Anbieter werden automatisch geprüft; bestätigte Modelle erscheinen in einer Auswahl, während
+Endpunkt, Anmeldedaten und manuelle Modelleingabe in optionalen Verbindungseinstellungen bleiben.
+
 Externe Webscans lehnen Weiterleitungen und fremde Sitemap-Einträge ab, führen keine Skripte aus und
 begrenzen Seiten, Antwortgröße und Zeit. Authentifizierte Microsoft-Graph-Site-/Bibliothekserkennung
 ist ein separat geplanter Konnektor.

@@ -90,6 +90,13 @@ Le tiroir de création de tâche prend en charge :
 - URL SharePoint directement accessibles avec référence d’environnement Bearer facultative ;
 - exécution unique ou surveillance à intervalle récurrent.
 
+La création d’une tâche suit quatre étapes : choisir une source connectée ou manuelle, saisir
+uniquement ses informations, définir une exécution unique ou périodique, puis activer l’IA si
+nécessaire. Une tâche périodique accepte une première date et heure locales explicites. Les
+fournisseurs IA locaux sont vérifiés automatiquement ; les modèles confirmés sont réunis dans un
+sélecteur, tandis que le point de terminaison, les identifiants et la saisie manuelle restent dans
+les paramètres de connexion facultatifs.
+
 Les analyses web refusent redirections et entrées de sitemap d’une autre origine, n’exécutent aucun
 script et limitent pages, taille et délais. La découverte authentifiée des sites/bibliothèques
 Microsoft Graph reste un connecteur distinct planifié.

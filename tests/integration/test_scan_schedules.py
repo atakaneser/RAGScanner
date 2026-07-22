@@ -52,3 +52,30 @@ def test_due_schedule_creates_one_idempotent_job_and_advances(tmp_path) -> None:
     finally:
         jobs.close()
         schedules.close()
+
+
+def test_schedule_can_start_at_an_explicit_time(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    schedules = SQLiteScheduleRepository(database)
+    created_at = datetime(2026, 7, 20, 8, tzinfo=UTC)
+    first_run = datetime(2026, 7, 21, 4, 30, tzinfo=UTC)
+    try:
+        schedule = schedules.create(
+            ScanScheduleRequest(
+                name="Morning knowledge health",
+                interval_minutes=1440,
+                next_run_at=first_run,
+                payload={
+                    "source_kind": "local",
+                    "execution_mode": "scheduled",
+                    "source_name": "Support knowledge",
+                    "path": str(tmp_path / "knowledge"),
+                    "ai": {"enabled": False},
+                },
+            ),
+            now=created_at,
+        )
+    finally:
+        schedules.close()
+
+    assert schedule.next_run_at == first_run

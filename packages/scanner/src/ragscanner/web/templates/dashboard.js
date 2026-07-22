@@ -104,13 +104,57 @@
     refreshDefaultModels();
   }
 
-  document.querySelectorAll("[data-open-drawer]").forEach((button) => button.addEventListener("click", () => body.classList.remove("drawer-collapsed")));
-  document.querySelector("[data-close-drawer]")?.addEventListener("click", () => body.classList.add("drawer-collapsed"));
+  const drawer = document.querySelector("[data-drawer]");
+  const originStep = document.querySelector("[data-source-origin-step]");
+  const originButtons = [...document.querySelectorAll("[data-source-origin]")];
+  const savedSourcePanel = document.querySelector("[data-saved-source-panel]");
+  const manualSourcePanel = document.querySelector("[data-manual-source-panel]");
+  const progressSteps = [...document.querySelectorAll("[data-progress-step]")];
   const tabs = [...document.querySelectorAll("[data-source]")];
   const forms = [...document.querySelectorAll("[data-form]")];
+  let selectedSourceKind = "";
+  let activeForm = null;
+  const setProgress = (step) => progressSteps.forEach((item) => {
+    const itemStep = Number(item.dataset.progressStep || 0);
+    item.classList.toggle("active", itemStep === step);
+    item.classList.toggle("complete", itemStep < step);
+  });
+  const showFormStep = (form, step) => {
+    activeForm = form;
+    originStep?.classList.toggle("hidden", step !== 1);
+    forms.forEach((item) => item.classList.toggle("hidden", item !== form || step === 1));
+    form?.querySelectorAll("[data-form-step]").forEach((pane) => pane.classList.toggle("hidden", Number(pane.dataset.formStep) !== step));
+    setProgress(step);
+    drawer?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const resetWizard = () => {
+    activeForm = null;
+    selectedSourceKind = "";
+    originStep?.classList.remove("hidden");
+    savedSourcePanel?.classList.add("hidden");
+    manualSourcePanel?.classList.add("hidden");
+    originButtons.forEach((button) => button.classList.remove("selected"));
+    tabs.forEach((tab) => tab.classList.remove("active"));
+    forms.forEach((form) => form.classList.add("hidden"));
+    document.querySelectorAll("[data-source-continue]").forEach((button) => { button.disabled = true; });
+    setProgress(1);
+  };
+  const chooseOrigin = (origin) => {
+    originButtons.forEach((button) => button.classList.toggle("selected", button.dataset.sourceOrigin === origin));
+    savedSourcePanel?.classList.toggle("hidden", origin !== "saved");
+    manualSourcePanel?.classList.toggle("hidden", origin !== "manual");
+  };
+  document.querySelectorAll("[data-open-drawer]").forEach((button) => button.addEventListener("click", () => {
+    body.classList.remove("drawer-collapsed");
+    resetWizard();
+  }));
+  document.querySelector("[data-close-drawer]")?.addEventListener("click", () => body.classList.add("drawer-collapsed"));
+  originButtons.forEach((button) => button.addEventListener("click", () => chooseOrigin(button.dataset.sourceOrigin || "manual")));
   tabs.forEach((tab) => tab.addEventListener("click", () => {
     tabs.forEach((item) => item.classList.toggle("active", item === tab));
-    forms.forEach((form) => form.classList.toggle("hidden", form.dataset.form !== tab.dataset.source));
+    selectedSourceKind = tab.dataset.source || "";
+    const manualContinue = manualSourcePanel?.querySelector("[data-source-continue]");
+    if (manualContinue) manualContinue.disabled = !selectedSourceKind;
   }));
   const profilePicker = document.querySelector("[data-profile-picker]");
   const connectionPanel = document.querySelector("[data-connection-panel]");
@@ -130,11 +174,13 @@
     connectionCredentialRef?.closest("details")?.classList.toggle("hidden", detectionOnly);
     const connectButton = document.querySelector("[data-connect-and-continue]");
     connectButton?.classList.toggle("hidden", detectionOnly);
+    const savedContinue = savedSourcePanel?.querySelector("[data-source-continue]");
+    if (savedContinue) savedContinue.disabled = !option?.value || needsConnection || detectionOnly;
   };
   profilePicker?.addEventListener("change", () => {
     const option = profilePicker.selectedOptions[0];
     setConnectionState(option);
-    if (!option?.value) return;
+    if (!option?.value) { selectedSourceKind = ""; return; }
     const kind = option.dataset.kind;
     if (option.dataset.status === "metadata_only") return;
     const targetTab = kind === "filesystem" ? "local" : (["website", "sharepoint"].includes(kind) ? "website" : "openwebui");
@@ -163,6 +209,8 @@
   });
   document.querySelectorAll("[data-connect-profile]").forEach((button) => button.addEventListener("click", () => {
     body.classList.remove("drawer-collapsed");
+    resetWizard();
+    chooseOrigin("saved");
     if (profilePicker) {
       profilePicker.value = button.dataset.connectProfile || "";
       profilePicker.dispatchEvent(new Event("change"));
@@ -188,11 +236,31 @@
       (payload.knowledge_bases || []).forEach((item) => knowledgeSelect?.add(new Option(`${item.name} (${item.id})`, item.id)));
       connectionPanel?.classList.add("hidden");
       tabs.find((tab) => tab.dataset.source === "openwebui")?.click();
+      const savedContinue = savedSourcePanel?.querySelector("[data-source-continue]");
+      if (savedContinue) savedContinue.disabled = false;
       setStatus(`${(payload.knowledge_bases || []).length} ${t("knowledge base(s) loaded.")}`);
     } catch (error) {
       if (connectionStatus) connectionStatus.textContent = error instanceof Error ? error.message : t("Connection failed.");
     }
   });
+  document.querySelectorAll("[data-source-continue]").forEach((button) => button.addEventListener("click", () => {
+    const form = forms.find((item) => item.dataset.form === selectedSourceKind);
+    if (form) showFormStep(form, 2);
+  }));
+  forms.forEach((form) => {
+    form.querySelectorAll("[data-wizard-next]").forEach((button) => button.addEventListener("click", () => {
+      const pane = button.closest("[data-form-step]");
+      const invalid = pane ? [...pane.querySelectorAll("input,select")].find((field) => !field.disabled && !field.checkValidity()) : null;
+      if (invalid) { invalid.reportValidity(); return; }
+      const step = Number(pane?.dataset.formStep || 2);
+      showFormStep(form, Math.min(step + 1, 4));
+    }));
+    form.querySelectorAll("[data-wizard-back]").forEach((button) => button.addEventListener("click", () => {
+      const step = Number(button.closest("[data-form-step]")?.dataset.formStep || 2);
+      showFormStep(form, Math.max(step - 1, 1));
+    }));
+  });
+  resetWizard();
 
   const populateSourceForm = (environment) => {
     const form = document.querySelector(".settings-form");
@@ -302,10 +370,16 @@
     const privacy = container.querySelector("[data-ai-privacy]");
     const consent = container.querySelector("[data-ai-consent]");
     const credentialRows = [...container.querySelectorAll("[data-ai-credential-row]")];
-    const modelList = container.querySelector("[data-ai-model-list]");
     const modelResultsRow = container.querySelector("[data-ai-model-results-row]");
     const modelResults = container.querySelector("[data-ai-model-results]");
     const loadModels = container.querySelector("[data-load-ai-models]");
+    const modelStatus = container.querySelector("[data-ai-model-status]");
+    const manualModel = container.querySelector(".manual-model");
+    const setModelStatus = (message, warning = false) => {
+      if (!modelStatus) return;
+      modelStatus.textContent = message;
+      modelStatus.classList.toggle("warning", warning);
+    };
     const updateProvider = () => {
       const option = provider?.selectedOptions[0];
       if (!option) return;
@@ -319,23 +393,20 @@
         : t("Remote providers receive only a bounded, redacted findings summary—never raw documents or finding evidence.");
       const defaults = { ollama: "llama3.1:8b", "lm-studio": "local-model", localai: "local-model", vllm: "local-model", openai: "gpt-4.1-mini", openrouter: "openai/gpt-4.1-mini", "nvidia-nim": "meta/llama-3.1-70b-instruct", anthropic: "claude-sonnet-4-20250514", "google-gemini": "gemini-2.5-flash", groq: "llama-3.3-70b-versatile", mistral: "mistral-small-latest", together: "meta-llama/Llama-3.3-70B-Instruct-Turbo" };
       if (model && !model.dataset.edited) model.value = defaults[option.value] || "";
+      modelResultsRow?.classList.add("hidden");
+      setModelStatus(local
+        ? t("Checking models installed for this local provider…")
+        : t("Add connection details if needed, then refresh the provider models."));
     };
-    toggle?.addEventListener("change", () => {
-      fields?.classList.toggle("hidden", !toggle.checked);
-      fields?.querySelectorAll("input,select").forEach((control) => { control.disabled = !toggle.checked; });
-      if (toggle.checked) updateProvider();
-    });
-    provider?.addEventListener("change", updateProvider);
-    modelResults?.addEventListener("change", () => {
-      if (model && modelResults.value) model.value = modelResults.value;
-    });
-    loadModels?.addEventListener("click", async () => {
+    const refreshModels = async () => {
       const option = provider?.selectedOptions[0];
       const credential = container.querySelector('input[name="ai_credential_ref"]');
       const apiKey = container.querySelector('input[name="ai_api_key"]');
       const remoteConsent = consent?.querySelector('input[name="ai_remote_consent"]');
+      if (!loadModels) return;
       loadModels.disabled = true;
-      loadModels.textContent = t("Detecting models…");
+      loadModels.textContent = t("Checking models…");
+      setModelStatus(t("Checking available models…"));
       try {
         const payload = await postForm("/dashboard/discovery/ai-models", {
           provider: provider?.value || "",
@@ -345,19 +416,53 @@
           remote_consent: option?.dataset.local === "true" ? "false" : String(Boolean(remoteConsent?.checked)),
         });
         const models = payload.models || [];
-        modelList?.replaceChildren(...models.map((name) => new Option(name, name)));
-        modelResults?.replaceChildren(new Option(t("Choose a detected model"), ""), ...models.map((name) => new Option(name, name)));
-        if (modelResults) modelResults.size = Math.min(Math.max(models.length + 1, 2), 7);
+        modelResults?.replaceChildren(new Option(t("Choose a model"), ""), ...models.map((name) => new Option(name, name)));
         modelResultsRow?.classList.toggle("hidden", models.length === 0);
-        loadModels.textContent = payload.models?.length ? `${payload.models.length} ${t("model(s) found")}` : t("No models found");
+        if (!models.length) {
+          if (option?.dataset.local === "true" && model) model.value = "";
+          setModelStatus(t("No model was found. Start the provider or enter a model name manually."), true);
+          if (manualModel) manualModel.open = true;
+          return;
+        }
+        const selected = models.includes(model?.value || "") ? model.value : models[0];
+        if (modelResults) modelResults.value = selected;
+        if (model) model.value = selected;
+        setModelStatus(`${models.length} ${t("model(s) found. Select the model to use for this report.")}`);
       } catch (error) {
-        loadModels.textContent = error instanceof Error ? error.message : t("Model discovery failed");
+        modelResultsRow?.classList.add("hidden");
+        if (option?.dataset.local === "true" && model) model.value = "";
+        const rawMessage = error instanceof Error ? error.message : t("Model discovery failed");
+        const codedMessage = rawMessage.match(/^\[([^\]]+)\]\s*(.*)$/);
+        setModelStatus(codedMessage ? `${codedMessage[1]} · ${t(codedMessage[2])}` : t(rawMessage), true);
+        if (manualModel) manualModel.open = true;
       } finally {
         loadModels.disabled = false;
+        loadModels.textContent = t("Refresh models");
+      }
+    };
+    toggle?.addEventListener("change", () => {
+      fields?.classList.toggle("hidden", !toggle.checked);
+      fields?.querySelectorAll("input,select").forEach((control) => { control.disabled = !toggle.checked; });
+      if (model) model.required = toggle.checked;
+      if (toggle.checked) {
+        updateProvider();
+        if (provider?.selectedOptions[0]?.dataset.local === "true") refreshModels();
       }
     });
+    provider?.addEventListener("change", () => {
+      updateProvider();
+      if (toggle?.checked && provider.selectedOptions[0]?.dataset.local === "true") refreshModels();
+    });
+    modelResults?.addEventListener("change", () => {
+      if (model && modelResults.value) {
+        model.value = modelResults.value;
+        setModelStatus(`${t("Selected model:")} ${modelResults.value}`);
+      }
+    });
+    loadModels?.addEventListener("click", refreshModels);
     endpoint?.addEventListener("input", () => { endpoint.dataset.edited = "true"; });
     model?.addEventListener("input", () => { model.dataset.edited = "true"; });
+    if (model) model.required = false;
     fields?.querySelectorAll("input,select").forEach((control) => { control.disabled = true; });
   });
 
@@ -414,12 +519,36 @@
 
   document.querySelectorAll(".scan-form").forEach((form) => {
     const scheduleFields = form.querySelector("[data-schedule-fields]");
-    form.querySelectorAll("[data-execution-mode]").forEach((control) => control.addEventListener("change", () => {
+    const localStart = form.querySelector("[data-schedule-start-local]");
+    const utcStart = form.querySelector("[data-schedule-start-utc]");
+    const pad = (value) => String(value).padStart(2, "0");
+    const setDefaultStart = () => {
+      if (!localStart || localStart.value) return;
+      const next = new Date(Date.now() + 60 * 60 * 1000);
+      next.setSeconds(0, 0);
+      localStart.value = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+    };
+    const updateExecutionMode = () => {
       const recurring = form.querySelector('[name="execution_mode"]:checked')?.value === "scheduled";
       scheduleFields?.classList.toggle("hidden", !recurring);
       scheduleFields?.querySelectorAll("input,select").forEach((field) => { field.disabled = !recurring; });
-    }));
+      if (localStart) localStart.required = recurring;
+      if (recurring) setDefaultStart();
+    };
+    form.querySelectorAll("[data-execution-mode]").forEach((control) => control.addEventListener("change", updateExecutionMode));
     scheduleFields?.querySelectorAll("input,select").forEach((field) => { field.disabled = true; });
+    form.addEventListener("submit", (event) => {
+      if (form.querySelector('[name="execution_mode"]:checked')?.value !== "scheduled") return;
+      const parsed = new Date(localStart?.value || "");
+      if (Number.isNaN(parsed.valueOf())) {
+        event.preventDefault();
+        localStart?.setCustomValidity(t("Choose a valid first run date and time."));
+        localStart?.reportValidity();
+        return;
+      }
+      localStart?.setCustomValidity("");
+      if (utcStart) utcStart.value = parsed.toISOString();
+    });
   });
 
   document.querySelectorAll("[data-schedule-editor]").forEach((form) => {

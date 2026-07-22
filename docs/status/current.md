@@ -91,6 +91,11 @@
 - Separate one-time execution history and persistent interval schedules, with latest-report health,
   health-over-time visualization, readable public IDs, and safe job activity/error logs
 - Editable interval schedules with an explicit next local run time and recurrence interval
+- Four-stage job creation that first separates connected and manual sources, then progressively shows
+  source details, one-time/recurring timing, and optional AI; new recurring definitions accept an
+  explicit first local run date/time
+- Simplified per-job AI inventory with automatic local discovery, one verified-model selector,
+  collapsed connection/manual fallback controls, and stale local model clearing on discovery failure
 - Assessed-dimension scoring across security, content quality, and efficiency; shared yellow/orange/red
   score bands, source page/line provenance, and bounded matched-evidence highlighting
 - AI provider timeout increased from 45 to 180 seconds for slower local models; localized timeout

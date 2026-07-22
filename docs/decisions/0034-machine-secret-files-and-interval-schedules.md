@@ -22,6 +22,10 @@ validated non-secret job payload, an interval, enablement state, and next/last r
 Host Service materializes each due occurrence into the existing durable queue with an idempotency
 key, so every occurrence has its own job, log, readable ID, and immutable report.
 
+Schedule creation may supply an explicit timezone-aware first-run timestamp selected in the
+dashboard. The browser converts its local `datetime-local` value to UTC before submission. API or
+legacy callers that omit the value retain the deterministic `creation time + interval` default.
+
 ## Consequences
 
 - Updates and ordinary service restarts preserve dashboard-entered API credentials.

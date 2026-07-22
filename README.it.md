@@ -89,6 +89,12 @@ Il pannello Crea job supporta:
 - URL SharePoint direttamente accessibili con riferimento ambiente Bearer facoltativo;
 - esecuzione singola o monitoraggio a intervalli ricorrenti.
 
+La creazione del job segue quattro passaggi: scegli un’origine collegata o manuale, inserisci solo i
+dettagli necessari, imposta un’esecuzione singola o periodica e attiva facoltativamente l’AI. Per i
+job periodici puoi scegliere la prima data e ora locali. I provider AI locali vengono controllati
+automaticamente; i modelli verificati appaiono in un solo selettore, mentre endpoint, credenziali e
+inserimento manuale restano nelle impostazioni di connessione facoltative.
+
 Le scansioni web rifiutano reindirizzamenti e voci sitemap di altra origine, non eseguono script e
 limitano pagine, dimensioni e timeout. Il rilevamento autenticato di siti/librerie Microsoft Graph
 rimane un connettore separato pianificato.
