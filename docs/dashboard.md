@@ -30,6 +30,17 @@ declared cross-browser/accessibility support matrix remain planned.
 Saved reports can be permanently deleted from the report table or detail page after confirmation.
 Overview health and history immediately recalculate from the latest remaining report.
 
+Each saved report detail page has a Download report menu:
+
+- standalone HTML is self-contained, escaped, and blocked from scripts or network connections;
+- Excel is a structured `.xlsx` workbook with summary, findings, coverage, ingestion, and optional
+  AI-analysis sheets; untrusted cells cannot become formulas;
+- PDF is a paginated local document with scores, findings, provenance, evidence, remediation,
+  coverage, and page numbers.
+
+Export labels follow the selected dashboard language across English, Turkish, German, French,
+Simplified Chinese, and Italian. Source evidence remains in its original language.
+
 The application shell uses a persistent, icon-led navigation rail for overview, sources, scan jobs,
 schedules, reports, latest findings, activity, AI settings, integrations, and general settings.
 Links without an independent route target the corresponding implemented page section rather than

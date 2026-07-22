@@ -134,6 +134,14 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         "La chiave API rimane nella memoria del servizio in esecuzione",
     ):
         assert translated_setup_privacy in i18n.text
+    for translated_download_action in (
+        "Raporu indir",
+        "Bericht herunterladen",
+        "Télécharger le rapport",
+        "下载报告",
+        "Scarica rapporto",
+    ):
+        assert translated_download_action in i18n.text
     assert "Planlı tarama güncellendi." in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303
@@ -467,6 +475,11 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
         refreshed_overview = await client.get("/")
         reports = await client.get("/reports", params={"from": "2026-07-01", "to": "2026-07-31"})
         detail = await client.get(f"/reports/{baseline}")
+        client.cookies.set("ragscanner_locale", "tr")
+        html_export = await client.get(f"/reports/{baseline}/download/html")
+        excel_export = await client.get(f"/reports/{baseline}/download/xlsx")
+        pdf_export = await client.get(f"/reports/{baseline}/download/pdf")
+        invalid_export = await client.get(f"/reports/{baseline}/download/csv")
         comparison = await client.get(
             "/compare", params={"baseline": baseline, "candidate": candidate}
         )
@@ -483,6 +496,20 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert "policy-tr.pdf" in detail.text
     assert "Page</span> 4" in detail.text
     assert "Line</span> 18" in detail.text
+    assert "Download report" in detail.text
+    assert f"/reports/{baseline}/download/html" in detail.text
+    assert html_export.status_code == 200
+    assert html_export.headers["content-type"].startswith("text/html")
+    assert "Yönetici özeti" in html_export.text
+    assert "attachment; filename=" in html_export.headers["content-disposition"]
+    assert excel_export.status_code == 200
+    assert excel_export.content.startswith(b"PK")
+    assert excel_export.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert pdf_export.status_code == 200
+    assert pdf_export.content.startswith(b"%PDF-")
+    assert invalid_export.status_code == 422
     assert "<mark>MFA&#39;yı devre dışı bırak</mark>" in detail.text
     assert "· <span>completed</span>" in detail.text
     assert "score-warning" in detail.text

@@ -1,0 +1,1010 @@
+"""Standalone dashboard report exports for HTML, XLSX, and PDF."""
+
+from __future__ import annotations
+
+import html
+import re
+from dataclasses import dataclass
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import Any, Literal, cast
+
+import reportlab
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
+    KeepTogether,
+    LongTable,
+    PageTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+from ragscanner.reporting.models import ReportDocument, ReportFinding
+
+ReportExportFormat = Literal["html", "xlsx", "pdf"]
+SUPPORTED_REPORT_EXPORTS: tuple[ReportExportFormat, ...] = ("html", "xlsx", "pdf")
+_LOCALES = frozenset({"en", "tr", "de", "fr", "zh-CN", "it"})
+_MAX_CELL_LENGTH = 32_000
+
+
+@dataclass(frozen=True)
+class ReportExport:
+    content: bytes
+    media_type: str
+    extension: str
+
+
+_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "RAGScanner report": "RAGScanner raporu",
+        "Executive summary": "Yönetici özeti",
+        "Generated": "Oluşturulma",
+        "Source": "Kaynak",
+        "Status": "Durum",
+        "Overall score": "Genel puan",
+        "Security score": "Güvenlik puanı",
+        "Content quality": "İçerik kalitesi",
+        "Efficiency": "Verimlilik",
+        "Not assessed": "Değerlendirilmedi",
+        "Files discovered": "Bulunan dosyalar",
+        "Files processed": "İşlenen dosyalar",
+        "Files skipped": "Atlanan dosyalar",
+        "Findings": "Bulgular",
+        "Severity distribution": "Önem dağılımı",
+        "AI-assisted analysis": "AI destekli analiz",
+        "Priority actions": "Öncelikli eylemler",
+        "Questions for review": "İnceleme soruları",
+        "Verification steps": "Doğrulama adımları",
+        "Limitations": "Sınırlamalar",
+        "AI analysis unavailable": "AI analizi kullanılamıyor",
+        "Source location": "Kaynak konumu",
+        "Page": "Sayfa",
+        "Line": "Satır",
+        "Impact": "Etki",
+        "Evidence": "Kanıt",
+        "Problematic text": "Sorunlu metin",
+        "Recommendation": "Öneri",
+        "AI-assisted fix": "AI destekli çözüm",
+        "Coverage": "Kapsam",
+        "Area": "Alan",
+        "Reason": "Neden",
+        "Ingestion issues": "Veri alımı sorunları",
+        "Path": "Yol",
+        "Stage": "Aşama",
+        "Issue": "Sorun",
+        "Remediation": "Düzeltme",
+        "No findings recorded.": "Kayıtlı bulgu yok.",
+        "No ingestion issues recorded.": "Kayıtlı veri alımı sorunu yok.",
+        "Methodology": "Metodoloji",
+        "Report details": "Rapor ayrıntıları",
+        "Rule": "Kural",
+        "Title": "Başlık",
+        "Category": "Kategori",
+        "Severity": "Önem",
+        "Confidence": "Güven",
+        "File": "Dosya",
+        "Summary": "Özet",
+        "Scores": "Puanlar",
+        "AI Analysis": "AI Analizi",
+        "Critical": "Kritik",
+        "High": "Yüksek",
+        "Medium": "Orta",
+        "Low": "Düşük",
+        "Info": "Bilgi",
+        "Generated locally by RAGScanner. No external assets or network requests.": "RAGScanner tarafından yerel olarak oluşturuldu. Harici varlık veya ağ isteği içermez.",
+    },
+    "de": {
+        "RAGScanner report": "RAGScanner-Bericht",
+        "Executive summary": "Zusammenfassung",
+        "Generated": "Erstellt",
+        "Source": "Quelle",
+        "Status": "Status",
+        "Overall score": "Gesamtbewertung",
+        "Security score": "Sicherheitsbewertung",
+        "Content quality": "Inhaltsqualität",
+        "Efficiency": "Effizienz",
+        "Not assessed": "Nicht bewertet",
+        "Files discovered": "Gefundene Dateien",
+        "Files processed": "Verarbeitete Dateien",
+        "Files skipped": "Übersprungene Dateien",
+        "Findings": "Befunde",
+        "Severity distribution": "Schweregradverteilung",
+        "AI-assisted analysis": "KI-gestützte Analyse",
+        "Priority actions": "Priorisierte Maßnahmen",
+        "Questions for review": "Prüffragen",
+        "Verification steps": "Prüfschritte",
+        "Limitations": "Einschränkungen",
+        "AI analysis unavailable": "KI-Analyse nicht verfügbar",
+        "Source location": "Quellposition",
+        "Page": "Seite",
+        "Line": "Zeile",
+        "Impact": "Auswirkung",
+        "Evidence": "Nachweis",
+        "Problematic text": "Problematischer Text",
+        "Recommendation": "Empfehlung",
+        "AI-assisted fix": "KI-gestützte Behebung",
+        "Coverage": "Abdeckung",
+        "Area": "Bereich",
+        "Reason": "Grund",
+        "Ingestion issues": "Aufnahmeprobleme",
+        "Path": "Pfad",
+        "Stage": "Phase",
+        "Issue": "Problem",
+        "Remediation": "Behebung",
+        "No findings recorded.": "Keine Befunde erfasst.",
+        "No ingestion issues recorded.": "Keine Aufnahmeprobleme erfasst.",
+        "Methodology": "Methodik",
+        "Report details": "Berichtsdetails",
+        "Rule": "Regel",
+        "Title": "Titel",
+        "Category": "Kategorie",
+        "Severity": "Schweregrad",
+        "Confidence": "Konfidenz",
+        "File": "Datei",
+        "Summary": "Übersicht",
+        "Scores": "Bewertungen",
+        "AI Analysis": "KI-Analyse",
+        "Critical": "Kritisch",
+        "High": "Hoch",
+        "Medium": "Mittel",
+        "Low": "Niedrig",
+        "Info": "Info",
+        "Generated locally by RAGScanner. No external assets or network requests.": "Lokal von RAGScanner erstellt. Keine externen Ressourcen oder Netzwerkanfragen.",
+    },
+    "fr": {
+        "RAGScanner report": "Rapport RAGScanner",
+        "Executive summary": "Résumé exécutif",
+        "Generated": "Généré",
+        "Source": "Source",
+        "Status": "État",
+        "Overall score": "Score global",
+        "Security score": "Score de sécurité",
+        "Content quality": "Qualité du contenu",
+        "Efficiency": "Efficacité",
+        "Not assessed": "Non évalué",
+        "Files discovered": "Fichiers trouvés",
+        "Files processed": "Fichiers traités",
+        "Files skipped": "Fichiers ignorés",
+        "Findings": "Constats",
+        "Severity distribution": "Répartition de la sévérité",
+        "AI-assisted analysis": "Analyse assistée par IA",
+        "Priority actions": "Actions prioritaires",
+        "Questions for review": "Questions de contrôle",
+        "Verification steps": "Étapes de vérification",
+        "Limitations": "Limites",
+        "AI analysis unavailable": "Analyse IA indisponible",
+        "Source location": "Emplacement source",
+        "Page": "Page",
+        "Line": "Ligne",
+        "Impact": "Impact",
+        "Evidence": "Preuve",
+        "Problematic text": "Texte problématique",
+        "Recommendation": "Recommandation",
+        "AI-assisted fix": "Correction assistée par IA",
+        "Coverage": "Couverture",
+        "Area": "Domaine",
+        "Reason": "Raison",
+        "Ingestion issues": "Problèmes d’ingestion",
+        "Path": "Chemin",
+        "Stage": "Étape",
+        "Issue": "Problème",
+        "Remediation": "Correction",
+        "No findings recorded.": "Aucun constat enregistré.",
+        "No ingestion issues recorded.": "Aucun problème d’ingestion enregistré.",
+        "Methodology": "Méthodologie",
+        "Report details": "Détails du rapport",
+        "Rule": "Règle",
+        "Title": "Titre",
+        "Category": "Catégorie",
+        "Severity": "Sévérité",
+        "Confidence": "Confiance",
+        "File": "Fichier",
+        "Summary": "Résumé",
+        "Scores": "Scores",
+        "AI Analysis": "Analyse IA",
+        "Critical": "Critique",
+        "High": "Élevée",
+        "Medium": "Moyenne",
+        "Low": "Faible",
+        "Info": "Info",
+        "Generated locally by RAGScanner. No external assets or network requests.": "Généré localement par RAGScanner. Aucune ressource externe ni requête réseau.",
+    },
+    "zh-CN": {
+        "RAGScanner report": "RAGScanner 报告",
+        "Executive summary": "执行摘要",
+        "Generated": "生成时间",
+        "Source": "数据源",
+        "Status": "状态",
+        "Overall score": "总分",
+        "Security score": "安全分数",
+        "Content quality": "内容质量",
+        "Efficiency": "效率",
+        "Not assessed": "未评估",
+        "Files discovered": "发现的文件",
+        "Files processed": "已处理文件",
+        "Files skipped": "已跳过文件",
+        "Findings": "发现",
+        "Severity distribution": "严重程度分布",
+        "AI-assisted analysis": "AI 辅助分析",
+        "Priority actions": "优先操作",
+        "Questions for review": "审核问题",
+        "Verification steps": "验证步骤",
+        "Limitations": "局限性",
+        "AI analysis unavailable": "AI 分析不可用",
+        "Source location": "来源位置",
+        "Page": "页",
+        "Line": "行",
+        "Impact": "影响",
+        "Evidence": "证据",
+        "Problematic text": "问题文本",
+        "Recommendation": "建议",
+        "AI-assisted fix": "AI 辅助修复",
+        "Coverage": "覆盖率",
+        "Area": "领域",
+        "Reason": "原因",
+        "Ingestion issues": "摄取问题",
+        "Path": "路径",
+        "Stage": "阶段",
+        "Issue": "问题",
+        "Remediation": "修复",
+        "No findings recorded.": "没有记录任何发现。",
+        "No ingestion issues recorded.": "没有记录摄取问题。",
+        "Methodology": "方法",
+        "Report details": "报告详情",
+        "Rule": "规则",
+        "Title": "标题",
+        "Category": "类别",
+        "Severity": "严重程度",
+        "Confidence": "置信度",
+        "File": "文件",
+        "Summary": "摘要",
+        "Scores": "分数",
+        "AI Analysis": "AI 分析",
+        "Critical": "严重",
+        "High": "高",
+        "Medium": "中",
+        "Low": "低",
+        "Info": "信息",
+        "Generated locally by RAGScanner. No external assets or network requests.": "由 RAGScanner 在本地生成，不包含外部资源或网络请求。",
+    },
+    "it": {
+        "RAGScanner report": "Rapporto RAGScanner",
+        "Executive summary": "Riepilogo esecutivo",
+        "Generated": "Generato",
+        "Source": "Origine",
+        "Status": "Stato",
+        "Overall score": "Punteggio complessivo",
+        "Security score": "Punteggio sicurezza",
+        "Content quality": "Qualità del contenuto",
+        "Efficiency": "Efficienza",
+        "Not assessed": "Non valutato",
+        "Files discovered": "File trovati",
+        "Files processed": "File elaborati",
+        "Files skipped": "File ignorati",
+        "Findings": "Risultati",
+        "Severity distribution": "Distribuzione gravità",
+        "AI-assisted analysis": "Analisi assistita dall’AI",
+        "Priority actions": "Azioni prioritarie",
+        "Questions for review": "Domande di revisione",
+        "Verification steps": "Passaggi di verifica",
+        "Limitations": "Limitazioni",
+        "AI analysis unavailable": "Analisi AI non disponibile",
+        "Source location": "Posizione origine",
+        "Page": "Pagina",
+        "Line": "Riga",
+        "Impact": "Impatto",
+        "Evidence": "Prova",
+        "Problematic text": "Testo problematico",
+        "Recommendation": "Raccomandazione",
+        "AI-assisted fix": "Correzione assistita dall’AI",
+        "Coverage": "Copertura",
+        "Area": "Area",
+        "Reason": "Motivo",
+        "Ingestion issues": "Problemi di acquisizione",
+        "Path": "Percorso",
+        "Stage": "Fase",
+        "Issue": "Problema",
+        "Remediation": "Correzione",
+        "No findings recorded.": "Nessun risultato registrato.",
+        "No ingestion issues recorded.": "Nessun problema di acquisizione registrato.",
+        "Methodology": "Metodologia",
+        "Report details": "Dettagli rapporto",
+        "Rule": "Regola",
+        "Title": "Titolo",
+        "Category": "Categoria",
+        "Severity": "Gravità",
+        "Confidence": "Confidenza",
+        "File": "File",
+        "Summary": "Riepilogo",
+        "Scores": "Punteggi",
+        "AI Analysis": "Analisi AI",
+        "Critical": "Critica",
+        "High": "Alta",
+        "Medium": "Media",
+        "Low": "Bassa",
+        "Info": "Info",
+        "Generated locally by RAGScanner. No external assets or network requests.": "Generato localmente da RAGScanner. Nessuna risorsa esterna o richiesta di rete.",
+    },
+}
+
+
+def _locale(value: str) -> str:
+    return value if value in _LOCALES else "en"
+
+
+def _translator(locale: str):  # type: ignore[no-untyped-def]
+    catalog = _TRANSLATIONS.get(_locale(locale), {})
+    return lambda value: catalog.get(value, value)
+
+
+def _display(value: Any, *, fallback: str) -> str:
+    if value is None or value == "":
+        return fallback
+    if isinstance(value, float):
+        return f"{value:.1f}"
+    if isinstance(value, datetime):
+        return value.astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    return str(value)
+
+
+def _safe_filename(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_-]+", "-", value).strip("-_")
+    return (normalized[:80] or "report").lower()
+
+
+def report_export_filename(report: ReportDocument, history_id: str, extension: str) -> str:
+    source = _safe_filename(str(report.scan.get("source_name") or "report"))
+    identifier = _safe_filename(history_id[:12])
+    return f"ragscanner-{source}-{identifier}.{extension}"
+
+
+def export_report(
+    report: ReportDocument,
+    export_format: ReportExportFormat,
+    *,
+    locale: str = "en",
+) -> ReportExport:
+    if export_format == "html":
+        return ReportExport(_render_html(report, locale).encode("utf-8"), "text/html", "html")
+    if export_format == "xlsx":
+        return ReportExport(
+            _render_xlsx(report, locale),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xlsx",
+        )
+    if export_format == "pdf":
+        return ReportExport(_render_pdf(report, locale), "application/pdf", "pdf")
+    raise ValueError("unsupported report export format")
+
+
+def _score_band(value: float | None) -> str:
+    if value is None:
+        return "unassessed"
+    if value < 55:
+        return "critical"
+    if value < 70:
+        return "poor"
+    if value < 85:
+        return "warning"
+    return "healthy"
+
+
+def _finding_location(finding: ReportFinding, t) -> str:  # type: ignore[no-untyped-def]
+    parts = [finding.source or t("Not assessed")]
+    if finding.page is not None:
+        parts.append(f"{t('Page')} {finding.page}")
+    if finding.line_start is not None:
+        line = str(finding.line_start)
+        if finding.line_end is not None and finding.line_end != finding.line_start:
+            line += f"-{finding.line_end}"
+        parts.append(f"{t('Line')} {line}")
+    return " · ".join(parts)
+
+
+def _render_html(report: ReportDocument, locale: str) -> str:
+    locale = _locale(locale)
+    t = _translator(locale)
+
+    def esc(value: Any) -> str:
+        return html.escape(_display(value, fallback=t("Not assessed")), quote=True)
+
+    score_labels = {
+        "overall": t("Overall score"),
+        "security": t("Security score"),
+        "knowledge_quality": t("Content quality"),
+        "efficiency": t("Efficiency"),
+    }
+    scores = "".join(
+        f'<article class="score {_score_band(report.scores.get(key))}"><span>{esc(label)}</span>'
+        f"<strong>{esc(report.scores.get(key))}</strong></article>"
+        for key, label in score_labels.items()
+    )
+    severities = "".join(
+        f"<div><span>{esc(t(name.title()))}</span><strong>{report.severity_summary.get(name, 0)}</strong></div>"
+        for name in ("critical", "high", "medium", "low", "info")
+    )
+    actions = (
+        {item.finding_id: item for item in report.ai_analysis.finding_actions}
+        if report.ai_analysis
+        else {}
+    )
+    findings = []
+    for finding in report.findings:
+        action = actions.get(finding.id)
+        remediation = action.remediation if action else finding.recommendation
+        verification = (
+            "<ol>"
+            + "".join(f"<li>{esc(step)}</li>" for step in action.verification_steps)
+            + "</ol>"
+            if action and action.verification_steps
+            else ""
+        )
+        highlight = (
+            f"<p><strong>{esc(t('Problematic text'))}</strong><br><mark>{esc(finding.evidence_highlight)}</mark></p>"
+            if finding.evidence_highlight
+            else ""
+        )
+        findings.append(
+            f'<details class="finding" open><summary><span class="badge {esc(finding.severity.value)}">{esc(t(finding.severity.value.title()))}</span> '
+            f"{esc(finding.title)} <code>{esc(finding.rule_id)}</code></summary>"
+            f"<p><strong>{esc(t('Source location'))}:</strong> {esc(_finding_location(finding, t))}</p>"
+            f'<div class="columns"><section><h3>{esc(t("Impact"))}</h3><p>{esc(finding.impact)}</p></section>'
+            f"<section><h3>{esc(t('Evidence'))}</h3>{highlight}<blockquote>{esc(finding.evidence)}</blockquote></section>"
+            f"<section><h3>{esc(t('AI-assisted fix') if action else t('Recommendation'))}</h3><p>{esc(remediation)}</p>{verification}</section></div></details>"
+        )
+    ai_section = ""
+    if report.ai_analysis:
+        ai = report.ai_analysis
+        ai_section = (
+            f"<section><h2>{esc(t('AI-assisted analysis'))}</h2><p>{esc(ai.executive_summary)}</p>"
+            f'<div class="columns"><div><h3>{esc(t("Priority actions"))}</h3><ol>{"".join(f"<li>{esc(item)}</li>" for item in ai.priority_actions)}</ol></div>'
+            f"<div><h3>{esc(t('Questions for review'))}</h3><ul>{''.join(f'<li>{esc(item)}</li>' for item in ai.review_questions)}</ul></div></div>"
+            f'<p class="muted">{esc(ai.provider)} · {esc(ai.model)} · {esc(ai.disclaimer)}</p></section>'
+        )
+    elif report.ai_analysis_error:
+        ai_section = (
+            f"<section><h2>{esc(t('AI analysis unavailable'))}</h2>"
+            f"<p><code>{esc(report.ai_analysis_error_code)}</code> {esc(report.ai_analysis_error)}</p></section>"
+        )
+    coverage_rows = "".join(
+        f"<tr><td>{esc(area)}</td><td>{esc(value.get('status'))}</td><td>{esc(value.get('reason'))}</td></tr>"
+        for area, value in sorted(report.assessment_coverage.items())
+    )
+    ingestion_rows = "".join(
+        f"<tr><td>{esc(item.path)}</td><td>{esc(item.stage)}</td><td>{esc(item.message)}</td><td>{esc(item.remediation)}</td></tr>"
+        for item in report.ingestion_issues
+    )
+    return f'''<!doctype html><html lang="{html.escape(locale, quote=True)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>{esc(t("RAGScanner report"))}</title><style>
+:root{{--ink:#10233d;--muted:#5f6d7d;--line:#dce4ea;--accent:#078c91;--panel:#fff;--bg:#f3f7f9}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}}header{{padding:32px;background:linear-gradient(120deg,#061a35,#075b70);color:#fff}}header>div,main,footer{{max-width:1180px;margin:auto}}main,footer{{padding:24px}}section,.finding{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0}}h1,h2,h3{{line-height:1.2}}.meta,.score-grid,.severity,.columns{{display:grid;gap:12px}}.meta{{grid-template-columns:repeat(3,1fr)}}.score-grid{{grid-template-columns:repeat(4,1fr)}}.severity{{grid-template-columns:repeat(5,1fr)}}.columns{{grid-template-columns:repeat(3,1fr)}}.score,.severity>div{{border:1px solid var(--line);border-radius:10px;padding:14px}}.score strong,.severity strong{{display:block;font-size:24px}}.healthy{{border-top:5px solid #15935a}}.warning{{border-top:5px solid #e2b100;background:#fffbeb}}.poor{{border-top:5px solid #e17016;background:#fff4e8}}.critical{{border-top:5px solid #d23845;background:#fff0f1}}.unassessed{{border-top:5px solid #84909c}}.badge{{border:1px solid currentColor;border-radius:99px;padding:2px 8px;font-weight:700}}summary{{cursor:pointer;font-weight:700}}blockquote,mark{{overflow-wrap:anywhere}}blockquote{{margin:8px 0;padding:12px;border-left:4px solid var(--accent);background:#f6fafb}}mark{{background:#fff1a8;padding:2px}}table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}.muted{{color:var(--muted)}}code{{overflow-wrap:anywhere}}@media(max-width:760px){{.meta,.score-grid,.severity,.columns{{grid-template-columns:1fr}}table{{display:block;overflow:auto}}main,footer{{padding:14px}}}}@media print{{body{{background:#fff}}header{{background:#fff;color:#000;border-bottom:2px solid #000}}section,.finding{{break-inside:avoid}}}}
+</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(report.scan.get("status"))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
+
+
+def _cell(value: Any) -> str | int | float:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, (int, float)):
+        return value
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(value))[:_MAX_CELL_LENGTH]
+    if text.startswith(("=", "+", "-", "@")):
+        text = "'" + text
+    return text
+
+
+def _style_sheet(sheet, *, freeze: str | None = None, auto_filter: bool = False) -> None:  # type: ignore[no-untyped-def]
+    header_fill = PatternFill("solid", fgColor="075B70")
+    for cell in sheet[1]:
+        cell.fill = header_fill
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+    if freeze:
+        sheet.freeze_panes = freeze
+    if auto_filter and sheet.max_row > 1:
+        sheet.auto_filter.ref = sheet.dimensions
+    for index, column in enumerate(sheet.columns, start=1):
+        width = min(60, max(12, max(len(str(cell.value or "")) for cell in column) + 2))
+        sheet.column_dimensions[get_column_letter(index)].width = width
+
+
+def _append_key_value(sheet, key: str, value: Any) -> None:  # type: ignore[no-untyped-def]
+    sheet.append([_cell(key), _cell(value)])
+
+
+def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
+    t = _translator(locale)
+    workbook = Workbook()
+    summary = cast(Worksheet, workbook.active)
+    summary.title = t("Summary")
+    summary.append([t("Report details"), ""])
+    _append_key_value(summary, t("Source"), report.scan.get("source_name"))
+    _append_key_value(summary, t("Status"), report.scan.get("status"))
+    _append_key_value(summary, t("Generated"), _display(report.generated_at, fallback=""))
+    _append_key_value(summary, t("Overall score"), report.scores.get("overall"))
+    _append_key_value(summary, t("Security score"), report.scores.get("security"))
+    _append_key_value(summary, t("Content quality"), report.scores.get("knowledge_quality"))
+    _append_key_value(summary, t("Efficiency"), report.scores.get("efficiency"))
+    _append_key_value(summary, t("Files discovered"), report.processing.files_discovered)
+    _append_key_value(summary, t("Files processed"), report.processing.files_scanned)
+    _append_key_value(summary, t("Files skipped"), report.processing.files_skipped)
+    _append_key_value(summary, t("Findings"), len(report.findings))
+    for severity in ("critical", "high", "medium", "low", "info"):
+        _append_key_value(summary, t(severity.title()), report.severity_summary.get(severity, 0))
+    score = report.scores.get("overall")
+    if score is not None:
+        fill = {"healthy": "DDF3E5", "warning": "FFF1B8", "poor": "FFD8B5", "critical": "FFC7CE"}[
+            _score_band(score)
+        ]
+        summary["A5"].fill = PatternFill("solid", fgColor=fill)
+        summary["B5"].fill = PatternFill("solid", fgColor=fill)
+    _style_sheet(summary)
+
+    finding_sheet = workbook.create_sheet(t("Findings"))
+    finding_sheet.append(
+        [
+            t("Severity"),
+            t("Rule"),
+            t("Title"),
+            t("Category"),
+            t("Confidence"),
+            t("File"),
+            t("Page"),
+            t("Line"),
+            t("Problematic text"),
+            t("Evidence"),
+            t("Impact"),
+            t("Recommendation"),
+            t("AI-assisted fix"),
+            t("Verification steps"),
+        ]
+    )
+    action_by_id = (
+        {item.finding_id: item for item in report.ai_analysis.finding_actions}
+        if report.ai_analysis
+        else {}
+    )
+    for finding in report.findings:
+        action = action_by_id.get(finding.id)
+        line: int | str | None = finding.line_start
+        if finding.line_start is not None and finding.line_end not in (None, finding.line_start):
+            line = f"{finding.line_start}-{finding.line_end}"
+        finding_sheet.append(
+            [
+                _cell(t(finding.severity.value.title())),
+                _cell(finding.rule_id),
+                _cell(finding.title),
+                _cell(finding.category),
+                finding.confidence,
+                _cell(finding.source),
+                _cell(finding.page),
+                _cell(line),
+                _cell(finding.evidence_highlight),
+                _cell(finding.evidence),
+                _cell(finding.impact),
+                _cell(finding.recommendation),
+                _cell(action.remediation if action else ""),
+                _cell("\n".join(action.verification_steps) if action else ""),
+            ]
+        )
+    _style_sheet(finding_sheet, freeze="A2", auto_filter=True)
+
+    coverage = workbook.create_sheet(t("Coverage"))
+    coverage.append([t("Area"), t("Status"), t("Reason")])
+    for area, value in sorted(report.assessment_coverage.items()):
+        coverage.append([_cell(area), _cell(value.get("status")), _cell(value.get("reason"))])
+    _style_sheet(coverage, freeze="A2", auto_filter=True)
+
+    ingestion = workbook.create_sheet(t("Ingestion issues"))
+    ingestion.append([t("Path"), t("Stage"), t("Issue"), t("Remediation")])
+    for item in report.ingestion_issues:
+        ingestion.append(
+            [_cell(item.path), _cell(item.stage), _cell(item.message), _cell(item.remediation)]
+        )
+    _style_sheet(ingestion, freeze="A2", auto_filter=True)
+
+    if report.ai_analysis or report.ai_analysis_error:
+        ai_sheet = workbook.create_sheet(t("AI Analysis"))
+        ai_sheet.append([t("Area"), t("Report details")])
+        if report.ai_analysis:
+            ai = report.ai_analysis
+            _append_key_value(ai_sheet, t("Executive summary"), ai.executive_summary)
+            _append_key_value(ai_sheet, t("Priority actions"), "\n".join(ai.priority_actions))
+            _append_key_value(ai_sheet, t("Questions for review"), "\n".join(ai.review_questions))
+            _append_key_value(ai_sheet, t("Verification steps"), "\n".join(ai.verification_steps))
+            _append_key_value(ai_sheet, t("Limitations"), "\n".join(ai.limitations))
+        else:
+            _append_key_value(ai_sheet, t("AI analysis unavailable"), report.ai_analysis_error_code)
+            _append_key_value(ai_sheet, t("Reason"), report.ai_analysis_error)
+        _style_sheet(ai_sheet)
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def _contains_cjk(report: ReportDocument) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", report.model_dump_json()))
+
+
+def _register_cjk_font() -> tuple[str, str] | None:
+    name = "RAGScannerCJK"
+    if name in pdfmetrics.getRegisteredFontNames():
+        return name, name
+    candidates = (
+        Path("/System/Library/Fonts/STHeiti Medium.ttc"),
+        Path("C:/Windows/Fonts/msyh.ttc"),
+        Path("C:/Windows/Fonts/simsun.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            pdfmetrics.registerFont(TTFont(name, candidate, subfontIndex=0))
+            return name, name
+    return None
+
+
+def _pdf_fonts(locale: str, report: ReportDocument) -> tuple[str, str]:
+    if locale == "zh-CN" or _contains_cjk(report):
+        registered = _register_cjk_font()
+        if registered:
+            return registered
+        if "STSong-Light" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        return "STSong-Light", "STSong-Light"
+    regular = "RAGScannerSans"
+    bold = "RAGScannerSansBold"
+    if regular not in pdfmetrics.getRegisteredFontNames():
+        font_root = Path(reportlab.__file__).resolve().parent / "fonts"
+        pdfmetrics.registerFont(TTFont(regular, font_root / "Vera.ttf"))
+        pdfmetrics.registerFont(TTFont(bold, font_root / "VeraBd.ttf"))
+    return regular, bold
+
+
+def _render_pdf(report: ReportDocument, locale: str) -> bytes:
+    locale = _locale(locale)
+    t = _translator(locale)
+    regular_font, bold_font = _pdf_fonts(locale, report)
+    output = BytesIO()
+    document = BaseDocTemplate(
+        output,
+        pagesize=A4,
+        rightMargin=16 * mm,
+        leftMargin=16 * mm,
+        topMargin=20 * mm,
+        bottomMargin=18 * mm,
+        title=t("RAGScanner report"),
+        author="RAGScanner",
+    )
+    frame = Frame(
+        document.leftMargin, document.bottomMargin, document.width, document.height, id="content"
+    )
+
+    def page(canvas, doc) -> None:  # type: ignore[no-untyped-def]
+        canvas.saveState()
+        canvas.setFont(regular_font, 8)
+        canvas.setFillColor(colors.HexColor("#64748B"))
+        canvas.drawString(document.leftMargin, 10 * mm, "RAGScanner")
+        canvas.drawRightString(A4[0] - document.rightMargin, 10 * mm, f"{t('Page')} {doc.page}")
+        canvas.restoreState()
+
+    document.addPageTemplates(PageTemplate(id="report", frames=[frame], onPage=page))
+    styles = getSampleStyleSheet()
+    body = ParagraphStyle(
+        "body",
+        parent=styles["BodyText"],
+        fontName=regular_font,
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor("#24364B"),
+        spaceAfter=6,
+    )
+    title = ParagraphStyle(
+        "title",
+        parent=styles["Title"],
+        fontName=bold_font,
+        fontSize=22,
+        leading=27,
+        textColor=colors.HexColor("#075B70"),
+        alignment=TA_CENTER,
+        spaceAfter=12,
+    )
+    h2 = ParagraphStyle(
+        "h2",
+        parent=styles["Heading2"],
+        fontName=bold_font,
+        fontSize=14,
+        leading=18,
+        textColor=colors.HexColor("#10233D"),
+        spaceBefore=10,
+        spaceAfter=7,
+    )
+    h3 = ParagraphStyle(
+        "h3",
+        parent=styles["Heading3"],
+        fontName=bold_font,
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor("#075B70"),
+        spaceBefore=6,
+        spaceAfter=3,
+    )
+    small = ParagraphStyle(
+        "small", parent=body, fontSize=7.5, leading=10, textColor=colors.HexColor("#5F6D7D")
+    )
+    score_label = ParagraphStyle(
+        "score-label",
+        parent=small,
+        fontName=bold_font,
+        fontSize=7,
+        leading=9,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#10233D"),
+    )
+    score_text = ParagraphStyle(
+        "score-value",
+        parent=body,
+        fontName=bold_font,
+        fontSize=9.5,
+        leading=11,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#10233D"),
+    )
+    table_header = ParagraphStyle(
+        "table-header",
+        parent=small,
+        fontName=bold_font,
+        textColor=colors.white,
+    )
+
+    def esc(value: Any) -> str:
+        return html.escape(_display(value, fallback=t("Not assessed")), quote=True)
+
+    story: list[Any] = [Paragraph(esc(t("RAGScanner report")), title)]
+    metadata = Table(
+        [
+            [
+                Paragraph(
+                    f"<b>{esc(t('Source'))}</b><br/>{esc(report.scan.get('source_name'))}", body
+                ),
+                Paragraph(f"<b>{esc(t('Status'))}</b><br/>{esc(report.scan.get('status'))}", body),
+                Paragraph(f"<b>{esc(t('Generated'))}</b><br/>{esc(report.generated_at)}", body),
+            ]
+        ],
+        colWidths=[document.width / 3] * 3,
+    )
+    metadata.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EAF5F6")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BCD9DC")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#BCD9DC")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    story.extend([metadata, Spacer(1, 7), Paragraph(esc(t("Executive summary")), h2)])
+    score_data = [
+        [
+            Paragraph(esc(label), score_label)
+            for label in (
+                t("Overall score"),
+                t("Security score"),
+                t("Content quality"),
+                t("Efficiency"),
+            )
+        ],
+        [
+            Paragraph(esc(report.scores.get(key)), score_text)
+            for key in ("overall", "security", "knowledge_quality", "efficiency")
+        ],
+    ]
+    scores = Table(score_data, colWidths=[document.width / 4] * 4)
+    score_value = report.scores.get("overall")
+    score_fill = {
+        "healthy": "#DDF3E5",
+        "warning": "#FFF1B8",
+        "poor": "#FFD8B5",
+        "critical": "#FFC7CE",
+        "unassessed": "#E8EDF1",
+    }[_score_band(score_value)]
+    scores.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), bold_font),
+                ("FONTNAME", (0, 1), (-1, 1), bold_font),
+                ("FONTSIZE", (0, 0), (-1, 0), 7.5),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF5F6")),
+                ("BACKGROUND", (0, 1), (0, 1), colors.HexColor(score_fill)),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BCD9DC")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#BCD9DC")),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(scores)
+    severity_data = [
+        [
+            Paragraph(esc(label), table_header)
+            for label in (
+                t("Severity"),
+                t("Critical"),
+                t("High"),
+                t("Medium"),
+                t("Low"),
+                t("Info"),
+            )
+        ],
+        [
+            Paragraph("", score_text),
+            *[
+                Paragraph(str(report.severity_summary.get(name, 0)), score_text)
+                for name in ("critical", "high", "medium", "low", "info")
+            ],
+        ],
+    ]
+    severity = Table(severity_data, colWidths=[document.width / 6] * 6)
+    severity.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), bold_font),
+                ("FONTNAME", (0, 1), (-1, 1), regular_font),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#10233D")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BCD9DC")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#BCD9DC")),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
+    story.extend([Spacer(1, 7), severity])
+
+    if report.ai_analysis:
+        ai = report.ai_analysis
+        story.extend(
+            [
+                Paragraph(esc(t("AI-assisted analysis")), h2),
+                Paragraph(esc(ai.executive_summary), body),
+            ]
+        )
+        if ai.priority_actions:
+            story.append(Paragraph(esc(t("Priority actions")), h3))
+            story.extend(Paragraph(f"- {esc(item)}", body) for item in ai.priority_actions)
+        if ai.review_questions:
+            story.append(Paragraph(esc(t("Questions for review")), h3))
+            story.extend(Paragraph(f"- {esc(item)}", body) for item in ai.review_questions)
+        story.append(
+            Paragraph(f"{esc(ai.provider)} · {esc(ai.model)} · {esc(ai.disclaimer)}", small)
+        )
+    elif report.ai_analysis_error:
+        story.extend(
+            [
+                Paragraph(esc(t("AI analysis unavailable")), h2),
+                Paragraph(
+                    f"<b>{esc(report.ai_analysis_error_code)}</b> {esc(report.ai_analysis_error)}",
+                    body,
+                ),
+            ]
+        )
+
+    story.append(Paragraph(f"{esc(t('Findings'))} ({len(report.findings)})", h2))
+    if not report.findings:
+        story.append(Paragraph(esc(t("No findings recorded.")), body))
+    action_by_id = (
+        {item.finding_id: item for item in report.ai_analysis.finding_actions}
+        if report.ai_analysis
+        else {}
+    )
+    for index, finding in enumerate(report.findings, start=1):
+        action = action_by_id.get(finding.id)
+        blocks: list[Any] = [
+            Paragraph(f"{index}. {esc(finding.title)}", h3),
+            Paragraph(
+                f"<b>{esc(t('Severity'))}:</b> {esc(t(finding.severity.value.title()))} &nbsp; <b>{esc(t('Rule'))}:</b> {esc(finding.rule_id)}",
+                body,
+            ),
+            Paragraph(
+                f"<b>{esc(t('Source location'))}:</b> {esc(_finding_location(finding, t))}", body
+            ),
+        ]
+        if finding.evidence_highlight:
+            blocks.append(
+                Paragraph(
+                    f"<b>{esc(t('Problematic text'))}:</b> {esc(finding.evidence_highlight)}", body
+                )
+            )
+        blocks.extend(
+            [
+                Paragraph(f"<b>{esc(t('Evidence'))}:</b> {esc(finding.evidence)}", body),
+                Paragraph(f"<b>{esc(t('Impact'))}:</b> {esc(finding.impact)}", body),
+                Paragraph(
+                    f"<b>{esc(t('AI-assisted fix') if action else t('Recommendation'))}:</b> {esc(action.remediation if action else finding.recommendation)}",
+                    body,
+                ),
+            ]
+        )
+        if action:
+            blocks.extend(Paragraph(f"- {esc(step)}", body) for step in action.verification_steps)
+        story.extend([KeepTogether(blocks), Spacer(1, 4)])
+
+    story.append(Paragraph(esc(t("Coverage")), h2))
+    coverage_data = [
+        [
+            Paragraph(esc(t("Area")), table_header),
+            Paragraph(esc(t("Status")), table_header),
+            Paragraph(esc(t("Reason")), table_header),
+        ]
+    ]
+    coverage_data.extend(
+        [
+            Paragraph(esc(area), small),
+            Paragraph(esc(value.get("status")), small),
+            Paragraph(esc(value.get("reason")), small),
+        ]
+        for area, value in sorted(report.assessment_coverage.items())
+    )
+    coverage = LongTable(
+        coverage_data, colWidths=[45 * mm, 32 * mm, document.width - 77 * mm], repeatRows=1
+    )
+    coverage.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), bold_font),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#10233D")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D5E0E5")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.append(coverage)
+    if report.ingestion_issues:
+        story.append(Paragraph(esc(t("Ingestion issues")), h2))
+        for item in report.ingestion_issues:
+            story.extend(
+                [
+                    Paragraph(f"<b>{esc(item.path)}</b> · {esc(item.stage)}", h3),
+                    Paragraph(esc(item.message), body),
+                    Paragraph(esc(item.remediation), small),
+                ]
+            )
+    if report.methodology or report.limitations:
+        story.append(Paragraph(esc(t("Methodology")), h2))
+        story.extend(Paragraph(f"- {esc(item)}", body) for item in report.methodology)
+        if report.limitations:
+            story.append(Paragraph(esc(t("Limitations")), h3))
+            story.extend(Paragraph(f"- {esc(item)}", body) for item in report.limitations)
+    document.build(story)
+    return output.getvalue()

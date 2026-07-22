@@ -21,7 +21,7 @@ historique, surveillance récurrente et conseil IA facultatif dans un dashboard 
 | Formats | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML et journaux |
 | Sources distantes | Bases OpenWebUI ; pages HTTPS, documents, sitemaps de même origine et URL SharePoint accessibles |
 | Analyse | Règles statiques, doublons exacts/lexicaux et qualité des chunks |
-| Rapports | Terminal, JSON, HTML autonome et rapports détaillés du dashboard |
+| Rapports | Terminal/JSON et téléchargements localisés en HTML, Excel et PDF |
 | Historique | ID lisibles, filtres, détail, comparaison, tendance de santé et suppression permanente |
 | Tâches | Exécutions durables, intervalles, annulation, reprise, progression et journaux sûrs |
 | IA | Conseil local ou distant explicitement autorisé ; désactivé par défaut |
@@ -116,6 +116,9 @@ La prochaine exécution et l’intervalle des planifications récurrentes sont m
 affichent sécurité, qualité du contenu, efficacité, fichier/page/ligne et preuve surlignée. Les mêmes
 seuils s’appliquent partout : sous 85 jaune, sous 70 orange, sous 55 rouge. L’analyse IA attend par
 défaut 180 secondes pour les modèles locaux lents ; erreurs et données suivent la langue choisie.
+Chaque rapport enregistré se télécharge depuis sa page détaillée en HTML autonome sans réseau,
+classeur Excel structuré à plusieurs feuilles ou PDF paginé. Les exports utilisent la langue de
+l’interface sélectionnée et conservent les preuves sources dans leur langue d’origine.
 
 Commandes utiles :
 

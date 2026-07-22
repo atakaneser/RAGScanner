@@ -21,7 +21,7 @@ analisi AI consultiva facoltativa in una dashboard locale alla macchina.
 | Formati | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML e log |
 | Fonti remote | Basi OpenWebUI; pagine HTTPS, documenti, sitemap della stessa origine e URL SharePoint accessibili |
 | Analisi | Regole statiche, duplicati esatti/lessicali e qualità dei chunk |
-| Rapporti | Terminale, JSON, HTML autonomo e rapporti dettagliati della dashboard |
+| Rapporti | Terminale/JSON e download localizzati in HTML, Excel e PDF |
 | Cronologia | ID leggibili, filtri, dettagli, confronto, trend salute ed eliminazione permanente |
 | Job | Esecuzioni persistenti, intervalli, annullamento, retry, avanzamento e log sicuri |
 | AI | Analisi locale o remota esplicitamente autorizzata; disattivata per impostazione predefinita |
@@ -115,6 +115,9 @@ Per le pianificazioni ricorrenti si possono modificare prossima esecuzione e int
 mostrano sicurezza, qualità dei contenuti, efficienza, file/pagina/riga e prove evidenziate. Ovunque
 valgono le stesse soglie: sotto 85 giallo, sotto 70 arancione, sotto 55 rosso. L’analisi AI attende
 180 secondi per i modelli locali lenti; errori e dati seguono la lingua selezionata.
+Ogni rapporto salvato può essere scaricato dalla pagina di dettaglio come HTML autonomo senza rete,
+cartella Excel strutturata con più fogli o PDF impaginato. Gli export usano la lingua selezionata e
+mantengono le prove sorgente nella lingua originale.
 
 Comandi operativi utili:
 

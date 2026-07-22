@@ -21,7 +21,7 @@ zamanlanmış izlemeyi ve isteğe bağlı AI yorumunu makine-yerel bir dashboard
 | Formatlar | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML ve loglar |
 | Uzak kaynaklar | OpenWebUI bilgi tabanları; HTTPS sayfaları, belgeler, aynı kaynaklı sitemap’ler ve erişilebilir SharePoint URL’leri |
 | Analiz | Statik güvenlik kuralları, tam/sözcüksel kopya ve chunk kalitesi kontrolleri |
-| Raporlar | Terminal, JSON, bağımsız HTML ve ayrıntılı dashboard raporları |
+| Raporlar | Terminal/JSON ile yerelleştirilmiş bağımsız HTML, Excel ve PDF indirmeleri |
 | Geçmiş | Okunabilir kimlikler, filtreler, ayrıntı, karşılaştırma, sağlık eğilimi ve kalıcı silme |
 | İşler | Kalıcı tek seferlik işler, aralıklı tekrar, iptal, yeniden deneme, ilerleme ve güvenli loglar |
 | AI | İsteğe bağlı yerel veya açık onaylı uzak danışman analizi; varsayılan kapalı |
@@ -116,6 +116,9 @@ Tekrarlanan planların sonraki çalışma zamanı ve aralığı düzenlenebilir.
 kalitesi ve verimlilik puanlarını; dosya/sayfa/satır konumunu ve vurgulanan kanıtı gösterir. Her yerde
 aynı eşikler kullanılır: 85 altı sarı, 70 altı turuncu, 55 altı kırmızı. AI analizi yavaş yerel
 modeller için varsayılan olarak 180 saniye bekler; sağlayıcı hataları ve rapor verileri seçili dili izler.
+Kaydedilen her rapor ayrıntı sayfasından ağ erişimsiz bağımsız HTML, çok sayfalı Excel çalışma
+kitabı veya sayfalı PDF olarak indirilebilir. Dışa aktarımlar seçili arayüz dilini kullanır; kaynak
+kanıtı özgün dilinde korunur.
 
 Yararlı işletim komutları:
 

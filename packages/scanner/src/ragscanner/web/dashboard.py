@@ -11,7 +11,7 @@ from typing import Annotated
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
@@ -34,6 +34,7 @@ from ragscanner.onboarding import (
     discover_openwebui_knowledge_bases,
 )
 from ragscanner.providers import PROVIDER_CATALOG, ModelProviderError, discover_provider_models
+from ragscanner.reporting import ReportExportFormat, export_report, report_export_filename
 from ragscanner.storage import (
     ENV_CREDENTIAL_REFERENCE_ERROR,
     DashboardSettings,
@@ -474,6 +475,32 @@ def register_dashboard(
     @app.get("/reports/{history_id}", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard_report_detail(request: Request, history_id: str) -> HTMLResponse:
         return render_dashboard(request, page="report_detail", report_id=history_id)
+
+    @app.get("/reports/{history_id}/download/{export_format}", include_in_schema=False)
+    async def dashboard_download_report(
+        request: Request,
+        history_id: str,
+        export_format: ReportExportFormat,
+    ) -> Response:
+        history_repository = SQLiteScanHistoryRepository(database_path)
+        source_repository = SQLiteSourceProfileRepository(database_path)
+        try:
+            report = HistoryApplicationService(history_repository).get(history_id)
+            locale = _request_locale(request, source_repository.dashboard_settings())
+        finally:
+            source_repository.close()
+            history_repository.close()
+        exported = await run_in_threadpool(export_report, report, export_format, locale=locale)
+        filename = report_export_filename(report, history_id, exported.extension)
+        return Response(
+            content=exported.content,
+            media_type=exported.media_type,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @app.post("/dashboard/reports/{history_id}/delete", include_in_schema=False)
     async def dashboard_delete_report(

@@ -39,3 +39,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0036 Density-aware security and consistency scores](0036-density-aware-security-and-consistency-scores.md)
 - [ADR-0037 Remove labelled-value contradiction scoring](0037-remove-contradiction-scoring.md)
 - [ADR-0038 Fixed localhost address and password rotation](0038-fixed-localhost-address-and-password-rotation.md)
+- [ADR-0039 Local saved-report export adapters](0039-local-saved-report-export-adapters.md)
