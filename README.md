@@ -123,6 +123,8 @@ language while preserving source evidence in its original language.
 New scans preserve source punctuation such as apostrophes in dashboard and PDF evidence. Naturally
 short single-document answers and normalization-only offset approximations are not reported as
 chunk defects.
+Variation tests also prevent generated headings, lists, tables, code, overlap, uncased scripts, and
+small lexical samples from creating findings without source-owned evidence.
 
 Useful operational commands include:
 

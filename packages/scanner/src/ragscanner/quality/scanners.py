@@ -44,6 +44,8 @@ _FRONT_MATTER_KEY = re.compile(
     r"(?im)^\s*(?:title|classification|audience|last_reviewed|related_documents|"
     r"content_style|version|owner|tags?)\s*:"
 )
+_GENERATED_CHUNK_MARKER = "generated_by_ragscanner"
+_SENTENCE_BOUNDARY_ENDINGS = (".", "!", "?", ":", ";", "。", "！", "？", "：", "；", "```")
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +69,25 @@ def _stable_hash(namespace: str, value: Any) -> str:
 
 def _safe_evidence(value: str, limit: int) -> str:
     return mask_secret_like_values(value[:limit])
+
+
+def _is_generated_chunk(chunk: Chunk) -> bool:
+    return chunk.metadata.get(_GENERATED_CHUNK_MARKER) is True
+
+
+def _is_generated_heading_only_chunk(chunk: Chunk) -> bool:
+    if not _is_generated_chunk(chunk) or not chunk.headings:
+        return False
+    content = " ".join(chunk.normalized_content.split())
+    return content in {" ".join(heading.split()) for heading in chunk.headings}
+
+
+def _forced_split_signature(chunk: Chunk) -> tuple[bool, bool, bool]:
+    return (
+        chunk.metadata.get("table_present") is True,
+        chunk.metadata.get("code_block_present") is True,
+        chunk.metadata.get("list_present") is True,
+    )
 
 
 def _finding(
@@ -129,7 +150,7 @@ def _finding(
 
 class ExactDuplicateScanner:
     name = "exact_duplicate_scanner"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def __init__(
         self,
@@ -235,6 +256,12 @@ class ExactDuplicateScanner:
             associated_document = by_id.get(chunk.document_id)
             if associated_document is None:
                 skipped.append(chunk.id)
+                continue
+            normalized_document = normalized.get(chunk.document_id)
+            if _is_generated_heading_only_chunk(chunk) or (
+                normalized_document is not None
+                and chunk.normalized_content == normalized_document.normalized_content
+            ):
                 continue
             if self._is_non_content_chunk(chunk.normalized_content):
                 continue
@@ -389,7 +416,7 @@ class ExactDuplicateScanner:
 
 class NearDuplicateScanner(ExactDuplicateScanner):
     name = "near_duplicate_scanner"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -538,10 +565,11 @@ class NearDuplicateScanner(ExactDuplicateScanner):
         intersection = len(left & right)
         jaccard = intersection / max(1, len(left | right))
         containment = intersection / max(1, min(len(left), len(right)))
+        size_balance = min(len(left), len(right)) / max(1, max(len(left), len(right)))
         left_tokens = {token for shingle in left for token in shingle.split()}
         right_tokens = {token for shingle in right for token in shingle.split()}
         token_jaccard = len(left_tokens & right_tokens) / max(1, len(left_tokens | right_tokens))
-        return max(jaccard, containment * 0.9, token_jaccard * 0.9)
+        return max(jaccard, containment * size_balance, token_jaccard * 0.9)
 
     @staticmethod
     def _boilerplate_texts(results: Iterable[NormalizationResult]) -> set[str]:
@@ -591,7 +619,7 @@ class NearDuplicateScanner(ExactDuplicateScanner):
                 "canonical_item_id": group.canonical_item_id,
                 "related_item_ids": [member.item_id for member in group.members[1:]],
                 "similarity": group.similarity,
-                "method": "bounded_token_shingle_jaccard",
+                "method": "bounded_size_balanced_token_shingles",
                 "estimated_redundant_tokens": group.estimated_redundant_tokens,
             },
             observed_at=item.observed_at,
@@ -600,7 +628,7 @@ class NearDuplicateScanner(ExactDuplicateScanner):
 
 class ChunkQualityScanner:
     name = "chunk_quality_scanner"
-    version = "1.2.0"
+    version = "1.3.0"
 
     def __init__(
         self,
@@ -636,6 +664,21 @@ class ChunkQualityScanner:
             document_id: statistics.median(item.token_count for item in document_chunks)
             for document_id, document_chunks in chunks_by_document.items()
         }
+        document_positions: dict[str, int] = {}
+        forced_run_positions: dict[str, int] = {}
+        for document_chunks in chunks_by_document.values():
+            for position, chunk in enumerate(document_chunks):
+                document_positions[chunk.id] = position
+                previous = document_chunks[position - 1] if position else None
+                same_forced_run = (
+                    chunk.metadata.get("forced_split") is True
+                    and previous is not None
+                    and previous.metadata.get("forced_split") is True
+                    and _forced_split_signature(previous) == _forced_split_signature(chunk)
+                )
+                forced_run_positions[chunk.id] = (
+                    forced_run_positions[previous.id] + 1 if same_forced_run and previous else 0
+                )
         findings: list[Finding] = []
         scores: dict[str, ChunkQualityScore] = {}
         redundant_tokens = 0
@@ -661,6 +704,8 @@ class ChunkQualityScanner:
                 document_medians[chunk.document_id],
                 boilerplate,
                 document_chunk_count=len(document_chunks),
+                document_chunk_position=document_positions[chunk.id],
+                forced_run_position=forced_run_positions[chunk.id],
             )
             if index > 0 and values[index - 1].document_id == chunk.document_id:
                 overlap_issue, overlap_tokens = self._overlap_issue(values[index - 1], chunk)
@@ -684,9 +729,11 @@ class ChunkQualityScanner:
                 break
         for document_id, document_chunks in sorted(chunks_by_document.items()):
             document = docs.get(document_id)
+            upstream_chunks = [chunk for chunk in document_chunks if not _is_generated_chunk(chunk)]
             if (
                 document
-                and len(document_chunks) / max(1, len(document.normalized_content) / 1_000)
+                and upstream_chunks
+                and len(upstream_chunks) / max(1, len(document.normalized_content) / 1_000)
                 > self.config.excessive_chunk_count_per_1k_chars
             ):
                 issue = (
@@ -696,11 +743,9 @@ class ChunkQualityScanner:
                     "efficiency",
                     {"chunk_count": len(document_chunks)},
                 )
-                findings.append(self._issue_finding(document, document_chunks[0], issue))
+                findings.append(self._issue_finding(document, upstream_chunks[0], issue))
         oversized = sum(chunk.token_count > self.config.maximum_chunk_tokens for chunk in values)
-        undersized = sum(
-            0 < chunk.token_count < self.config.minimum_chunk_tokens for chunk in values
-        )
+        undersized = sum("undersized_chunk" in score.explanation for score in scores.values())
         empty = sum(not chunk.normalized_content.strip() for chunk in values)
         return ChunkQualityResult(
             findings=sorted(
@@ -741,11 +786,15 @@ class ChunkQualityScanner:
         boilerplate: set[str],
         *,
         document_chunk_count: int,
+        document_chunk_position: int,
+        forced_run_position: int,
     ) -> list[tuple[str, Severity, str, str, dict[str, Any]]]:
         text = chunk.normalized_content
         stripped = text.strip()
         issues: list[tuple[str, Severity, str, str, dict[str, Any]]] = []
         add = issues.append
+        generated = _is_generated_chunk(chunk)
+        forced_split = chunk.metadata.get("forced_split") is True
         if not stripped:
             add(("empty_chunk", Severity.HIGH, "Chunk has no usable content.", "content", {}))
             return issues
@@ -759,7 +808,11 @@ class ChunkQualityScanner:
                     {"tokens": chunk.token_count},
                 )
             )
-        elif document_chunk_count > 1 and chunk.token_count < self.config.minimum_chunk_tokens:
+        elif (
+            document_chunk_count > 1
+            and not generated
+            and chunk.token_count < self.config.minimum_chunk_tokens
+        ):
             add(
                 (
                     "undersized_chunk",
@@ -771,6 +824,7 @@ class ChunkQualityScanner:
             )
         if (
             document_chunk_count > 1
+            and not generated
             and median
             and chunk.token_count > median * self.config.outlier_factor
         ):
@@ -784,7 +838,7 @@ class ChunkQualityScanner:
                 )
             )
         maximum_chars = int(chunk.metadata.get("maximum_characters", 100_000))
-        if len(text) >= maximum_chars * self.config.near_character_limit_ratio:
+        if not generated and len(text) >= maximum_chars * self.config.near_character_limit_ratio:
             add(
                 (
                     "near_character_limit",
@@ -795,35 +849,30 @@ class ChunkQualityScanner:
                 )
             )
         metadata_flags = {
-            "forced_split": "forced_split",
             "table_present": "table_split",
             "code_block_present": "code_block_split",
             "list_present": "list_split",
         }
-        if chunk.metadata.get("forced_split"):
-            for key, issue_id in metadata_flags.items():
-                if key == "forced_split" or chunk.metadata.get(key):
-                    add(
-                        (
-                            issue_id,
-                            Severity.MEDIUM,
-                            f"Chunk metadata indicates {issue_id.replace('_', ' ')}.",
-                            "structure",
-                            {},
-                        )
+        if forced_split and forced_run_position == 0:
+            specific_splits = [
+                issue_id for key, issue_id in metadata_flags.items() if chunk.metadata.get(key)
+            ]
+            for issue_id in specific_splits or ["forced_split"]:
+                add(
+                    (
+                        issue_id,
+                        Severity.MEDIUM,
+                        f"Chunk metadata indicates {issue_id.replace('_', ' ')}.",
+                        "structure",
+                        {},
                     )
-        headings = chunk.headings
-        if not headings and chunk.index > 0 and stripped[0].islower():
-            add(
-                (
-                    "missing_heading_context",
-                    Severity.LOW,
-                    "Chunk appears detached from heading context.",
-                    "structure",
-                    {},
                 )
-            )
-        if stripped[0].islower() and chunk.index > 0:
+        if _is_generated_heading_only_chunk(chunk):
+            return issues
+        assess_start_boundary = (not generated and document_chunk_position > 0) or (
+            generated and forced_split and forced_run_position == 1
+        )
+        if assess_start_boundary and stripped[0].islower():
             add(
                 (
                     "middle_sentence_start",
@@ -833,7 +882,14 @@ class ChunkQualityScanner:
                     {},
                 )
             )
-        if stripped[-1].isalnum() and not stripped.endswith((".", "!", "?", ":", ";", "```")):
+        assess_end_boundary = (
+            not generated and document_chunk_position < document_chunk_count - 1
+        ) or (generated and forced_split and forced_run_position == 0)
+        if (
+            assess_end_boundary
+            and stripped[-1].isalnum()
+            and not stripped.endswith(_SENTENCE_BOUNDARY_ENDINGS)
+        ):
             add(
                 (
                     "middle_sentence_end",
@@ -854,21 +910,30 @@ class ChunkQualityScanner:
                 )
             )
         elif stripped.isnumeric():
-            add(
-                (
+            normalized_line = " ".join(stripped.casefold().split())
+            if normalized_line in boilerplate or not generated or forced_split:
+                add(
                     (
-                        "page_number_only_chunk"
-                        if _PAGE_NUMBER.fullmatch(stripped)
-                        else "numeric_only_chunk"
-                    ),
-                    Severity.LOW,
-                    "Chunk contains only numeric/page-marker content.",
-                    "content",
-                    {},
+                        (
+                            "page_number_only_chunk"
+                            if normalized_line in boilerplate and _PAGE_NUMBER.fullmatch(stripped)
+                            else "numeric_only_chunk"
+                        ),
+                        Severity.LOW,
+                        "Chunk contains only numeric/page-marker content.",
+                        "content",
+                        {},
+                    )
                 )
-            )
+            return issues
         lines = [line.strip() for line in stripped.splitlines() if line.strip()]
-        if lines and max(Counter(lines).values()) / len(lines) >= 0.6 and len(lines) >= 3:
+        tokens = [token.casefold() for token in _WORD.findall(text)]
+        repeated_lines = (
+            len(tokens) >= self.config.minimum_lexical_sample_tokens
+            and len(lines) >= 3
+            and max(Counter(lines).values()) / len(lines) >= 0.6
+        )
+        if repeated_lines:
             add(
                 (
                     "repeated_line_chunk",
@@ -883,7 +948,10 @@ class ChunkQualityScanner:
             for line in lines
             if line.casefold() in boilerplate or _PAGE_NUMBER.fullmatch(line)
         )
-        if boilerplate_chars / max(1, len(stripped)) >= self.config.boilerplate_dominance_threshold:
+        boilerplate_dominated = (
+            boilerplate_chars / max(1, len(stripped)) >= self.config.boilerplate_dominance_threshold
+        )
+        if boilerplate_dominated:
             add(
                 (
                     "boilerplate_dominated_chunk",
@@ -906,16 +974,6 @@ class ChunkQualityScanner:
                     {"ratio": printable_ratio},
                 )
             )
-        if text.count("�") / max(1, len(text)) > 0.02:
-            add(
-                (
-                    "excessive_replacement_characters",
-                    Severity.MEDIUM,
-                    "Chunk contains excessive replacement characters.",
-                    "extraction",
-                    {},
-                )
-            )
         if len(_CONTROL_MARKER.findall(text)) / max(1, len(_TOKEN.findall(text))) > 0.05:
             add(
                 (
@@ -926,8 +984,15 @@ class ChunkQualityScanner:
                     {},
                 )
             )
-        tokens = [token.casefold() for token in _WORD.findall(text)]
-        if tokens:
+        protected_structure = bool(
+            chunk.metadata.get("code_block_present") or chunk.metadata.get("table_present")
+        )
+        if (
+            len(tokens) >= self.config.minimum_lexical_sample_tokens
+            and not protected_structure
+            and not repeated_lines
+            and not boilerplate_dominated
+        ):
             most_common = max(Counter(tokens).values()) / len(tokens)
             density = len(set(tokens)) / len(tokens)
             if most_common >= self.config.repeated_token_threshold:
@@ -940,7 +1005,7 @@ class ChunkQualityScanner:
                         {"ratio": most_common},
                     )
                 )
-            if density < self.config.information_density_threshold:
+            elif density < self.config.information_density_threshold:
                 add(
                     (
                         "low_information_density",
@@ -950,14 +1015,18 @@ class ChunkQualityScanner:
                         {"density": density},
                     )
                 )
-        if text.count("�") >= 3 or "<REPLACEMENT>" in text:
+        replacement_count = text.count("�") + text.count("<REPLACEMENT>")
+        if replacement_count >= 3 or replacement_count / max(1, len(text)) > 0.02:
             add(
                 (
                     "garbled_extraction",
                     Severity.MEDIUM,
                     "Chunk contains garbled extraction indicators.",
                     "extraction",
-                    {},
+                    {
+                        "replacement_count": replacement_count,
+                        "ratio": replacement_count / max(1, len(text)),
+                    },
                 )
             )
         return issues
@@ -965,6 +1034,8 @@ class ChunkQualityScanner:
     def _overlap_issue(
         self, previous: Chunk, current: Chunk
     ) -> tuple[tuple[str, Severity, str, str, dict[str, Any]] | None, int]:
+        if _is_generated_chunk(previous) and _is_generated_chunk(current):
+            return None, 0
         left = [token.casefold() for token in _WORD.findall(previous.normalized_content)]
         right = [token.casefold() for token in _WORD.findall(current.normalized_content)]
         maximum = min(len(left), len(right))

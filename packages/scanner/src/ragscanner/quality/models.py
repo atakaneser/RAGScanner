@@ -91,6 +91,7 @@ class ChunkQualityConfig(BaseModel):
     boilerplate_dominance_threshold: float = Field(default=0.6, ge=0, le=1)
     information_density_threshold: float = Field(default=0.25, ge=0, le=1)
     repeated_token_threshold: float = Field(default=0.55, ge=0, le=1)
+    minimum_lexical_sample_tokens: int = Field(default=20, ge=3, le=1_000)
     outlier_factor: float = Field(default=3.0, ge=1.5, le=20)
     excessive_chunk_count_per_1k_chars: float = Field(default=8, gt=0)
     maximum_chunks: int = Field(default=100_000, gt=0)

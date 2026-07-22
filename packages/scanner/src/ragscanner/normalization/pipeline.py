@@ -59,7 +59,7 @@ class DocumentNormalizer:
     """Normalize parser output without mutating the input Document."""
 
     name = "document_normalizer"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(self, config: NormalizationConfig | None = None) -> None:
         self.config = config or NormalizationConfig()
@@ -426,8 +426,9 @@ class DocumentNormalizer:
         if "RAGSCANNER_PAGE_BOUNDARY" in stripped or "RAGSCANNER_DOCX_BLOCK_BOUNDARY" in stripped:
             return False
         letters = "".join(character for character in stripped if character.isalpha())
+        has_case = any(character.lower() != character.upper() for character in letters)
         return bool(_HEADING.match(value)) or (
-            0 < len(stripped) <= 80 and bool(letters) and letters == letters.upper()
+            0 < len(stripped) <= 80 and bool(letters) and has_case and letters == letters.upper()
         )
 
     def _boilerplate(

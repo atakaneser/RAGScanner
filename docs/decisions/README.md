@@ -42,3 +42,4 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0039 Local saved-report export adapters](0039-local-saved-report-export-adapters.md)
 - [ADR-0040 Source-owned chunk-quality findings](0040-source-owned-chunk-quality-findings.md)
 - [ADR-0041 Plain evidence and source-relative chunk sizing](0041-plain-evidence-and-source-relative-chunk-sizing.md)
+- [ADR-0042 Source-owned quality evidence calibration](0042-source-owned-quality-evidence-calibration.md)

@@ -20,6 +20,9 @@ Markdown code/tables/preformatted text, DOCX block separators, PDF page boundari
 tables, sections, headers, and footers are handled conservatively. PDF line repair never crosses
 page, heading, list, table, URL/path, or code boundaries. Every repair is counted and makes mapping
 approximate. Boilerplate is annotated as a candidate and never removed by default.
+Uppercase-heading inference requires letters with a meaningful upper/lowercase distinction, so CJK
+and other uncased scripts are not classified as headings merely because uppercase and lowercase
+forms compare equal.
 
 Segments connect normalized ranges to original parsed ranges and source locations. Many-to-one,
 repair, or bounded coalescing is marked approximate. Segment/annotation/output limits produce

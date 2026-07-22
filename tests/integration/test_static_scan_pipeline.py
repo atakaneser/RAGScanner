@@ -18,7 +18,7 @@ from ragscanner.pipeline import (
     StaticScanEventType,
     StaticScanPipeline,
 )
-from ragscanner.quality import NearDuplicateConfig
+from ragscanner.quality import ChunkQualityConfig, NearDuplicateConfig
 from typer.testing import CliRunner
 
 NOW = datetime(2026, 7, 13, 10, 0, tzinfo=UTC)
@@ -299,6 +299,85 @@ def test_openwebui_style_markdown_lengths_and_apostrophes_do_not_create_quality_
     assert vpn_chunks
     assert "VPN'e" in "\n".join(chunk.normalized_content for chunk in vpn_chunks)
     assert "&#x27;" not in "\n".join(chunk.normalized_content for chunk in vpn_chunks)
+
+
+def test_benign_multilingual_and_structural_variation_matrix_has_no_quality_noise(
+    tmp_path: Path,
+) -> None:
+    cases = {
+        "english.md": "# VPN Access\n\nConnect with your account",
+        "turkish.md": "## VPN'e Bağlanma\n\n1. **Adım:** Sicilinizi girin\n2. **Adım:** ',,sms' ekleyin",
+        "german.md": "# VPN-Zugang\n\nAnmelden",
+        "french.md": "# Accès VPN\n\nChoisissez « Connexion sécurisée »",
+        "chinese.md": "# VPN 连接\n\n输入用户名并完成短信验证",
+        "italian.md": "# Accesso VPN\n\n- Apri il client\n- Inserisci le credenziali",
+        "code.md": "# Config\n\n```ini\nmode=safe\n```",
+        "table.md": "# Ports\n\n| Service | Port |\n|---|---|\n| VPN | 443 |",
+        "identifier.md": "VPN-GW-01",
+        "numeric-answer.md": "2026",
+        "short-labels.md": "Adım\nAdım\nAdım\nSonuç",
+    }
+    for name, content in cases.items():
+        (tmp_path / name).write_text(content, encoding="utf-8")
+
+    result = run(tmp_path)
+    rules = {finding.rule_id for finding in result.findings}
+
+    assert rules.isdisjoint(
+        {
+            "QUALITY-CHUNK-UNDERSIZED-CHUNK",
+            "QUALITY-CHUNK-EXTREME-SIZE-OUTLIER",
+            "QUALITY-CHUNK-MIDDLE-SENTENCE-START",
+            "QUALITY-CHUNK-MIDDLE-SENTENCE-END",
+            "QUALITY-CHUNK-HIGHLY-REPETITIVE-TOKENS",
+            "QUALITY-CHUNK-LOW-INFORMATION-DENSITY",
+            "QUALITY-CHUNK-REPEATED-LINE-CHUNK",
+            "QUALITY-CHUNK-EXCESSIVE-CHUNK-COUNT",
+            "QUALITY-CHUNK-NEAR-IDENTICAL-NEIGHBOR-CHUNKS",
+        }
+    )
+    assert not any(
+        finding.category in {"prompt_injection", "suspicious_commands"}
+        for finding in result.findings
+    )
+
+
+def test_real_forced_boundaries_and_structural_splits_remain_visible(tmp_path: Path) -> None:
+    (tmp_path / "long-prose.md").write_text(
+        " ".join(f"continuation{index}" for index in range(80)), encoding="utf-8"
+    )
+    (tmp_path / "large-table.md").write_text(
+        "\n".join(f"| row{index} | value{index} |" for index in range(40)),
+        encoding="utf-8",
+    )
+    result = run(
+        tmp_path,
+        chunking=ChunkingConfig(
+            strategy=ChunkingStrategy.STRUCTURE_AWARE,
+            target_token_count=20,
+            maximum_token_count=25,
+            minimum_token_count=5,
+            overlap_token_count=0,
+        ),
+        chunk_quality=ChunkQualityConfig(
+            minimum_chunk_tokens=5,
+            target_chunk_tokens=20,
+            maximum_chunk_tokens=25,
+        ),
+    )
+    rules = {finding.rule_id for finding in result.findings}
+
+    assert "QUALITY-CHUNK-FORCED-SPLIT" in rules
+    assert "QUALITY-CHUNK-TABLE-SPLIT" in rules
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-START" in rules
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-END" in rules
+    table_findings = [
+        finding
+        for finding in result.findings
+        if finding.source and finding.source.source_path == "large-table.md"
+    ]
+    assert table_findings
+    assert all(finding.rule_id != "QUALITY-CHUNK-FORCED-SPLIT" for finding in table_findings)
 
 
 def test_no_network_subprocess_or_raw_content_logging() -> None:

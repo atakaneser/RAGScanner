@@ -121,6 +121,9 @@ mantengono le prove sorgente nella lingua originale.
 Le nuove scansioni conservano correttamente la punteggiatura sorgente, inclusi gli apostrofi, nelle
 prove del dashboard e dei PDF. Le risposte naturalmente brevi di un singolo documento e le posizioni
 approssimative dovute solo alla normalizzazione non vengono segnalate come difetti dei chunk.
+I test di variazione impediscono inoltre che titoli, liste, tabelle, codice e sovrapposizioni
+generati, scritture senza distinzione tra maiuscole e minuscole e campioni lessicali troppo piccoli
+producano risultati senza prove appartenenti alla sorgente.
 
 Comandi operativi utili:
 

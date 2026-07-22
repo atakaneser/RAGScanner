@@ -127,6 +127,48 @@ def test_exact_duplicates_ignore_delimiters_and_front_matter_chunks() -> None:
     assert result.groups[0].canonical_item_id == "content-1"
 
 
+def test_document_mirror_and_generated_heading_chunks_do_not_duplicate_findings() -> None:
+    docs = [doc("d1", "# Help\n\nComplete answer."), doc("d2", "# Help\n\nComplete answer.")]
+    values = [
+        chunk(
+            "whole-1",
+            "d1",
+            0,
+            docs[0].content,
+            metadata={"generated_by_ragscanner": True, "block_types": ["heading_region"]},
+            headings=["# Help"],
+        ),
+        chunk(
+            "whole-2",
+            "d2",
+            0,
+            docs[1].content,
+            metadata={"generated_by_ragscanner": True, "block_types": ["heading_region"]},
+            headings=["# Help"],
+        ),
+        chunk(
+            "heading-1",
+            "d1",
+            1,
+            "# Resolution",
+            metadata={"generated_by_ragscanner": True, "block_types": ["heading_region"]},
+            headings=["# Resolution"],
+        ),
+        chunk(
+            "heading-2",
+            "d2",
+            1,
+            "# Resolution",
+            metadata={"generated_by_ragscanner": True, "block_types": ["heading_region"]},
+            headings=["# Resolution"],
+        ),
+    ]
+
+    result = ExactDuplicateScanner().scan(docs, normalized(docs), values)
+
+    assert [group.category for group in result.groups] == ["exact_duplicate_document"]
+
+
 def test_empty_exact_content_excluded_and_limits_warn() -> None:
     docs = [doc("a", ""), doc("b", ""), doc("c", "unique")]
     result = ExactDuplicateScanner(DuplicateScanConfig(maximum_documents=2)).scan(
@@ -164,7 +206,7 @@ def test_near_duplicate_multilingual_lexical_similarity(left: str, right: str) -
     result = NearDuplicateScanner(config).scan(docs, normalized(docs), [])
     assert len(result.groups) == 1
     assert 0.5 <= result.groups[0].similarity < 1
-    assert result.findings[0].metadata["method"] == "bounded_token_shingle_jaccard"
+    assert result.findings[0].metadata["method"] == "bounded_size_balanced_token_shingles"
 
 
 def test_near_duplicate_threshold_short_and_boilerplate_controls() -> None:
@@ -183,6 +225,23 @@ def test_near_duplicate_threshold_short_and_boilerplate_controls() -> None:
     assert result.groups == []
     assert "short" in result.skipped_item_ids
     assert result.statistics.candidate_comparisons <= 1
+
+
+def test_near_duplicate_does_not_treat_a_shared_subset_as_a_duplicate_document() -> None:
+    shared = " ".join(f"shared{index}" for index in range(24))
+    documents = [
+        doc("short", shared),
+        doc("long", shared + " " + " ".join(f"unique{index}" for index in range(80))),
+    ]
+    result = NearDuplicateScanner(
+        NearDuplicateConfig(
+            similarity_threshold=0.82,
+            shingle_size=3,
+            minimum_comparison_characters=20,
+        )
+    ).scan(documents, normalized(documents), [])
+
+    assert result.groups == []
 
 
 def test_near_duplicate_groups_deterministically_and_suppresses_exact_pairs() -> None:
@@ -294,13 +353,13 @@ def test_structural_metadata_findings_and_healthy_structure() -> None:
     ).scan([document], [healthy, broken], normalized([document]))
     rules = finding_rules(result)
     assert {
-        "QUALITY-CHUNK-FORCED-SPLIT",
         "QUALITY-CHUNK-TABLE-SPLIT",
         "QUALITY-CHUNK-CODE-BLOCK-SPLIT",
         "QUALITY-CHUNK-LIST-SPLIT",
         "QUALITY-CHUNK-MIDDLE-SENTENCE-START",
-        "QUALITY-CHUNK-MIDDLE-SENTENCE-END",
     }.issubset(rules)
+    assert "QUALITY-CHUNK-FORCED-SPLIT" not in rules
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-END" not in rules
     assert "QUALITY-CHUNK-APPROXIMATE-MAPPING" not in rules
     assert not any(finding.chunk_id == "healthy" for finding in result.findings)
 
@@ -357,11 +416,19 @@ def test_ratio_bounded_generated_overlap_is_not_reported_as_excessive() -> None:
     ("identifier", "text", "expected"),
     [
         ("punct", "!!! --- ???", "QUALITY-CHUNK-PUNCTUATION-ONLY-CHUNK"),
-        ("numeric", "123456789", "QUALITY-CHUNK-PAGE-NUMBER-ONLY-CHUNK"),
-        ("repeat", "same line\nsame line\nsame line\nother", "QUALITY-CHUNK-REPEATED-LINE-CHUNK"),
+        ("numeric", "123456789", "QUALITY-CHUNK-NUMERIC-ONLY-CHUNK"),
+        (
+            "repeat",
+            "\n".join(["same repeated line"] * 9 + ["other closing line"]),
+            "QUALITY-CHUNK-REPEATED-LINE-CHUNK",
+        ),
         ("replacement", "useful � � � corrupted text", "QUALITY-CHUNK-GARBLED-EXTRACTION"),
         ("control", "<ZWSP> <ZWSP> content", "QUALITY-CHUNK-EXCESSIVE-CONTROL-MARKERS"),
-        ("tokens", "repeat repeat repeat repeat other", "QUALITY-CHUNK-HIGHLY-REPETITIVE-TOKENS"),
+        (
+            "tokens",
+            " ".join(["repeat"] * 18 + ["other", "distinct"]),
+            "QUALITY-CHUNK-HIGHLY-REPETITIVE-TOKENS",
+        ),
     ],
 )
 def test_content_quality_signals(identifier: str, text: str, expected: str) -> None:
@@ -370,6 +437,65 @@ def test_content_quality_signals(identifier: str, text: str, expected: str) -> N
         ChunkQualityConfig(minimum_chunk_tokens=0, target_chunk_tokens=20, maximum_chunk_tokens=50)
     ).scan([document], [chunk(identifier, "d", 0, text)], normalized([document]))
     assert expected in finding_rules(result)
+
+
+def test_upstream_fragment_boundaries_remain_assessable_without_flagging_final_chunk() -> None:
+    document = doc("d", "body")
+    chunks = [
+        chunk("first", "d", 0, "This upstream fragment ends abruptly"),
+        chunk("second", "d", 1, "continuation finishes correctly."),
+    ]
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(minimum_chunk_tokens=0, target_chunk_tokens=20, maximum_chunk_tokens=50)
+    ).scan([document], chunks, normalized([document]))
+
+    by_chunk = {
+        item.id: {finding.rule_id for finding in result.findings if finding.chunk_id == item.id}
+        for item in chunks
+    }
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-END" in by_chunk["first"]
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-START" in by_chunk["second"]
+    assert "QUALITY-CHUNK-MIDDLE-SENTENCE-END" not in by_chunk["second"]
+
+
+def test_small_samples_protected_structures_and_generated_boundaries_are_not_noise() -> None:
+    document = doc("d", "body")
+    generated = {"generated_by_ragscanner": True, "forced_split": False}
+    chunks = [
+        chunk(
+            "heading",
+            "d",
+            0,
+            "# MFA",
+            metadata={**generated, "block_types": ["heading_region"]},
+            headings=["# MFA"],
+        ),
+        chunk("identifier", "d", 1, "VPN-GW-01", metadata=generated),
+        chunk("numeric", "d", 2, "2026", metadata=generated),
+        chunk("repeat", "d", 3, "Adım\nAdım\nAdım\nSonuç", metadata=generated),
+        chunk(
+            "code",
+            "d",
+            4,
+            "mode=safe\nmode=local",
+            metadata={**generated, "code_block_present": True},
+        ),
+        chunk(
+            "table",
+            "d",
+            5,
+            "| Port | Port |\n| 443 | 443 |",
+            metadata={**generated, "table_present": True},
+        ),
+    ]
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(
+            minimum_chunk_tokens=50, target_chunk_tokens=100, maximum_chunk_tokens=200
+        )
+    ).scan([document], chunks, normalized([document]))
+
+    assert result.findings == []
+    assert result.statistics.undersized_chunks == 0
 
 
 def test_overlap_duplicate_neighbors_and_unrelated_neighbors() -> None:

@@ -5,7 +5,7 @@ creates nor changes chunks and does not prove ideal retrieval quality, correctne
 consistency.
 
 Checks cover empty/short/long/outlier chunks; structural split and source-mapping diagnostics;
-missing heading context; sentence-boundary damage; punctuation/number/page bias;
+assessable sentence-boundary damage; punctuation/number/page bias;
 repetition and low information density; extraction/control-character signals; adjacent overlap;
 near-identical neighbors; and excessive chunk counts.
 
@@ -19,10 +19,17 @@ Delimiter-only and front-matter-only chunks are also excluded from exact cross-d
 groups while material repeated prose remains assessable.
 
 A naturally short source that produces one complete chunk is not an undersized-chunk defect, and
-documents of different legitimate lengths are not compared as chunk-size outliers. Size outliers
-are evaluated within a document only when that document was split into multiple chunks. Approximate
-source mapping remains an internal provenance warning because ordinary lossless normalization can
-make offsets approximate; it is not reported as a source-content finding.
+documents of different legitimate lengths are not compared as chunk-size outliers. Size,
+near-limit, neighbor-overlap, and chunk-count heuristics apply to upstream chunks rather than chunks
+created by RAGScanner itself. Approximate source mapping remains an internal provenance warning
+because ordinary lossless normalization can make offsets approximate; it is not reported as a
+source-content finding.
+
+Sentence-boundary checks require either upstream chunk boundaries or an explicit forced split. One
+forced region produces one structural split finding and at most one start/end boundary pair instead
+of a finding for every generated fragment. Lexical repetition and information-density ratios require
+at least 20 tokens and do not evaluate heading-only, code, or table structure. CJK and other scripts
+without letter case are not inferred to be uppercase headings.
 
 Each chunk receives product-defined 0–100 dimensions for size, structure, density, overlap, source
 mapping, and extraction, plus an overall heuristic score. This is not a model benchmark or industry

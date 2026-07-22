@@ -122,6 +122,25 @@ def test_heading_stays_with_following_content_and_path() -> None:
     assert result.chunks[0].headings == ["# Güvenlik"]
 
 
+def test_uncased_script_body_is_not_misclassified_as_an_uppercase_heading() -> None:
+    content = "# VPN 连接\n\n输入用户名并完成短信验证"
+    _, normalized, result = run(
+        content,
+        mime="text/markdown",
+        metadata={"headings": [{"line": 1, "level": 1, "text": "VPN 连接"}]},
+        target_token_count=300,
+        maximum_token_count=500,
+    )
+
+    heading_ranges = [
+        item for item in normalized.annotations if item.annotation_type.value == "heading_region"
+    ]
+    assert all(item.normalized_end <= content.index("输入") for item in heading_ranges)
+    assert len(result.chunks) == 1
+    assert result.chunks[0].headings == ["# VPN 连接"]
+    assert result.chunks[0].metadata["generated_by_ragscanner"] is True
+
+
 def test_nested_heading_paths_and_unrelated_branches_do_not_merge() -> None:
     content = "# Parent\n\nParent text.\n\n## Child\n\nChild text.\n\n# Other\n\nOther text."
     metadata = {

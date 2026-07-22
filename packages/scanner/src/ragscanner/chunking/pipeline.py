@@ -51,7 +51,7 @@ class DocumentChunker:
     """Create stable Chunk models without mutating document or normalization output."""
 
     name = "document_chunker"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def __init__(
         self,
@@ -572,6 +572,7 @@ class DocumentChunker:
             normalized_content,
         )
         metadata: dict[str, Any] = {
+            "generated_by_ragscanner": True,
             "chunking_strategy": self.config.strategy.value,
             "chunker_version": self.version,
             "tokenizer": self.tokenizer.name,
