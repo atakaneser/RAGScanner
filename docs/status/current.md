@@ -55,6 +55,8 @@
 - Exact and lexical near-duplicate analysis plus deterministic chunk-quality analysis
 - Unified filesystem-to-report static pipeline with isolated file failures and assessed-only scoring
 - Concise terminal summaries and versioned JSON/standalone HTML reports
+- Authenticated saved-report downloads as localized standalone HTML, structured multi-sheet XLSX,
+  and paginated PDF, generated locally from the persisted redacted report snapshot
 - Opt-in local SQLite report history with versioned migrations, execution identities, paginated CLI
   listing/detail/deletion, and coverage-aware comparison
 - Framework-independent history application services and a versioned localhost API for history,

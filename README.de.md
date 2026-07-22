@@ -21,7 +21,7 @@ Aufträge, Berichtsverlauf, wiederkehrende Überwachung und optionale KI-Beratun
 | Formate | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML und Protokolle |
 | Externe Quellen | OpenWebUI-Wissensdatenbanken; HTTPS-Seiten, Dokumente, gleichursprüngliche Sitemaps und zugängliche SharePoint-URLs |
 | Analyse | Statische Sicherheitsregeln, exakte/lexikalische Duplikate und Chunk-Qualität |
-| Berichte | Terminal, JSON, eigenständiges HTML und detaillierte Dashboard-Berichte |
+| Berichte | Terminal/JSON sowie lokalisierte Downloads als HTML, Excel und PDF |
 | Verlauf | Lesbare IDs, Filter, Details, Vergleich, Gesundheitstrend und dauerhaftes Löschen |
 | Aufträge | Dauerhafte Einzelaufträge, Intervalle, Abbruch, Wiederholung, Fortschritt und sichere Logs |
 | KI | Optionale lokale oder ausdrücklich erlaubte externe Beratung; standardmäßig aus |
@@ -117,6 +117,9 @@ Bei wiederkehrenden Zeitplänen lassen sich nächste Ausführung und Intervall �
 Sicherheit, Inhaltsqualität, Effizienz, Datei/Seite/Zeile und markierte Nachweise. Überall gelten
 dieselben Farbschwellen: unter 85 gelb, unter 70 orange, unter 55 rot. Die KI-Analyse wartet für
 langsame lokale Modelle standardmäßig 180 Sekunden; Fehler und Berichtsdaten folgen der gewählten Sprache.
+Jeder gespeicherte Bericht kann auf seiner Detailseite als netzwerkfreies eigenständiges HTML,
+strukturierte Excel-Arbeitsmappe mit mehreren Blättern oder paginiertes PDF heruntergeladen werden.
+Exporte verwenden die gewählte Sprache; Quellnachweise bleiben in ihrer Originalsprache.
 
 Nützliche Betriebsbefehle:
 

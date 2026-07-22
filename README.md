@@ -21,7 +21,7 @@ monitoring, and optional advisory AI analysis in a machine-local dashboard.
 | Formats | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML, and logs |
 | Remote sources | OpenWebUI knowledge bases; HTTPS pages, documents, same-origin sitemaps, and accessible SharePoint URLs |
 | Analysis | Static security rules, exact/lexical duplicate checks, and chunk-quality checks |
-| Reports | Terminal, JSON, standalone HTML, and detailed dashboard reports |
+| Reports | Terminal/JSON plus localized dashboard downloads in standalone HTML, Excel, and PDF |
 | History | Readable IDs, filters, detail, comparison, health trends, and permanent deletion |
 | Jobs | Durable one-time jobs, recurring intervals, cancellation, retry, progress, and safe logs |
 | AI | Optional local or explicitly consented remote advisory analysis; off by default |
@@ -117,6 +117,9 @@ their next run time and interval for editing. Reports show security, content-qua
 scores, file/page/line provenance, highlighted evidence, and the same score bands everywhere: below
 85 yellow, below 70 orange, and below 55 red. AI analysis waits up to 180 seconds by default for
 slower local models; provider errors and report UI data follow the selected dashboard language.
+Every saved report can be downloaded from its detail page as a network-free standalone HTML file,
+a structured multi-sheet Excel workbook, or a paginated PDF. Exports use the selected interface
+language while preserving source evidence in its original language.
 
 Useful operational commands include:
 

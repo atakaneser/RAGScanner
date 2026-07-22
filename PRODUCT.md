@@ -22,6 +22,7 @@ entitlement, license server, private rule feed, or artificial feature restrictio
   calendar rules and change-triggered scans remain planned
 - Localhost history/detail/comparison API plus scoped Bearer-authenticated asynchronous scan and job
   control
+- Localized saved-report downloads as standalone HTML, structured Excel workbooks, and paginated PDF
 - Durable SQLite static-scan jobs with CLI enqueue/control and a user-facing worker process
 - Consent-gated OpenWebUI knowledge content scans; heterogeneous enterprise, web, repository,
   object-store, and vector sources remain planned
@@ -82,6 +83,10 @@ The implemented report score combines assessed security, knowledge-quality, and 
 dimensions. Contradiction detection was removed because the bounded labelled-value heuristic did
 not meet the product's accuracy bar. General semantic contradictions, freshness, and
 superseded-version inference remain unassessed.
+
+Saved-report exports are delivery views over the persisted redacted report snapshot. They do not
+re-read raw source documents. Spreadsheet text is emitted as data rather than formulas, HTML has no
+network-capable assets, and PDF generation is local.
 
 ## Local operation and authentication
 

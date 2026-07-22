@@ -188,13 +188,16 @@ knowledge bases, then persists only the reference in a consented job.
 
 Guided and asynchronous scans persist a redacted `ReportDocument` snapshot in SQLite. The dashboard
 renders overview, job, source, report archive, report detail, and coverage-aware comparison pages
-from application services. Date/source filtering is performed by the history port. Dashboard work
-does not create a standalone HTML report artifact; explicit CLI HTML/JSON exports remain separate
-delivery adapters.
+from application services. Date/source filtering is performed by the history port. An authenticated
+download route passes the persisted redacted snapshot to delivery-only HTML, XLSX, or PDF exporters;
+these exporters do not import connectors, re-read raw documents, or perform network access. Explicit
+CLI HTML/JSON exports remain separate delivery adapters.
 
 Reports preserve file, page, and line provenance where parsers can supply it, plus a bounded matched
 text fragment for safe highlighting. Security, knowledge quality, and efficiency feed the assessed-
 dimension product score. Contradiction inference is not part of the pipeline; see ADR-0037.
+HTML exports escape untrusted fields and prohibit scripts and connections through CSP. XLSX exports
+neutralize formula-leading cells, and PDF uses embedded/local font resources with bounded report data.
 
 ## Active-security flow
 
