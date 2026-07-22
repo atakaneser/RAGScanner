@@ -259,12 +259,46 @@ def test_markdown_collection_does_not_report_chunker_artifacts_as_source_finding
             "QUALITY-CHUNK-PUNCTUATION-ONLY-CHUNK",
             "QUALITY-CHUNK-UNRELATED-HEADING-BRANCHES",
             "QUALITY-CHUNK-EXCESSIVE-OVERLAP",
+            "QUALITY-CHUNK-APPROXIMATE-MAPPING",
         }
     )
     assert not any(
         finding.rule_id == "QUALITY-EXACT-DUPLICATE-CHUNK" and finding.evidence.strip() == "---"
         for finding in result.findings
     )
+
+
+def test_openwebui_style_markdown_lengths_and_apostrophes_do_not_create_quality_noise(
+    tmp_path: Path,
+) -> None:
+    vpn = """## VPN Push Bildirimi Gelmiyor — SMS ile Doğrulama
+
+1. **Adım:** İnternet Mobil Şube uygulaması üzerinden Push Onayı ile erişimlerde genel sorun yaşandığında SMS doğrulaması ile erişim sağlayabilirsiniz.
+2. **Adım:** VPN'e bağlanmak için açılan ekranda sicilinizi ve şifrenizi girdikten sonra şifrenizin sonuna **',,sms'** yazısını ekleyiniz.
+3. **Adım:** 'Type your SMS Token/Code' yazısını gördükten sonra telefonunuza gelen kodu ilgili alana giriniz.
+"""
+    (tmp_path / "vpn.md").write_text(vpn, encoding="utf-8")
+    for index in range(12):
+        paragraphs = " ".join(
+            f"Bu, kaynak {index} için eksiksiz ve benzersiz destek adımı {step}."
+            for step in range(index + 1)
+        )
+        (tmp_path / f"support-{index:02}.md").write_text(
+            f"## Destek konusu {index}\n\n{paragraphs}\n", encoding="utf-8"
+        )
+
+    result = run(tmp_path)
+    rules = {finding.rule_id for finding in result.findings}
+
+    assert {
+        "QUALITY-CHUNK-UNDERSIZED-CHUNK",
+        "QUALITY-CHUNK-EXTREME-SIZE-OUTLIER",
+        "QUALITY-CHUNK-APPROXIMATE-MAPPING",
+    }.isdisjoint(rules)
+    vpn_chunks = [chunk for chunk in result.chunks if chunk.source.source_path == "vpn.md"]
+    assert vpn_chunks
+    assert "VPN'e" in "\n".join(chunk.normalized_content for chunk in vpn_chunks)
+    assert "&#x27;" not in "\n".join(chunk.normalized_content for chunk in vpn_chunks)
 
 
 def test_no_network_subprocess_or_raw_content_logging() -> None:

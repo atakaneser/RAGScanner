@@ -54,7 +54,10 @@
 - Versioned offline static security rules covering ten categories
 - Exact and lexical near-duplicate analysis plus deterministic chunk-quality analysis
 - False-positive controls for scanner-owned blank/delimiter chunks, Markdown front matter, normal
-  heading ancestry, and overlap capped at 20 percent of the generated chunk
+  heading ancestry, overlap capped at 20 percent of the generated chunk, naturally short
+  single-chunk sources, cross-document size variation, and normalization-only approximate mappings
+- Plain-text bounded finding evidence with output-context escaping, preserving apostrophes and
+  quotation marks in dashboard and PDF views without weakening HTML safety
 - Unified filesystem-to-report static pipeline with isolated file failures and assessed-only scoring
 - Concise terminal summaries and versioned JSON/standalone HTML reports
 - Authenticated saved-report downloads as localized standalone HTML, structured multi-sheet XLSX,

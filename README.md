@@ -120,6 +120,9 @@ slower local models; provider errors and report UI data follow the selected dash
 Every saved report can be downloaded from its detail page as a network-free standalone HTML file,
 a structured multi-sheet Excel workbook, or a paginated PDF. Exports use the selected interface
 language while preserving source evidence in its original language.
+New scans preserve source punctuation such as apostrophes in dashboard and PDF evidence. Naturally
+short single-document answers and normalization-only offset approximations are not reported as
+chunk defects.
 
 Useful operational commands include:
 

@@ -88,6 +88,19 @@ def test_pdf_groups_repeated_findings_and_bounds_occurrence_details(report, find
     assert len(reader.pages) < 10
 
 
+def test_pdf_renders_plain_source_apostrophes_instead_of_html_entities(report, finding) -> None:  # type: ignore[no-untyped-def]
+    item = finding("apostrophe")
+    item.evidence = "## VPN'e bağlanma\nVPN'e bağlanmak için ',,sms' ekleyin."
+    item.evidence_highlight = "VPN'e bağlanmak"
+    exported = export_report(report("scan-apostrophe", findings=[item]), "pdf", locale="tr")
+    extracted = "\n".join(
+        page.extract_text() or "" for page in PdfReader(BytesIO(exported.content)).pages
+    )
+
+    assert "VPN'e" in extracted
+    assert "&#x27;" not in extracted
+
+
 def test_report_export_filename_is_bounded_and_safe(report) -> None:  # type: ignore[no-untyped-def]
     value = report("scan-name", source_name="Policy / ../../ unsafe")
     filename = report_export_filename(value, "abcdef0123456789", "xlsx")

@@ -2,7 +2,6 @@
 
 import base64
 import codecs
-import html
 import math
 import re
 from collections import Counter
@@ -94,7 +93,7 @@ class _Match:
 
 class StaticSecurityScanner:
     name = "static_security_scanner"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -649,8 +648,7 @@ class StaticSecurityScanner:
             )
             value = _CLOUD_KEY.sub("[REDACTED CLOUD KEY]", value)
         value = mask_secret_like_values(value)
-        bounded = value[: self.config.maximum_evidence_size]
-        return html.escape(bounded, quote=True)
+        return value[: self.config.maximum_evidence_size]
 
     @staticmethod
     def _safe_metadata(value: dict[str, Any]) -> dict[str, Any]:
