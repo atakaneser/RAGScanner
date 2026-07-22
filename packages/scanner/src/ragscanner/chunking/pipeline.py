@@ -51,7 +51,7 @@ class DocumentChunker:
     """Create stable Chunk models without mutating document or normalization output."""
 
     name = "document_chunker"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -175,7 +175,46 @@ class DocumentChunker:
             for start, end in pairwise(ordered)
             if end > start
         ]
-        return self._heading_paths(text, blocks, normalized.annotations)
+        enriched = self._heading_paths(text, blocks, normalized.annotations)
+        return self._attach_nonsemantic_blocks(text, enriched)
+
+    def _attach_nonsemantic_blocks(self, text: str, blocks: list[_Block]) -> list[_Block]:
+        """Keep delimiters and whitespace with nearby content instead of indexing them alone."""
+        if not blocks or not any(self._has_semantic_content(text, block) for block in blocks):
+            return blocks
+        result: list[_Block] = []
+        leading: list[_Block] = []
+        for block in blocks:
+            if self._has_semantic_content(text, block):
+                if leading:
+                    block = self._combined_block([*leading, block], heading_path=block.heading_path)
+                    leading = []
+                result.append(block)
+            elif result:
+                result[-1] = self._combined_block(
+                    [result[-1], block], heading_path=result[-1].heading_path
+                )
+            else:
+                leading.append(block)
+        return result
+
+    @staticmethod
+    def _has_semantic_content(text: str, block: _Block) -> bool:
+        return any(character.isalnum() for character in text[block.start : block.end])
+
+    @staticmethod
+    def _combined_block(blocks: list[_Block], *, heading_path: list[str]) -> _Block:
+        return _Block(
+            start=blocks[0].start,
+            end=blocks[-1].end,
+            block_types={kind for block in blocks for kind in block.block_types},
+            heading_path=list(heading_path),
+            pages={page for block in blocks for page in block.pages},
+            sections={section for block in blocks for section in block.sections},
+            parser_blocks={value for block in blocks for value in block.parser_blocks},
+            approximate=any(block.approximate for block in blocks),
+            forced_split=any(block.forced_split for block in blocks),
+        )
 
     def _structural_ranges(
         self, text: str, annotations: list[NormalizationAnnotation]
@@ -436,7 +475,10 @@ class DocumentChunker:
                 )
                 continue
             tokens = self.tokenizer.spans(text[previous.start : previous.end])
-            overlap = min(requested, max(0, len(tokens) - 1))
+            current_tokens = self.tokenizer.count(text[current.start : current.end])
+            ratio = self.config.maximum_overlap_ratio
+            ratio_limit = int(current_tokens * ratio / (1 - ratio)) if ratio < 1 else current_tokens
+            overlap = min(requested, max(0, len(tokens) - 1), ratio_limit)
             if overlap == 0:
                 continue
             overlap_start = previous.start + tokens[-overlap].start

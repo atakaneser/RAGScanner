@@ -86,7 +86,12 @@ superseded-version inference remain unassessed.
 
 Saved-report exports are delivery views over the persisted redacted report snapshot. They do not
 re-read raw source documents. Spreadsheet text is emitted as data rather than formulas, HTML has no
-network-capable assets, and PDF generation is local.
+network-capable assets, and PDF generation is local. PDF groups repeated rule occurrences into a
+bounded review summary; HTML and Excel retain the complete finding list.
+
+Chunk-quality findings describe source or upstream chunk risks, not artifacts introduced by
+RAGScanner itself. Generated whitespace/delimiter blocks, normal heading ancestry, and bounded
+configured overlap do not become source findings.
 
 ## Local operation and authentication
 

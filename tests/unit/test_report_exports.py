@@ -64,6 +64,30 @@ def test_pdf_export_is_readable_in_every_supported_locale(locale, report, findin
     assert "scan-pdf" not in extracted  # exports do not expose an internal scan id as a heading
 
 
+def test_pdf_groups_repeated_findings_and_bounds_occurrence_details(report, finding) -> None:  # type: ignore[no-untyped-def]
+    repeated = []
+    for index in range(80):
+        item = finding("a")
+        item.id = f"finding-{index}"
+        item.fingerprint = f"{index:064x}"
+        item.title = "Excessive Overlap"
+        item.rule_id = "QUALITY-CHUNK-EXCESSIVE-OVERLAP"
+        item.source = f"support-{index:02}.md"
+        item.impact = "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure."
+        item.recommendation = (
+            "Reduce bounded overlap without crossing unrelated structural boundaries."
+        )
+        repeated.append(item)
+    exported = export_report(report("scan-grouped", findings=repeated), "pdf", locale="tr")
+    reader = PdfReader(BytesIO(exported.content))
+    extracted = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    assert "Aşırı bindirme" in extracted
+    assert "Tekrarlar: 80" in extracted
+    assert "60 tekrar daha PDF özetinden çıkarıldı" in extracted
+    assert len(reader.pages) < 10
+
+
 def test_report_export_filename_is_bounded_and_safe(report) -> None:  # type: ignore[no-untyped-def]
     value = report("scan-name", source_name="Policy / ../../ unsafe")
     filename = report_export_filename(value, "abcdef0123456789", "xlsx")

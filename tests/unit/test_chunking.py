@@ -316,6 +316,43 @@ def test_overlap_is_bounded_disableable_and_not_cross_section() -> None:
     assert "# A" not in b_chunk.normalized_content
 
 
+def test_overlap_ratio_is_bounded_for_short_chunks() -> None:
+    content = (
+        "one two three four five six seven eight.\n\n"
+        "nine ten eleven twelve thirteen fourteen fifteen sixteen."
+    )
+    _, _, result = run(
+        content,
+        target_token_count=8,
+        maximum_token_count=50,
+        overlap_token_count=30,
+    )
+    overlapped = result.chunks[1]
+    overlap_tokens = result.statistics.overlap_tokens
+    assert overlapped.metadata["overlap_applied"] is True
+    assert overlap_tokens / overlapped.token_count <= 0.2
+
+
+def test_markdown_delimiters_and_trailing_whitespace_are_not_standalone_chunks() -> None:
+    content = "---\nclassification: Public\nversion: 2.0\n---\n\n# Help\n\nUseful answer.\n\n"
+    _, normalized, result = run(
+        content,
+        mime="text/markdown",
+        metadata={"headings": [{"line": 6, "level": 1, "text": "Help"}]},
+        target_token_count=8,
+        maximum_token_count=30,
+    )
+    assert (
+        "".join(chunk.normalized_content for chunk in result.chunks)
+        == normalized.normalized_content
+    )
+    assert all(chunk.normalized_content.strip() for chunk in result.chunks)
+    assert all(
+        any(character.isalnum() for character in chunk.normalized_content)
+        for chunk in result.chunks
+    )
+
+
 def test_stable_ids_and_configuration_identity() -> None:
     source = make_document("one two three four five six seven eight nine ten")
     normalized = DocumentNormalizer().normalize(source)

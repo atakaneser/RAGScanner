@@ -231,6 +231,42 @@ def test_determinism_multilingual_and_100_document_smoke(tmp_path: Path) -> None
     assert first.scan.id == second.scan.id
 
 
+def test_markdown_collection_does_not_report_chunker_artifacts_as_source_findings(
+    tmp_path: Path,
+) -> None:
+    for index in range(37):
+        (tmp_path / f"support-{index:02}.md").write_text(
+            "---\n"
+            "classification: Public\n"
+            "last_reviewed: 2026-07-20\n"
+            f"related_documents: support-{(index + 1) % 37:02}.md\n"
+            "content_style: hybrid_explanatory_faq\n"
+            "version: 2.0\n"
+            "---\n\n"
+            f"# Support topic {index}\n\n"
+            "This guide contains a distinct and complete support procedure with clear context.\n\n"
+            "## Resolution\n\n"
+            f"Follow the verified resolution path for synthetic case {index} and record the result.\n\n"
+            "### If the issue continues\n\n"
+            f"Escalate synthetic case {index} with its bounded diagnostics and source identity.\n\n",
+            encoding="utf-8",
+        )
+    result = run(tmp_path)
+    rules = {finding.rule_id for finding in result.findings}
+    assert rules.isdisjoint(
+        {
+            "QUALITY-CHUNK-EMPTY-CHUNK",
+            "QUALITY-CHUNK-PUNCTUATION-ONLY-CHUNK",
+            "QUALITY-CHUNK-UNRELATED-HEADING-BRANCHES",
+            "QUALITY-CHUNK-EXCESSIVE-OVERLAP",
+        }
+    )
+    assert not any(
+        finding.rule_id == "QUALITY-EXACT-DUPLICATE-CHUNK" and finding.evidence.strip() == "---"
+        for finding in result.findings
+    )
+
+
 def test_no_network_subprocess_or_raw_content_logging() -> None:
     package = Path(__file__).resolve().parents[2] / "packages/scanner/src/ragscanner/pipeline"
     text = "\n".join(path.read_text() for path in package.glob("*.py"))

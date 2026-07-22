@@ -35,6 +35,7 @@ class ChunkingConfig(BaseModel):
     maximum_blocks: int = Field(default=100_000, gt=0)
     maximum_chunks_per_document: int = Field(default=10_000, gt=0)
     maximum_overlap_tokens: int = Field(default=100, ge=0)
+    maximum_overlap_ratio: float = Field(default=0.2, ge=0, le=0.5)
     maximum_metadata_characters: int = Field(default=16_384, gt=0)
 
     @model_validator(mode="after")
