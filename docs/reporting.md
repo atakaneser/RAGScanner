@@ -22,6 +22,10 @@ Finding order is deterministic: severity, classification, confidence, category, 
 and fingerprint. Severity, confidence, and classification remain separate. Missing scores are
 `null`/`Not assessed`; estimated token or character savings are labeled as estimates.
 
+Dashboard PDF downloads group identical rule/remediation occurrences, repeat the shared impact and
+recommendation once, and print at most 20 locations per group. The omitted count is explicit; HTML
+and Excel downloads preserve the complete finding list for audit and filtering.
+
 Report-time filters support severity, category, classification, document, target, rule ID,
 informational inclusion, and maximum findings. Filters never mutate source results and truncation is
 always reported.

@@ -53,10 +53,13 @@
 - Deterministic normalization, source mapping, and structure/paragraph/token-window chunking
 - Versioned offline static security rules covering ten categories
 - Exact and lexical near-duplicate analysis plus deterministic chunk-quality analysis
+- False-positive controls for scanner-owned blank/delimiter chunks, Markdown front matter, normal
+  heading ancestry, and overlap capped at 20 percent of the generated chunk
 - Unified filesystem-to-report static pipeline with isolated file failures and assessed-only scoring
 - Concise terminal summaries and versioned JSON/standalone HTML reports
 - Authenticated saved-report downloads as localized standalone HTML, structured multi-sheet XLSX,
-  and paginated PDF, generated locally from the persisted redacted report snapshot
+  and paginated PDF, generated locally from the persisted redacted report snapshot; PDF groups
+  repeated rule occurrences while HTML/XLSX retain the exhaustive list
 - Opt-in local SQLite report history with versioned migrations, execution identities, paginated CLI
   listing/detail/deletion, and coverage-aware comparison
 - Framework-independent history application services and a versioned localhost API for history,

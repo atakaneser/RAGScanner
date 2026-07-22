@@ -41,6 +41,10 @@ _TOKEN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _WORD = re.compile(r"\w+", re.UNICODE)
 _PAGE_NUMBER = re.compile(r"(?i)^\s*(?:page|sayfa)?\s*[-–—]?\s*\d+(?:\s*/\s*\d+)?\s*[-–—]?\s*$")
 _CONTROL_MARKER = re.compile(r"<(?:NUL|ZWSP|ZWNJ|BIDI:[A-Z]+|CONTROL:U\+[0-9A-F]+|REPLACEMENT)>")
+_FRONT_MATTER_KEY = re.compile(
+    r"(?im)^\s*(?:title|classification|audience|last_reviewed|related_documents|"
+    r"content_style|version|owner|tags?)\s*:"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,7 +130,7 @@ def _finding(
 
 class ExactDuplicateScanner:
     name = "exact_duplicate_scanner"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -233,6 +237,8 @@ class ExactDuplicateScanner:
             if associated_document is None:
                 skipped.append(chunk.id)
                 continue
+            if self._is_non_content_chunk(chunk.normalized_content):
+                continue
             result.append(
                 _Item(
                     DuplicateItemType.CHUNK,
@@ -246,6 +252,13 @@ class ExactDuplicateScanner:
                 )
             )
         return result
+
+    @staticmethod
+    def _is_non_content_chunk(value: str) -> bool:
+        stripped = value.strip()
+        if not stripped or not any(character.isalnum() for character in stripped):
+            return True
+        return len(_FRONT_MATTER_KEY.findall(stripped)) >= 3
 
     @staticmethod
     def _canonical_key(item: _Item) -> tuple[str, str]:
@@ -588,7 +601,7 @@ class NearDuplicateScanner(ExactDuplicateScanner):
 
 class ChunkQualityScanner:
     name = "chunk_quality_scanner"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -793,16 +806,6 @@ class ChunkQualityScanner:
                 )
             )
         headings = chunk.headings
-        if len({heading.splitlines()[0] for heading in headings}) > 1:
-            add(
-                (
-                    "unrelated_heading_branches",
-                    Severity.MEDIUM,
-                    "Chunk carries multiple unrelated heading branches.",
-                    "structure",
-                    {},
-                )
-            )
         if not headings and chunk.index > 0 and stripped[0].islower():
             add(
                 (

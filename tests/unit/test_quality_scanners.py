@@ -111,6 +111,22 @@ def test_exact_chunk_duplicates_and_repeated_chunk_within_document() -> None:
     assert len(result.findings) == 2
 
 
+def test_exact_duplicates_ignore_delimiters_and_front_matter_chunks() -> None:
+    docs = [doc("d1", "body"), doc("d2", "body 2")]
+    front_matter = "classification: Public\nlast_reviewed: 2026-07-20\nversion: 2.0\n---"
+    values = [
+        chunk("separator-1", "d1", 0, "---"),
+        chunk("separator-2", "d2", 0, "---"),
+        chunk("metadata-1", "d1", 1, front_matter),
+        chunk("metadata-2", "d2", 1, front_matter),
+        chunk("content-1", "d1", 2, "A material repeated support answer with useful prose."),
+        chunk("content-2", "d2", 2, "A material repeated support answer with useful prose."),
+    ]
+    result = ExactDuplicateScanner().scan(docs, normalized(docs), values)
+    assert len(result.groups) == 1
+    assert result.groups[0].canonical_item_id == "content-1"
+
+
 def test_empty_exact_content_excluded_and_limits_warn() -> None:
     docs = [doc("a", ""), doc("b", ""), doc("c", "unique")]
     result = ExactDuplicateScanner(DuplicateScanConfig(maximum_documents=2)).scan(
@@ -264,6 +280,36 @@ def test_structural_metadata_findings_and_healthy_structure() -> None:
         "QUALITY-CHUNK-MIDDLE-SENTENCE-END",
     }.issubset(rules)
     assert not any(finding.chunk_id == "healthy" for finding in result.findings)
+
+
+def test_nested_heading_path_is_not_treated_as_unrelated_branches() -> None:
+    document = doc("d", "body")
+    nested = chunk(
+        "nested",
+        "d",
+        0,
+        "A complete answer under a normal nested heading path.",
+        headings=["# Parent", "## Child"],
+    )
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(minimum_chunk_tokens=0, target_chunk_tokens=20, maximum_chunk_tokens=50)
+    ).scan([document], [nested], normalized([document]))
+    assert "QUALITY-CHUNK-UNRELATED-HEADING-BRANCHES" not in finding_rules(result)
+
+
+def test_ratio_bounded_generated_overlap_is_not_reported_as_excessive() -> None:
+    document = doc("d", "body")
+    first = chunk("a", "d", 0, "one two three four five six seven eight")
+    second = chunk("b", "d", 1, "seven eight nine ten eleven twelve thirteen fourteen")
+    result = ChunkQualityScanner(
+        ChunkQualityConfig(
+            minimum_chunk_tokens=0,
+            target_chunk_tokens=20,
+            maximum_chunk_tokens=50,
+            overlap_warning_threshold=0.4,
+        )
+    ).scan([document], [first, second], normalized([document]))
+    assert "QUALITY-CHUNK-EXCESSIVE-OVERLAP" not in finding_rules(result)
 
 
 @pytest.mark.parametrize(

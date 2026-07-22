@@ -198,6 +198,10 @@ text fragment for safe highlighting. Security, knowledge quality, and efficiency
 dimension product score. Contradiction inference is not part of the pipeline; see ADR-0037.
 HTML exports escape untrusted fields and prohibit scripts and connections through CSP. XLSX exports
 neutralize formula-leading cells, and PDF uses embedded/local font resources with bounded report data.
+PDF groups repeated occurrences by rule and limits the printed locations per group; exhaustive rows
+remain available in HTML and XLSX. Chunk-quality findings exclude scanner-owned whitespace,
+front-matter delimiters, normal heading ancestry, and generated overlap within its configured ratio;
+see ADR-0040.
 
 ## Active-security flow
 

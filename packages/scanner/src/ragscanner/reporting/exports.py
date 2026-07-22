@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
@@ -41,6 +42,7 @@ ReportExportFormat = Literal["html", "xlsx", "pdf"]
 SUPPORTED_REPORT_EXPORTS: tuple[ReportExportFormat, ...] = ("html", "xlsx", "pdf")
 _LOCALES = frozenset({"en", "tr", "de", "fr", "zh-CN", "it"})
 _MAX_CELL_LENGTH = 32_000
+_PDF_OCCURRENCES_PER_GROUP = 20
 
 
 @dataclass(frozen=True)
@@ -107,6 +109,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Medium": "Orta",
         "Low": "Düşük",
         "Info": "Bilgi",
+        "Occurrences": "Tekrarlar",
+        "{count} more occurrences omitted; use HTML or Excel for the complete finding list.": "{count} tekrar daha PDF özetinden çıkarıldı; tam bulgu listesi için HTML veya Excel kullanın.",
+        "Empty Chunk": "Boş chunk",
+        "Punctuation Only Chunk": "Yalnızca noktalama içeren chunk",
+        "Excessive Overlap": "Aşırı bindirme",
+        "Unrelated Heading Branches": "İlgisiz başlık dalları",
+        "Exact normalized-content duplicate group": "Tam normalleştirilmiş içerik tekrar grubu",
+        "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure.": "Düşük chunk kalitesi arama doğruluğunu azaltabilir, bağlamı israf edebilir veya kaynak yapısını gizleyebilir.",
+        "Redundant indexed content can waste storage and bias retrieval.": "Gereksiz yinelenen indeks içeriği depolamayı israf edebilir ve aramayı yanlı hale getirebilir.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Chunk'ı inceleyin ve gerekiyorsa deterministik parçalama ayarını düzeltin.",
+        "Reduce bounded overlap without crossing unrelated structural boundaries.": "İlgisiz yapısal sınırları aşmadan bindirmeyi azaltın.",
+        "Review the group and keep one canonical item; do not delete automatically.": "Grubu inceleyin ve tek bir kanonik öğe bırakın; otomatik olarak silmeyin.",
+        "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.": "AI tarafından üretilen analiz tavsiye niteliğindedir. İşlem yapmadan önce deterministik bulgular ve dayanak kanıtlarla doğrulayın.",
+        "completed": "tamamlandı",
+        "completed_with_warnings": "uyarılarla tamamlandı",
+        "assessed": "değerlendirildi",
+        "not_assessed": "değerlendirilmedi",
         "Generated locally by RAGScanner. No external assets or network requests.": "RAGScanner tarafından yerel olarak oluşturuldu. Harici varlık veya ağ isteği içermez.",
     },
     "de": {
@@ -165,6 +184,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Medium": "Mittel",
         "Low": "Niedrig",
         "Info": "Info",
+        "Occurrences": "Vorkommen",
+        "{count} more occurrences omitted; use HTML or Excel for the complete finding list.": "{count} weitere Vorkommen wurden in der PDF-Zusammenfassung ausgelassen; die vollständige Liste ist in HTML oder Excel verfügbar.",
+        "Empty Chunk": "Leerer Chunk",
+        "Punctuation Only Chunk": "Chunk nur mit Satzzeichen",
+        "Excessive Overlap": "Übermäßige Überlappung",
+        "Unrelated Heading Branches": "Unabhängige Überschriftenzweige",
+        "Exact normalized-content duplicate group": "Gruppe exakt normalisierter Inhaltsduplikate",
+        "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure.": "Schlechte Chunk-Qualität kann die Abrufpräzision verringern, Kontext verschwenden oder die Quellstruktur verbergen.",
+        "Redundant indexed content can waste storage and bias retrieval.": "Redundanter indexierter Inhalt kann Speicher verschwenden und den Abruf verzerren.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Prüfen Sie den Chunk und passen Sie bei Bedarf die deterministische Chunk-Konfiguration an.",
+        "Reduce bounded overlap without crossing unrelated structural boundaries.": "Reduzieren Sie die begrenzte Überlappung, ohne unabhängige Strukturgrenzen zu überschreiten.",
+        "Review the group and keep one canonical item; do not delete automatically.": "Prüfen Sie die Gruppe und behalten Sie ein kanonisches Element; nicht automatisch löschen.",
+        "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.": "KI-generierte Analysen sind Hinweise. Prüfen Sie sie vor Maßnahmen anhand der deterministischen Befunde und Belege.",
+        "completed": "abgeschlossen",
+        "completed_with_warnings": "mit Warnungen abgeschlossen",
+        "assessed": "bewertet",
+        "not_assessed": "nicht bewertet",
         "Generated locally by RAGScanner. No external assets or network requests.": "Lokal von RAGScanner erstellt. Keine externen Ressourcen oder Netzwerkanfragen.",
     },
     "fr": {
@@ -223,6 +259,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Medium": "Moyenne",
         "Low": "Faible",
         "Info": "Info",
+        "Occurrences": "Occurrences",
+        "{count} more occurrences omitted; use HTML or Excel for the complete finding list.": "{count} occurrences supplémentaires ont été omises du résumé PDF ; utilisez HTML ou Excel pour la liste complète.",
+        "Empty Chunk": "Fragment vide",
+        "Punctuation Only Chunk": "Fragment composé uniquement de ponctuation",
+        "Excessive Overlap": "Chevauchement excessif",
+        "Unrelated Heading Branches": "Branches de titres sans rapport",
+        "Exact normalized-content duplicate group": "Groupe de contenu normalisé exactement dupliqué",
+        "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure.": "Une mauvaise qualité de fragment peut réduire la précision de recherche, gaspiller le contexte ou masquer la structure source.",
+        "Redundant indexed content can waste storage and bias retrieval.": "Le contenu indexé redondant peut gaspiller du stockage et biaiser la recherche.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Examinez le fragment et ajustez la configuration déterministe si nécessaire.",
+        "Reduce bounded overlap without crossing unrelated structural boundaries.": "Réduisez le chevauchement limité sans franchir de limites structurelles sans rapport.",
+        "Review the group and keep one canonical item; do not delete automatically.": "Examinez le groupe et conservez un élément canonique ; ne supprimez rien automatiquement.",
+        "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.": "L’analyse générée par l’IA est consultative. Vérifiez-la avec les constats déterministes et les preuves avant d’agir.",
+        "completed": "terminé",
+        "completed_with_warnings": "terminé avec avertissements",
+        "assessed": "évalué",
+        "not_assessed": "non évalué",
         "Generated locally by RAGScanner. No external assets or network requests.": "Généré localement par RAGScanner. Aucune ressource externe ni requête réseau.",
     },
     "zh-CN": {
@@ -281,6 +334,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Medium": "中",
         "Low": "低",
         "Info": "信息",
+        "Occurrences": "出现位置",
+        "{count} more occurrences omitted; use HTML or Excel for the complete finding list.": "PDF 摘要省略了另外 {count} 个位置；请使用 HTML 或 Excel 查看完整发现列表。",
+        "Empty Chunk": "空分块",
+        "Punctuation Only Chunk": "仅含标点的分块",
+        "Excessive Overlap": "重叠过多",
+        "Unrelated Heading Branches": "不相关的标题分支",
+        "Exact normalized-content duplicate group": "完全相同的规范化内容重复组",
+        "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure.": "分块质量不佳可能降低检索精度、浪费上下文或隐藏来源结构。",
+        "Redundant indexed content can waste storage and bias retrieval.": "冗余索引内容可能浪费存储空间并使检索产生偏差。",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "检查该分块，并在适当时调整确定性分块配置。",
+        "Reduce bounded overlap without crossing unrelated structural boundaries.": "在不跨越无关结构边界的前提下减少受限重叠。",
+        "Review the group and keep one canonical item; do not delete automatically.": "检查该组并保留一个规范项；不要自动删除。",
+        "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.": "AI 生成的分析仅供参考。采取行动前，请根据确定性发现和基础证据进行核实。",
+        "completed": "已完成",
+        "completed_with_warnings": "已完成但有警告",
+        "assessed": "已评估",
+        "not_assessed": "未评估",
         "Generated locally by RAGScanner. No external assets or network requests.": "由 RAGScanner 在本地生成，不包含外部资源或网络请求。",
     },
     "it": {
@@ -339,6 +409,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Medium": "Media",
         "Low": "Bassa",
         "Info": "Info",
+        "Occurrences": "Occorrenze",
+        "{count} more occurrences omitted; use HTML or Excel for the complete finding list.": "Altre {count} occorrenze sono state omesse dal riepilogo PDF; usa HTML o Excel per l'elenco completo.",
+        "Empty Chunk": "Chunk vuoto",
+        "Punctuation Only Chunk": "Chunk di sola punteggiatura",
+        "Excessive Overlap": "Sovrapposizione eccessiva",
+        "Unrelated Heading Branches": "Rami di intestazione non correlati",
+        "Exact normalized-content duplicate group": "Gruppo di contenuti normalizzati duplicati esatti",
+        "Poor chunk quality can reduce retrieval precision, waste context, or hide source structure.": "Una scarsa qualità dei chunk può ridurre la precisione del recupero, sprecare contesto o nascondere la struttura della fonte.",
+        "Redundant indexed content can waste storage and bias retrieval.": "Il contenuto indicizzato ridondante può sprecare spazio e distorcere il recupero.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Esamina il chunk e modifica la configurazione deterministica se necessario.",
+        "Reduce bounded overlap without crossing unrelated structural boundaries.": "Riduci la sovrapposizione limitata senza attraversare confini strutturali non correlati.",
+        "Review the group and keep one canonical item; do not delete automatically.": "Esamina il gruppo e conserva un elemento canonico; non eliminare automaticamente.",
+        "AI-generated analysis is advisory. Verify it against the deterministic findings and underlying evidence before acting.": "L’analisi generata dall’AI è consultiva. Verificala con i risultati deterministici e le prove prima di agire.",
+        "completed": "completato",
+        "completed_with_warnings": "completato con avvisi",
+        "assessed": "valutato",
+        "not_assessed": "non valutato",
         "Generated locally by RAGScanner. No external assets or network requests.": "Generato localmente da RAGScanner. Nessuna risorsa esterna o richiesta di rete.",
     },
 }
@@ -462,11 +549,11 @@ def _render_html(report: ReportDocument, locale: str) -> str:
         )
         findings.append(
             f'<details class="finding" open><summary><span class="badge {esc(finding.severity.value)}">{esc(t(finding.severity.value.title()))}</span> '
-            f"{esc(finding.title)} <code>{esc(finding.rule_id)}</code></summary>"
+            f"{esc(t(finding.title))} <code>{esc(finding.rule_id)}</code></summary>"
             f"<p><strong>{esc(t('Source location'))}:</strong> {esc(_finding_location(finding, t))}</p>"
-            f'<div class="columns"><section><h3>{esc(t("Impact"))}</h3><p>{esc(finding.impact)}</p></section>'
+            f'<div class="columns"><section><h3>{esc(t("Impact"))}</h3><p>{esc(t(finding.impact))}</p></section>'
             f"<section><h3>{esc(t('Evidence'))}</h3>{highlight}<blockquote>{esc(finding.evidence)}</blockquote></section>"
-            f"<section><h3>{esc(t('AI-assisted fix') if action else t('Recommendation'))}</h3><p>{esc(remediation)}</p>{verification}</section></div></details>"
+            f"<section><h3>{esc(t('AI-assisted fix') if action else t('Recommendation'))}</h3><p>{esc(remediation if action else t(remediation))}</p>{verification}</section></div></details>"
         )
     ai_section = ""
     if report.ai_analysis:
@@ -475,7 +562,7 @@ def _render_html(report: ReportDocument, locale: str) -> str:
             f"<section><h2>{esc(t('AI-assisted analysis'))}</h2><p>{esc(ai.executive_summary)}</p>"
             f'<div class="columns"><div><h3>{esc(t("Priority actions"))}</h3><ol>{"".join(f"<li>{esc(item)}</li>" for item in ai.priority_actions)}</ol></div>'
             f"<div><h3>{esc(t('Questions for review'))}</h3><ul>{''.join(f'<li>{esc(item)}</li>' for item in ai.review_questions)}</ul></div></div>"
-            f'<p class="muted">{esc(ai.provider)} · {esc(ai.model)} · {esc(ai.disclaimer)}</p></section>'
+            f'<p class="muted">{esc(ai.provider)} · {esc(ai.model)} · {esc(t(ai.disclaimer))}</p></section>'
         )
     elif report.ai_analysis_error:
         ai_section = (
@@ -483,7 +570,7 @@ def _render_html(report: ReportDocument, locale: str) -> str:
             f"<p><code>{esc(report.ai_analysis_error_code)}</code> {esc(report.ai_analysis_error)}</p></section>"
         )
     coverage_rows = "".join(
-        f"<tr><td>{esc(area)}</td><td>{esc(value.get('status'))}</td><td>{esc(value.get('reason'))}</td></tr>"
+        f"<tr><td>{esc(area)}</td><td>{esc(t(str(value.get('status'))))}</td><td>{esc(t(str(value.get('reason'))))}</td></tr>"
         for area, value in sorted(report.assessment_coverage.items())
     )
     ingestion_rows = "".join(
@@ -492,7 +579,7 @@ def _render_html(report: ReportDocument, locale: str) -> str:
     )
     return f'''<!doctype html><html lang="{html.escape(locale, quote=True)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>{esc(t("RAGScanner report"))}</title><style>
 :root{{--ink:#10233d;--muted:#5f6d7d;--line:#dce4ea;--accent:#078c91;--panel:#fff;--bg:#f3f7f9}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}}header{{padding:32px;background:linear-gradient(120deg,#061a35,#075b70);color:#fff}}header>div,main,footer{{max-width:1180px;margin:auto}}main,footer{{padding:24px}}section,.finding{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0}}h1,h2,h3{{line-height:1.2}}.meta,.score-grid,.severity,.columns{{display:grid;gap:12px}}.meta{{grid-template-columns:repeat(3,1fr)}}.score-grid{{grid-template-columns:repeat(4,1fr)}}.severity{{grid-template-columns:repeat(5,1fr)}}.columns{{grid-template-columns:repeat(3,1fr)}}.score,.severity>div{{border:1px solid var(--line);border-radius:10px;padding:14px}}.score strong,.severity strong{{display:block;font-size:24px}}.healthy{{border-top:5px solid #15935a}}.warning{{border-top:5px solid #e2b100;background:#fffbeb}}.poor{{border-top:5px solid #e17016;background:#fff4e8}}.critical{{border-top:5px solid #d23845;background:#fff0f1}}.unassessed{{border-top:5px solid #84909c}}.badge{{border:1px solid currentColor;border-radius:99px;padding:2px 8px;font-weight:700}}summary{{cursor:pointer;font-weight:700}}blockquote,mark{{overflow-wrap:anywhere}}blockquote{{margin:8px 0;padding:12px;border-left:4px solid var(--accent);background:#f6fafb}}mark{{background:#fff1a8;padding:2px}}table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}.muted{{color:var(--muted)}}code{{overflow-wrap:anywhere}}@media(max-width:760px){{.meta,.score-grid,.severity,.columns{{grid-template-columns:1fr}}table{{display:block;overflow:auto}}main,footer{{padding:14px}}}}@media print{{body{{background:#fff}}header{{background:#fff;color:#000;border-bottom:2px solid #000}}section,.finding{{break-inside:avoid}}}}
-</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(report.scan.get("status"))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
+</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(t(str(report.scan.get("status"))))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
 
 
 def _cell(value: Any) -> str | int | float:
@@ -537,7 +624,7 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
     summary.title = t("Summary")
     summary.append([t("Report details"), ""])
     _append_key_value(summary, t("Source"), report.scan.get("source_name"))
-    _append_key_value(summary, t("Status"), report.scan.get("status"))
+    _append_key_value(summary, t("Status"), t(str(report.scan.get("status"))))
     _append_key_value(summary, t("Generated"), _display(report.generated_at, fallback=""))
     _append_key_value(summary, t("Overall score"), report.scores.get("overall"))
     _append_key_value(summary, t("Security score"), report.scores.get("security"))
@@ -591,7 +678,7 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
             [
                 _cell(t(finding.severity.value.title())),
                 _cell(finding.rule_id),
-                _cell(finding.title),
+                _cell(t(finding.title)),
                 _cell(finding.category),
                 finding.confidence,
                 _cell(finding.source),
@@ -599,8 +686,8 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
                 _cell(line),
                 _cell(finding.evidence_highlight),
                 _cell(finding.evidence),
-                _cell(finding.impact),
-                _cell(finding.recommendation),
+                _cell(t(finding.impact)),
+                _cell(t(finding.recommendation)),
                 _cell(action.remediation if action else ""),
                 _cell("\n".join(action.verification_steps) if action else ""),
             ]
@@ -610,7 +697,9 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
     coverage = workbook.create_sheet(t("Coverage"))
     coverage.append([t("Area"), t("Status"), t("Reason")])
     for area, value in sorted(report.assessment_coverage.items()):
-        coverage.append([_cell(area), _cell(value.get("status")), _cell(value.get("reason"))])
+        coverage.append(
+            [_cell(area), _cell(t(str(value.get("status")))), _cell(t(str(value.get("reason"))))]
+        )
     _style_sheet(coverage, freeze="A2", auto_filter=True)
 
     ingestion = workbook.create_sheet(t("Ingestion issues"))
@@ -786,7 +875,10 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
                 Paragraph(
                     f"<b>{esc(t('Source'))}</b><br/>{esc(report.scan.get('source_name'))}", body
                 ),
-                Paragraph(f"<b>{esc(t('Status'))}</b><br/>{esc(report.scan.get('status'))}", body),
+                Paragraph(
+                    f"<b>{esc(t('Status'))}</b><br/>{esc(t(str(report.scan.get('status'))))}",
+                    body,
+                ),
                 Paragraph(f"<b>{esc(t('Generated'))}</b><br/>{esc(report.generated_at)}", body),
             ]
         ],
@@ -902,7 +994,7 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
             story.append(Paragraph(esc(t("Questions for review")), h3))
             story.extend(Paragraph(f"- {esc(item)}", body) for item in ai.review_questions)
         story.append(
-            Paragraph(f"{esc(ai.provider)} · {esc(ai.model)} · {esc(ai.disclaimer)}", small)
+            Paragraph(f"{esc(ai.provider)} · {esc(ai.model)} · {esc(t(ai.disclaimer))}", small)
         )
     elif report.ai_analysis_error:
         story.extend(
@@ -923,37 +1015,55 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
         if report.ai_analysis
         else {}
     )
-    for index, finding in enumerate(report.findings, start=1):
+    grouped_findings: defaultdict[
+        tuple[str, str, str, str, str, tuple[str, ...]], list[ReportFinding]
+    ] = defaultdict(list)
+    for finding in report.findings:
         action = action_by_id.get(finding.id)
+        remediation = action.remediation if action else finding.recommendation
+        verification = tuple(action.verification_steps) if action else ()
+        grouped_findings[
+            (
+                finding.rule_id,
+                finding.title,
+                finding.severity.value,
+                finding.impact,
+                remediation,
+                verification,
+            )
+        ].append(finding)
+    for index, (key, findings) in enumerate(grouped_findings.items(), start=1):
+        rule_id, finding_title, severity_value, impact, remediation, verification = key
+        occurrence_label = (
+            f" ({esc(t('Occurrences'))}: {len(findings)})" if len(findings) > 1 else ""
+        )
         blocks: list[Any] = [
-            Paragraph(f"{index}. {esc(finding.title)}", h3),
+            Paragraph(f"{index}. {esc(t(finding_title))}{occurrence_label}", h3),
             Paragraph(
-                f"<b>{esc(t('Severity'))}:</b> {esc(t(finding.severity.value.title()))} &nbsp; <b>{esc(t('Rule'))}:</b> {esc(finding.rule_id)}",
+                f"<b>{esc(t('Severity'))}:</b> {esc(t(severity_value.title()))} &nbsp; <b>{esc(t('Rule'))}:</b> {esc(rule_id)}",
                 body,
             ),
-            Paragraph(
-                f"<b>{esc(t('Source location'))}:</b> {esc(_finding_location(finding, t))}", body
-            ),
+            Paragraph(f"<b>{esc(t('Impact'))}:</b> {esc(t(impact))}", body),
+            Paragraph(f"<b>{esc(t('Recommendation'))}:</b> {esc(t(remediation))}", body),
         ]
-        if finding.evidence_highlight:
-            blocks.append(
+        blocks.extend(Paragraph(f"- {esc(step)}", body) for step in verification)
+        story.append(KeepTogether(blocks))
+        for occurrence, finding in enumerate(findings[:_PDF_OCCURRENCES_PER_GROUP], start=1):
+            evidence = finding.evidence_highlight or finding.evidence
+            evidence_text = f" - {esc(evidence)}" if evidence else ""
+            story.append(
                 Paragraph(
-                    f"<b>{esc(t('Problematic text'))}:</b> {esc(finding.evidence_highlight)}", body
+                    f"<b>{occurrence}.</b> {esc(_finding_location(finding, t))}{evidence_text}",
+                    small,
                 )
             )
-        blocks.extend(
-            [
-                Paragraph(f"<b>{esc(t('Evidence'))}:</b> {esc(finding.evidence)}", body),
-                Paragraph(f"<b>{esc(t('Impact'))}:</b> {esc(finding.impact)}", body),
-                Paragraph(
-                    f"<b>{esc(t('AI-assisted fix') if action else t('Recommendation'))}:</b> {esc(action.remediation if action else finding.recommendation)}",
-                    body,
-                ),
-            ]
-        )
-        if action:
-            blocks.extend(Paragraph(f"- {esc(step)}", body) for step in action.verification_steps)
-        story.extend([KeepTogether(blocks), Spacer(1, 4)])
+        omitted = len(findings) - _PDF_OCCURRENCES_PER_GROUP
+        if omitted > 0:
+            message = t(
+                "{count} more occurrences omitted; use HTML or Excel for the complete finding list."
+            ).format(count=omitted)
+            story.append(Paragraph(esc(message), small))
+        story.append(Spacer(1, 4))
 
     story.append(Paragraph(esc(t("Coverage")), h2))
     coverage_data = [
@@ -966,8 +1076,8 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
     coverage_data.extend(
         [
             Paragraph(esc(area), small),
-            Paragraph(esc(value.get("status")), small),
-            Paragraph(esc(value.get("reason")), small),
+            Paragraph(esc(t(str(value.get("status")))), small),
+            Paragraph(esc(t(str(value.get("reason")))), small),
         ]
         for area, value in sorted(report.assessment_coverage.items())
     )
@@ -1002,9 +1112,9 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
             )
     if report.methodology or report.limitations:
         story.append(Paragraph(esc(t("Methodology")), h2))
-        story.extend(Paragraph(f"- {esc(item)}", body) for item in report.methodology)
+        story.extend(Paragraph(f"- {esc(t(item))}", body) for item in report.methodology)
         if report.limitations:
             story.append(Paragraph(esc(t("Limitations")), h3))
-            story.extend(Paragraph(f"- {esc(item)}", body) for item in report.limitations)
+            story.extend(Paragraph(f"- {esc(t(item))}", body) for item in report.limitations)
     document.build(story)
     return output.getvalue()
