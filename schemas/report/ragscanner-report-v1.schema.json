@@ -5,7 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "reporter_version", "generated_at", "scan", "processing", "scores",
+    "schema_version", "reporter_version", "generated_at", "report_language", "scan", "processing", "scores",
     "score_policy", "severity_summary", "classification_summary", "findings",
     "duplicate_groups", "duplicate_summary", "chunk_quality", "active_security", "warnings",
     "skipped_checks", "errors", "configuration", "methodology", "limitations",
@@ -13,9 +13,10 @@
     "knowledge_base_mode", "source_count", "assessment_coverage", "ingestion_issues"
   ],
   "properties": {
-    "schema_version": {"const": "1.5.0"},
+    "schema_version": {"const": "1.6.0"},
     "reporter_version": {"type": "string"},
     "generated_at": {"type": "string", "format": "date-time"},
+    "report_language": {"enum": ["en", "tr", "de", "fr", "zh-CN", "it"]},
     "scan": {"type": "object"},
     "processing": {"type": "object"},
     "scores": {
@@ -64,14 +65,60 @@
     "ai_analysis": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["schema_version", "provider", "model", "remote", "generated_at", "prompt_version", "disclaimer", "executive_summary", "priority_actions", "review_questions", "limitations", "finding_ids", "finding_actions", "ignored_finding_ids"],
+      "required": ["schema_version", "provider", "model", "remote", "generated_at", "prompt_version", "disclaimer", "ai_analysis", "root_causes", "priority_actions", "review_questions", "score_commentary", "coverage_caveat", "executive_summary", "risk_interpretation", "verification_steps", "limitations", "finding_ids", "finding_actions", "ignored_finding_ids"],
       "properties": {
-        "schema_version": {"const": "1.0.0"},
+        "schema_version": {"const": "2.0.0"},
         "provider": {"type": "string"}, "model": {"type": "string"}, "remote": {"type": "boolean"},
         "generated_at": {"type": "string", "format": "date-time"}, "prompt_version": {"type": "string"}, "disclaimer": {"type": "string"},
+        "ai_analysis": {"type": "string"},
+        "root_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pattern", "label", "finding_rules", "example_files", "explanation", "confidence"],
+            "properties": {
+              "pattern": {"enum": ["P1", "P2", "P3", "P4", "other"]},
+              "label": {"type": "string"},
+              "finding_rules": {"$ref": "#/$defs/strings"},
+              "example_files": {"$ref": "#/$defs/strings"},
+              "explanation": {"type": "string"},
+              "confidence": {"enum": ["confirmed", "likely"]}
+            }
+          }
+        },
         "executive_summary": {"type": "string"}, "risk_interpretation": {"type": "string"},
-        "priority_actions": {"$ref": "#/$defs/strings"},
-        "review_questions": {"$ref": "#/$defs/strings"}, "verification_steps": {"$ref": "#/$defs/strings"},
+        "priority_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["order", "action", "target", "addresses", "expected_effect", "effort"],
+            "properties": {
+              "order": {"type": "integer", "minimum": 1},
+              "action": {"type": "string"},
+              "target": {"enum": ["ingestion", "chunking", "corpus", "configuration"]},
+              "addresses": {"$ref": "#/$defs/strings"},
+              "expected_effect": {"type": "string"},
+              "effort": {"enum": ["low", "medium", "high"]}
+            }
+          }
+        },
+        "review_questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["question", "informs"],
+            "properties": {
+              "question": {"type": "string"},
+              "informs": {"type": "string"}
+            }
+          }
+        },
+        "score_commentary": {"type": "string"},
+        "coverage_caveat": {"type": ["string", "null"]},
+        "verification_steps": {"$ref": "#/$defs/strings"},
         "limitations": {"$ref": "#/$defs/strings"}, "finding_ids": {"$ref": "#/$defs/strings"},
         "finding_actions": {
           "type": "array",

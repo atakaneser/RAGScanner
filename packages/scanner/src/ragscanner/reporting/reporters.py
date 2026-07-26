@@ -274,17 +274,46 @@ class HtmlReporter:
         ai_analysis = report.ai_analysis
         ai_section = ""
         if ai_analysis is not None:
-            risk_interpretation = (
-                f"<h3>Risk interpretation</h3><p>{esc(ai_analysis.risk_interpretation)}</p>"
-                if ai_analysis.risk_interpretation
+            root_causes = (
+                "".join(
+                    f"<li><strong>{esc(item.pattern)} · {esc(item.label)}</strong> "
+                    f"({esc(item.confidence)})<br>Rules: {esc(', '.join(item.finding_rules))}"
+                    f"<br>Files: {esc(', '.join(item.example_files))}<br>"
+                    f"{esc(item.explanation)}</li>"
+                    for item in ai_analysis.root_causes
+                )
+                or "<li>None</li>"
+            )
+            actions = (
+                "".join(
+                    f"<li><strong>{esc(item.action)}</strong><br>Target: {esc(item.target)} · "
+                    f"Effort: {esc(item.effort)}<br>Addresses: "
+                    f"{esc(', '.join(item.addresses) or '—')}<br>Expected effect: "
+                    f"{esc(item.expected_effect)}</li>"
+                    for item in sorted(ai_analysis.priority_actions, key=lambda value: value.order)
+                )
+                or "<li>None</li>"
+            )
+            questions = (
+                "".join(
+                    f"<li>{esc(item.question)}<br><small>Informs: {esc(item.informs)}</small></li>"
+                    for item in ai_analysis.review_questions
+                )
+                or "<li>None</li>"
+            )
+            caveat = (
+                f"<p><em><strong>Coverage caveat:</strong> "
+                f"{esc(ai_analysis.coverage_caveat)}</em></p>"
+                if ai_analysis.coverage_caveat
                 else ""
             )
             ai_section = (
                 '<section aria-labelledby="ai-analysis"><h2 id="ai-analysis">AI analysis</h2>'
-                f"<p>{esc(ai_analysis.executive_summary)}</p>"
-                f"{risk_interpretation}"
-                f"<h3>Priority actions</h3><ul>{messages(ai_analysis.priority_actions)}</ul>"
-                f"<h3>Questions for review</h3><ul>{messages(ai_analysis.review_questions)}</ul>"
+                f"<p>{esc(ai_analysis.ai_analysis)}</p>"
+                f"<h3>Score commentary</h3><p>{esc(ai_analysis.score_commentary)}</p>"
+                f"{caveat}<h3>Root cause analysis</h3><ol>{root_causes}</ol>"
+                f"<h3>Priority actions</h3><ol>{actions}</ol>"
+                f"<h3>Questions for review</h3><ul>{questions}</ul>"
                 f"<h3>Verification steps</h3><ul>{messages(ai_analysis.verification_steps)}</ul>"
                 f"<h3>Limitations</h3><ul>{messages(ai_analysis.limitations)}</ul>"
                 f'<p class="muted">Provider: {esc(ai_analysis.provider)} · Model: '

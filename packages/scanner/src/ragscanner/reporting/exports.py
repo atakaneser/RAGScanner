@@ -36,6 +36,10 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from ragscanner.reporting.localization import (
+    localize_coverage_reason,
+    localize_rule_field,
+)
 from ragscanner.reporting.models import ReportDocument, ReportFinding
 
 ReportExportFormat = Literal["html", "xlsx", "pdf"]
@@ -545,6 +549,176 @@ _RAG_TRANSLATIONS = {
 for _rag_locale, _rag_catalog in _RAG_TRANSLATIONS.items():
     _TRANSLATIONS[_rag_locale].update(_rag_catalog)
 
+_AI_SECTION_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "Root cause analysis": "Kök neden analizi",
+        "Score commentary": "Puan yorumu",
+        "Coverage caveat": "Kapsam uyarısı",
+        "Target": "Hedef",
+        "Effort": "Efor",
+        "Addresses": "Ele aldığı bulgular",
+        "Expected effect": "Beklenen etki",
+        "Informs": "Karara katkısı",
+        "ingestion": "veri alımı",
+        "chunking": "parçalama",
+        "corpus": "doküman kümesi",
+        "configuration": "yapılandırma",
+        "confirmed": "doğrulandı",
+        "likely": "olası",
+        "low": "düşük",
+        "medium": "orta",
+        "high": "yüksek",
+    },
+    "de": {
+        "Root cause analysis": "Ursachenanalyse",
+        "Score commentary": "Bewertungskommentar",
+        "Coverage caveat": "Abdeckungshinweis",
+        "Target": "Ziel",
+        "Effort": "Aufwand",
+        "Addresses": "Behandelte Befunde",
+        "Expected effect": "Erwartete Wirkung",
+        "Informs": "Unterstützte Entscheidung",
+        "ingestion": "Aufnahme",
+        "chunking": "Chunking",
+        "corpus": "Korpus",
+        "configuration": "Konfiguration",
+        "confirmed": "bestätigt",
+        "likely": "wahrscheinlich",
+        "low": "niedrig",
+        "medium": "mittel",
+        "high": "hoch",
+    },
+    "fr": {
+        "Root cause analysis": "Analyse des causes profondes",
+        "Score commentary": "Commentaire sur le score",
+        "Coverage caveat": "Avertissement de couverture",
+        "Target": "Cible",
+        "Effort": "Effort",
+        "Addresses": "Constats traités",
+        "Expected effect": "Effet attendu",
+        "Informs": "Décision éclairée",
+        "ingestion": "ingestion",
+        "chunking": "segmentation",
+        "corpus": "corpus",
+        "configuration": "configuration",
+        "confirmed": "confirmé",
+        "likely": "probable",
+        "low": "faible",
+        "medium": "moyen",
+        "high": "élevé",
+    },
+    "zh-CN": {
+        "Root cause analysis": "根因分析",
+        "Score commentary": "分数说明",
+        "Coverage caveat": "覆盖范围提示",
+        "Target": "目标",
+        "Effort": "工作量",
+        "Addresses": "处理的发现",
+        "Expected effect": "预期效果",
+        "Informs": "辅助决策",
+        "ingestion": "摄取",
+        "chunking": "分块",
+        "corpus": "语料库",
+        "configuration": "配置",
+        "confirmed": "已确认",
+        "likely": "可能",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+    },
+    "it": {
+        "Root cause analysis": "Analisi delle cause principali",
+        "Score commentary": "Commento sul punteggio",
+        "Coverage caveat": "Avvertenza sulla copertura",
+        "Target": "Obiettivo",
+        "Effort": "Impegno",
+        "Addresses": "Risultati affrontati",
+        "Expected effect": "Effetto previsto",
+        "Informs": "Decisione supportata",
+        "ingestion": "acquisizione",
+        "chunking": "suddivisione",
+        "corpus": "corpus",
+        "configuration": "configurazione",
+        "confirmed": "confermato",
+        "likely": "probabile",
+        "low": "basso",
+        "medium": "medio",
+        "high": "alto",
+    },
+}
+for _ai_locale, _ai_catalog in _AI_SECTION_TRANSLATIONS.items():
+    _TRANSLATIONS[_ai_locale].update(_ai_catalog)
+
+_REPORT_NARRATIVE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "Chunk quality": "Parça kalitesi",
+        "Cross-document exact duplicates": "Belgeler arası tam yinelenen içerik",
+        "Cross-document freshness": "Belgeler arası güncellik",
+        "Cross-document near duplicates": "Belgeler arası yakın yinelenen içerik",
+        "Static security": "Statik güvenlik",
+        "Version conflicts": "Sürüm çakışmaları",
+        "Within-document near duplicates": "Belge içindeki yakın yinelenen içerik",
+        "Within-document repeated chunks": "Belge içindeki yinelenen parçalar",
+        "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics": "Statik güvenlik kuralları, normalleştirilmiş içerik yineleme analizi ve parça kalitesi sezgisel kontrolleri",
+        "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.": "Puanlar RAGScanner ürün tanımlarıdır; getirim veya yanıt kalitesini kanıtlamaz.",
+        "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.": "Getirim kalitesi, yanıt güvenilirliği, güncellik ve RAG Rot değerlendirilmedi.",
+    },
+    "de": {
+        "Chunk quality": "Chunk-Qualität",
+        "Cross-document exact duplicates": "Dokumentübergreifende exakte Duplikate",
+        "Cross-document freshness": "Dokumentübergreifende Aktualität",
+        "Cross-document near duplicates": "Dokumentübergreifende ähnliche Duplikate",
+        "Static security": "Statische Sicherheit",
+        "Version conflicts": "Versionskonflikte",
+        "Within-document near duplicates": "Ähnliche Duplikate im Dokument",
+        "Within-document repeated chunks": "Wiederholte Chunks im Dokument",
+        "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics": "Statische Sicherheitsregeln, Analyse normalisierter Duplikate und Heuristiken zur Chunk-Qualität",
+        "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.": "Die Bewertungen sind RAGScanner-Produktdefinitionen und belegen weder Abruf- noch Antwortqualität.",
+        "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.": "Abrufqualität, Antwortzuverlässigkeit, Aktualität und RAG Rot wurden nicht bewertet.",
+    },
+    "fr": {
+        "Chunk quality": "Qualité des fragments",
+        "Cross-document exact duplicates": "Doublons exacts entre documents",
+        "Cross-document freshness": "Actualité entre documents",
+        "Cross-document near duplicates": "Quasi-doublons entre documents",
+        "Static security": "Sécurité statique",
+        "Version conflicts": "Conflits de versions",
+        "Within-document near duplicates": "Quasi-doublons dans le document",
+        "Within-document repeated chunks": "Fragments répétés dans le document",
+        "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics": "Règles de sécurité statiques, analyse des doublons normalisés et heuristiques de qualité des fragments",
+        "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.": "Les scores sont définis par RAGScanner et ne prouvent ni la qualité de recherche ni celle des réponses.",
+        "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.": "La qualité de recherche, la fiabilité des réponses, l’actualité et RAG Rot n’ont pas été évalués.",
+    },
+    "zh-CN": {
+        "Chunk quality": "分块质量",
+        "Cross-document exact duplicates": "跨文档完全重复",
+        "Cross-document freshness": "跨文档时效性",
+        "Cross-document near duplicates": "跨文档近似重复",
+        "Static security": "静态安全",
+        "Version conflicts": "版本冲突",
+        "Within-document near duplicates": "文档内近似重复",
+        "Within-document repeated chunks": "文档内重复分块",
+        "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics": "静态安全规则、规范化内容重复分析和分块质量启发式检查",
+        "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.": "分数由 RAGScanner 产品定义，不能证明检索或回答质量。",
+        "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.": "未评估检索质量、回答可靠性、时效性和 RAG Rot。",
+    },
+    "it": {
+        "Chunk quality": "Qualità dei chunk",
+        "Cross-document exact duplicates": "Duplicati esatti tra documenti",
+        "Cross-document freshness": "Aggiornamento tra documenti",
+        "Cross-document near duplicates": "Quasi duplicati tra documenti",
+        "Static security": "Sicurezza statica",
+        "Version conflicts": "Conflitti di versione",
+        "Within-document near duplicates": "Quasi duplicati nel documento",
+        "Within-document repeated chunks": "Chunk ripetuti nel documento",
+        "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics": "Regole di sicurezza statiche, analisi dei duplicati normalizzati ed euristiche sulla qualità dei chunk",
+        "Scores are RAGScanner product-defined and do not prove retrieval or answer quality.": "I punteggi sono definiti da RAGScanner e non dimostrano la qualità del recupero o delle risposte.",
+        "Retrieval quality, answer reliability, freshness, and RAG Rot were not assessed.": "Qualità del recupero, affidabilità delle risposte, aggiornamento e RAG Rot non sono stati valutati.",
+    },
+}
+for _narrative_locale, _narrative_catalog in _REPORT_NARRATIVE_TRANSLATIONS.items():
+    _TRANSLATIONS[_narrative_locale].update(_narrative_catalog)
+
 _RAG_NARRATIVE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "Observed chunks are more fragmented than this profile; merge adjacent semantic sections and re-evaluate retrieval.": {
         "tr": "Gözlenen chunk'lar bu profile göre fazla parçalı; komşu anlamsal bölümleri birleştirip getirmeyi yeniden değerlendirin.",
@@ -810,6 +984,65 @@ _DUPLICATE_TRANSLATIONS: dict[str, dict[str, str]] = {
 for _duplicate_locale, _duplicate_catalog in _DUPLICATE_TRANSLATIONS.items():
     _TRANSLATIONS[_duplicate_locale].update(_duplicate_catalog)
 
+_DUPLICATE_DETAIL_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "Matched content": "Eşleşen içerik",
+        "Affected chunks": "Etkilenen parça sayısı",
+        "Group count": "Grup sayısı",
+        "Within-document near-duplicate chunks": "Belge içinde yakın yinelenen parçalar",
+        "Within-document near match": "Belge içindeki yakın eşleşme",
+        "{count} more affected chunks omitted; use HTML or Excel for the complete list.": (
+            "{count} etkilenen parça daha PDF özetinden çıkarıldı; tam liste için HTML "
+            "veya Excel kullanın."
+        ),
+    },
+    "de": {
+        "Matched content": "Übereinstimmender Inhalt",
+        "Affected chunks": "Betroffene Chunks",
+        "Group count": "Gruppenanzahl",
+        "Within-document near-duplicate chunks": "Nahezu identische Chunks im Dokument",
+        "Within-document near match": "Ähnliche Stelle im selben Dokument",
+        "{count} more affected chunks omitted; use HTML or Excel for the complete list.": (
+            "{count} weitere betroffene Chunks wurden ausgelassen; vollständige Liste in "
+            "HTML oder Excel."
+        ),
+    },
+    "fr": {
+        "Matched content": "Contenu correspondant",
+        "Affected chunks": "Fragments concernés",
+        "Group count": "Nombre de groupes",
+        "Within-document near-duplicate chunks": "Fragments quasi dupliqués dans le document",
+        "Within-document near match": "Correspondance proche dans le document",
+        "{count} more affected chunks omitted; use HTML or Excel for the complete list.": (
+            "{count} fragments concernés supplémentaires ont été omis ; liste complète en "
+            "HTML ou Excel."
+        ),
+    },
+    "zh-CN": {
+        "Matched content": "匹配内容",
+        "Affected chunks": "受影响分块数",
+        "Group count": "组数",
+        "Within-document near-duplicate chunks": "文档内近似重复分块",
+        "Within-document near match": "文档内近似匹配",
+        "{count} more affected chunks omitted; use HTML or Excel for the complete list.": (
+            "另有 {count} 个受影响分块未在 PDF 摘要中显示；完整列表请使用 HTML 或 Excel。"
+        ),
+    },
+    "it": {
+        "Matched content": "Contenuto corrispondente",
+        "Affected chunks": "Chunk interessati",
+        "Group count": "Numero di gruppi",
+        "Within-document near-duplicate chunks": "Chunk quasi duplicati nel documento",
+        "Within-document near match": "Corrispondenza vicina nello stesso documento",
+        "{count} more affected chunks omitted; use HTML or Excel for the complete list.": (
+            "{count} ulteriori chunk interessati sono stati omessi; elenco completo in HTML "
+            "o Excel."
+        ),
+    },
+}
+for _detail_locale, _detail_catalog in _DUPLICATE_DETAIL_TRANSLATIONS.items():
+    _TRANSLATIONS[_detail_locale].update(_detail_catalog)
+
 _QUALITY_RECOMMENDATION_TRANSLATIONS: dict[str, dict[str, str]] = {
     "tr": {
         "Rechunk with safer structural boundaries and review the affected source.": "Daha güvenli yapısal sınırlarla yeniden chunk'layın ve etkilenen kaynağı inceleyin.",
@@ -927,6 +1160,8 @@ def _finding_location(finding: ReportFinding, t) -> str:  # type: ignore[no-unty
 def _duplicate_kind(category: str) -> str:
     if category == "repeated_chunk_within_document":
         return "Same-document repetition"
+    if category == "within_document_near_duplicates":
+        return "Within-document near match"
     if category.startswith("near_duplicate"):
         return "Near match requiring manual review"
     return "Exact match after normalization"
@@ -942,6 +1177,45 @@ def _duplicate_member_location(member: Any, t) -> str:  # type: ignore[no-untype
             line += f"–{member.line_end}"
         parts.append(f"{t('Line')} {line}")
     return " · ".join(parts)
+
+
+_COVERAGE_AREA_TEXT = {
+    "chunk_quality": "Chunk quality",
+    "cross_document_exact_duplicates": "Cross-document exact duplicates",
+    "cross_document_freshness": "Cross-document freshness",
+    "cross_document_near_duplicates": "Cross-document near duplicates",
+    "static_security": "Static security",
+    "version_conflict": "Version conflicts",
+    "within_document_near_duplicates": "Within-document near duplicates",
+    "within_document_repeated_chunks": "Within-document repeated chunks",
+}
+
+
+def _coverage_area(value: str, t) -> str:  # type: ignore[no-untyped-def]
+    return cast(str, t(_COVERAGE_AREA_TEXT.get(value, value.replace("_", " ").title())))
+
+
+def _ai_root_cause_text(item: Any, t) -> str:  # type: ignore[no-untyped-def]
+    rules = ", ".join(item.finding_rules)
+    files = ", ".join(item.example_files)
+    return (
+        f"{item.pattern} · {item.label} · {t(item.confidence)}\n"
+        f"{t('Rule')}: {rules}\n{t('File')}: {files}\n{item.explanation}"
+    )
+
+
+def _ai_action_text(item: Any, t) -> str:  # type: ignore[no-untyped-def]
+    addressed = ", ".join(item.addresses) or "—"
+    return (
+        f"{item.order}. {item.action}\n"
+        f"{t('Target')}: {t(item.target)} · {t('Effort')}: {t(item.effort)}\n"
+        f"{t('Addresses')}: {addressed}\n"
+        f"{t('Expected effect')}: {item.expected_effect}"
+    )
+
+
+def _ai_question_text(item: Any, t) -> str:  # type: ignore[no-untyped-def]
+    return f"{item.question}\n{t('Informs')}: {item.informs}"
 
 
 def _render_html(report: ReportDocument, locale: str) -> str:
@@ -976,7 +1250,18 @@ def _render_html(report: ReportDocument, locale: str) -> str:
         if finding.metadata.get("group_id"):
             continue
         action = actions.get(finding.id)
-        remediation = action.remediation if action else finding.recommendation
+        title = localize_rule_field(finding.rule_id, locale, "title", finding.title)
+        impact = localize_rule_field(finding.rule_id, locale, "impact", finding.impact)
+        remediation = (
+            action.remediation
+            if action
+            else localize_rule_field(
+                finding.rule_id,
+                locale,
+                "recommendation",
+                finding.recommendation,
+            )
+        )
         verification = (
             "<ol>"
             + "".join(f"<li>{esc(step)}</li>" for step in action.verification_steps)
@@ -991,19 +1276,48 @@ def _render_html(report: ReportDocument, locale: str) -> str:
         )
         findings.append(
             f'<details class="finding" open><summary><span class="badge {esc(finding.severity.value)}">{esc(t(finding.severity.value.title()))}</span> '
-            f"{esc(t(finding.title))} <code>{esc(finding.rule_id)}</code></summary>"
+            f"{esc(title)} <code>{esc(finding.rule_id)}</code></summary>"
             f"<p><strong>{esc(t('Source location'))}:</strong> {esc(_finding_location(finding, t))}</p>"
-            f'<div class="columns"><section><h3>{esc(t("Impact"))}</h3><p>{esc(t(finding.impact))}</p></section>'
+            f'<div class="columns"><section><h3>{esc(t("Impact"))}</h3><p>{esc(impact)}</p></section>'
             f"<section><h3>{esc(t('Evidence'))}</h3>{highlight}<blockquote>{esc(finding.evidence)}</blockquote></section>"
-            f"<section><h3>{esc(t('AI-assisted fix') if action else t('Recommendation'))}</h3><p>{esc(remediation if action else t(remediation))}</p>{verification}</section></div></details>"
+            f"<section><h3>{esc(t('AI-assisted fix') if action else t('Recommendation'))}</h3><p>{esc(remediation)}</p>{verification}</section></div></details>"
         )
     ai_section = ""
     if report.ai_analysis:
         ai = report.ai_analysis
+        roots = "".join(
+            f"<li><strong>{esc(item.pattern)} · {esc(item.label)}</strong> "
+            f"<span>({esc(t(item.confidence))})</span><br>"
+            f"{esc(t('Rule'))}: {esc(', '.join(item.finding_rules))}<br>"
+            f"{esc(t('File'))}: {esc(', '.join(item.example_files))}<br>"
+            f"{esc(item.explanation)}</li>"
+            for item in ai.root_causes
+        )
+        priority = "".join(
+            f"<li><strong>{esc(item.action)}</strong><br>"
+            f"{esc(t('Target'))}: {esc(t(item.target))} · "
+            f"{esc(t('Effort'))}: {esc(t(item.effort))}<br>"
+            f"{esc(t('Addresses'))}: {esc(', '.join(item.addresses) or '—')}<br>"
+            f"{esc(t('Expected effect'))}: {esc(item.expected_effect)}</li>"
+            for item in sorted(ai.priority_actions, key=lambda value: value.order)
+        )
+        questions = "".join(
+            f"<li>{esc(item.question)}<br><small>{esc(t('Informs'))}: "
+            f"{esc(item.informs)}</small></li>"
+            for item in ai.review_questions
+        )
+        caveat = (
+            f"<p><em><strong>{esc(t('Coverage caveat'))}:</strong> "
+            f"{esc(ai.coverage_caveat)}</em></p>"
+            if ai.coverage_caveat
+            else ""
+        )
         ai_section = (
-            f"<section><h2>{esc(t('AI-assisted analysis'))}</h2><p>{esc(ai.executive_summary)}</p>"
-            f'<div class="columns"><div><h3>{esc(t("Priority actions"))}</h3><ol>{"".join(f"<li>{esc(item)}</li>" for item in ai.priority_actions)}</ol></div>'
-            f"<div><h3>{esc(t('Questions for review'))}</h3><ul>{''.join(f'<li>{esc(item)}</li>' for item in ai.review_questions)}</ul></div></div>"
+            f"<section><h2>{esc(t('AI-assisted analysis'))}</h2><p>{esc(ai.ai_analysis)}</p>"
+            f"<h3>{esc(t('Score commentary'))}</h3><p>{esc(ai.score_commentary)}</p>{caveat}"
+            f"<h3>{esc(t('Root cause analysis'))}</h3><ol>{roots}</ol>"
+            f'<div class="columns"><div><h3>{esc(t("Priority actions"))}</h3><ol>{priority}</ol></div>'
+            f"<div><h3>{esc(t('Questions for review'))}</h3><ul>{questions}</ul></div></div>"
             f'<p class="muted">{esc(ai.provider)} · {esc(ai.model)} · {esc(t(ai.disclaimer))}</p></section>'
         )
     elif report.ai_analysis_error:
@@ -1059,10 +1373,18 @@ def _render_html(report: ReportDocument, locale: str) -> str:
                 if group.shared_phrases
                 else ""
             )
+            matched = (
+                f"<p><strong>{esc(t('Matched content'))}:</strong> "
+                f"<mark>{esc(group.matched_content)}</mark></p>"
+                if group.matched_content
+                else ""
+            )
             group_cards.append(
                 f'<details class="duplicate-group" open><summary>{esc(t(_duplicate_kind(group.category)))}'
                 f" · {esc(t('Similarity'))} {group.similarity * 100:.1f}%"
-                f" · {len(group.members) or len(group.related_item_ids) + 1} {esc(t('Compared locations'))}</summary>"
+                f" · {esc(t('Affected chunks'))}: {group.affected_chunks}"
+                f" · {esc(t('Group count'))}: {group.group_count}</summary>"
+                f"{matched}"
                 f'<p class="muted">{esc(t("Estimated redundant tokens"))}: {group.estimated_redundant_tokens}</p>'
                 f"{shared}{comparison}</details>"
             )
@@ -1073,7 +1395,8 @@ def _render_html(report: ReportDocument, locale: str) -> str:
             + "</section>"
         )
     coverage_rows = "".join(
-        f"<tr><td>{esc(area)}</td><td>{esc(t(str(value.get('status'))))}</td><td>{esc(t(str(value.get('reason'))))}</td></tr>"
+        f"<tr><td>{esc(_coverage_area(area, t))}</td><td>{esc(t(str(value.get('status'))))}</td>"
+        f"<td>{esc(localize_coverage_reason(str(value.get('reason') or ''), locale))}</td></tr>"
         for area, value in sorted(report.assessment_coverage.items())
     )
     ingestion_rows = "".join(
@@ -1174,6 +1497,14 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
     )
     for finding in report.findings:
         action = action_by_id.get(finding.id)
+        title = localize_rule_field(finding.rule_id, locale, "title", finding.title)
+        impact = localize_rule_field(finding.rule_id, locale, "impact", finding.impact)
+        recommendation = localize_rule_field(
+            finding.rule_id,
+            locale,
+            "recommendation",
+            finding.recommendation,
+        )
         line: int | str | None = finding.line_start
         if finding.line_start is not None and finding.line_end not in (None, finding.line_start):
             line = f"{finding.line_start}-{finding.line_end}"
@@ -1181,7 +1512,7 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
             [
                 _cell(t(finding.severity.value.title())),
                 _cell(finding.rule_id),
-                _cell(t(finding.title)),
+                _cell(title),
                 _cell(finding.category),
                 finding.confidence,
                 _cell(finding.source),
@@ -1189,8 +1520,8 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
                 _cell(line),
                 _cell(finding.evidence_highlight),
                 _cell(finding.evidence),
-                _cell(t(finding.impact)),
-                _cell(t(finding.recommendation)),
+                _cell(impact),
+                _cell(recommendation),
                 _cell(action.remediation if action else ""),
                 _cell("\n".join(action.verification_steps) if action else ""),
             ]
@@ -1210,6 +1541,9 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
                 t("Line"),
                 t("Compared excerpt"),
                 t("Shared phrases"),
+                t("Matched content"),
+                t("Affected chunks"),
+                t("Group count"),
             ]
         )
         for group in report.duplicate_groups:
@@ -1227,6 +1561,9 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
                         "",
                         "",
                         "",
+                        _cell(group.matched_content),
+                        group.affected_chunks,
+                        group.group_count,
                     ]
                 )
                 continue
@@ -1250,6 +1587,9 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
                         _cell(duplicate_line),
                         _cell(member.evidence_excerpt),
                         _cell("\n".join(group.shared_phrases)),
+                        _cell(group.matched_content),
+                        group.affected_chunks,
+                        group.group_count,
                     ]
                 )
         _style_sheet(duplicate_sheet, freeze="A2", auto_filter=True)
@@ -1258,7 +1598,11 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
     coverage.append([t("Area"), t("Status"), t("Reason")])
     for area, value in sorted(report.assessment_coverage.items()):
         coverage.append(
-            [_cell(area), _cell(t(str(value.get("status")))), _cell(t(str(value.get("reason"))))]
+            [
+                _cell(_coverage_area(area, t)),
+                _cell(t(str(value.get("status")))),
+                _cell(localize_coverage_reason(str(value.get("reason") or ""), locale)),
+            ]
         )
     _style_sheet(coverage, freeze="A2", auto_filter=True)
 
@@ -1299,9 +1643,31 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
         ai_sheet.append([t("Area"), t("Report details")])
         if report.ai_analysis:
             ai = report.ai_analysis
-            _append_key_value(ai_sheet, t("Executive summary"), ai.executive_summary)
-            _append_key_value(ai_sheet, t("Priority actions"), "\n".join(ai.priority_actions))
-            _append_key_value(ai_sheet, t("Questions for review"), "\n".join(ai.review_questions))
+            _append_key_value(ai_sheet, t("Executive summary"), ai.ai_analysis)
+            _append_key_value(ai_sheet, t("Score commentary"), ai.score_commentary)
+            _append_key_value(
+                ai_sheet,
+                t("Coverage caveat"),
+                ai.coverage_caveat,
+            )
+            _append_key_value(
+                ai_sheet,
+                t("Root cause analysis"),
+                "\n\n".join(_ai_root_cause_text(item, t) for item in ai.root_causes),
+            )
+            _append_key_value(
+                ai_sheet,
+                t("Priority actions"),
+                "\n\n".join(
+                    _ai_action_text(item, t)
+                    for item in sorted(ai.priority_actions, key=lambda value: value.order)
+                ),
+            )
+            _append_key_value(
+                ai_sheet,
+                t("Questions for review"),
+                "\n\n".join(_ai_question_text(item, t) for item in ai.review_questions),
+            )
             _append_key_value(ai_sheet, t("Verification steps"), "\n".join(ai.verification_steps))
             _append_key_value(ai_sheet, t("Limitations"), "\n".join(ai.limitations))
         else:
@@ -1615,11 +1981,21 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
                 Paragraph(
                     f"<b>{esc(t(_duplicate_kind(group.category)))}</b> · "
                     f"{esc(t('Similarity'))}: {group.similarity * 100:.1f}% · "
+                    f"{esc(t('Affected chunks'))}: {group.affected_chunks} · "
+                    f"{esc(t('Group count'))}: {group.group_count} · "
                     f"{esc(t('Estimated redundant tokens'))}: "
                     f"{group.estimated_redundant_tokens}",
                     h3,
                 )
             )
+            if group.matched_content:
+                story.append(
+                    Paragraph(
+                        f"<b>{esc(t('Matched content'))}:</b> "
+                        f'<font backColor="#FFF1A8">{esc(group.matched_content)}</font>',
+                        body,
+                    )
+                )
             if group.shared_phrases:
                 story.append(
                     Paragraph(
@@ -1658,22 +2034,55 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
                 )
             omitted = len(group.members) - _PDF_OCCURRENCES_PER_GROUP
             if omitted > 0:
-                story.append(Paragraph(f"+{omitted}", small))
+                message = t(
+                    "{count} more affected chunks omitted; use HTML or Excel for the complete list."
+                ).format(count=omitted)
+                story.append(Paragraph(esc(message), small))
 
     if report.ai_analysis:
         ai = report.ai_analysis
         story.extend(
             [
                 Paragraph(esc(t("AI-assisted analysis")), h2),
-                Paragraph(esc(ai.executive_summary), body),
+                Paragraph(esc(ai.ai_analysis), body),
+                Paragraph(esc(t("Score commentary")), h3),
+                Paragraph(esc(ai.score_commentary), body),
             ]
         )
+        if ai.coverage_caveat:
+            story.append(
+                Paragraph(
+                    f"<i><b>{esc(t('Coverage caveat'))}:</b> {esc(ai.coverage_caveat)}</i>",
+                    body,
+                )
+            )
+        if ai.root_causes:
+            story.append(Paragraph(esc(t("Root cause analysis")), h3))
+            story.extend(
+                Paragraph(
+                    esc(_ai_root_cause_text(item, t)).replace("\n", "<br/>"),
+                    body,
+                )
+                for item in ai.root_causes
+            )
         if ai.priority_actions:
             story.append(Paragraph(esc(t("Priority actions")), h3))
-            story.extend(Paragraph(f"- {esc(item)}", body) for item in ai.priority_actions)
+            story.extend(
+                Paragraph(
+                    esc(_ai_action_text(item, t)).replace("\n", "<br/>"),
+                    body,
+                )
+                for item in sorted(ai.priority_actions, key=lambda value: value.order)
+            )
         if ai.review_questions:
             story.append(Paragraph(esc(t("Questions for review")), h3))
-            story.extend(Paragraph(f"- {esc(item)}", body) for item in ai.review_questions)
+            story.extend(
+                Paragraph(
+                    esc(_ai_question_text(item, t)).replace("\n", "<br/>"),
+                    body,
+                )
+                for item in ai.review_questions
+            )
         story.append(
             Paragraph(f"{esc(ai.provider)} · {esc(ai.model)} · {esc(t(ai.disclaimer))}", small)
         )
@@ -1719,17 +2128,37 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
         ].append(finding)
     for index, (key, findings) in enumerate(grouped_findings.items(), start=1):
         rule_id, finding_title, severity_value, impact, remediation, verification = key
+        localized_title = localize_rule_field(rule_id, locale, "title", finding_title)
+        localized_impact = localize_rule_field(rule_id, locale, "impact", impact)
+        localized_remediation = (
+            remediation
+            if any(finding.id in action_by_id for finding in findings)
+            else localize_rule_field(rule_id, locale, "recommendation", remediation)
+        )
+        affected_chunks = len({finding.chunk_id or finding.id for finding in findings})
+        group_ids = {
+            str(finding.metadata["group_id"])
+            for finding in findings
+            if finding.metadata.get("group_id")
+        }
+        group_count = len(group_ids) or 1
         occurrence_label = (
-            f" ({esc(t('Occurrences'))}: {len(findings)})" if len(findings) > 1 else ""
+            f" ({esc(t('Affected chunks'))}: {affected_chunks} · "
+            f"{esc(t('Group count'))}: {group_count})"
+            if len(findings) > 1
+            else ""
         )
         blocks: list[Any] = [
-            Paragraph(f"{index}. {esc(t(finding_title))}{occurrence_label}", h3),
+            Paragraph(f"{index}. {esc(localized_title)}{occurrence_label}", h3),
             Paragraph(
                 f"<b>{esc(t('Severity'))}:</b> {esc(t(severity_value.title()))} &nbsp; <b>{esc(t('Rule'))}:</b> {esc(rule_id)}",
                 body,
             ),
-            Paragraph(f"<b>{esc(t('Impact'))}:</b> {esc(t(impact))}", body),
-            Paragraph(f"<b>{esc(t('Recommendation'))}:</b> {esc(t(remediation))}", body),
+            Paragraph(f"<b>{esc(t('Impact'))}:</b> {esc(localized_impact)}", body),
+            Paragraph(
+                f"<b>{esc(t('Recommendation'))}:</b> {esc(localized_remediation)}",
+                body,
+            ),
         ]
         blocks.extend(Paragraph(f"- {esc(step)}", body) for step in verification)
         story.append(KeepTogether(blocks))
@@ -1745,7 +2174,7 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
         omitted = len(findings) - _PDF_OCCURRENCES_PER_GROUP
         if omitted > 0:
             message = t(
-                "{count} more occurrences omitted; use HTML or Excel for the complete finding list."
+                "{count} more affected chunks omitted; use HTML or Excel for the complete list."
             ).format(count=omitted)
             story.append(Paragraph(esc(message), small))
         story.append(Spacer(1, 4))
@@ -1760,9 +2189,12 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
     ]
     coverage_data.extend(
         [
-            Paragraph(esc(area), small),
+            Paragraph(esc(_coverage_area(area, t)), small),
             Paragraph(esc(t(str(value.get("status")))), small),
-            Paragraph(esc(t(str(value.get("reason")))), small),
+            Paragraph(
+                esc(localize_coverage_reason(str(value.get("reason") or ""), locale)),
+                small,
+            ),
         ]
         for area, value in sorted(report.assessment_coverage.items())
     )

@@ -51,6 +51,7 @@ def chunk(
     tokens: int | None = None,
     metadata: dict[str, Any] | None = None,
     headings: list[str] | None = None,
+    path: str | None = None,
 ) -> Chunk:
     return Chunk(
         id=identifier,
@@ -65,7 +66,7 @@ def chunk(
             source_id="local",
             source_type="filesystem",
             source_name="local",
-            source_path=f"{document_id}.txt",
+            source_path=path or f"{document_id}.txt",
             line_start=1,
             line_end=max(1, text.count("\n") + 1),
         ),
@@ -93,6 +94,7 @@ def test_exact_document_duplicates_formatting_canonical_and_stability() -> None:
     assert first.groups[0].id == second.groups[0].id
     assert first.findings[0].fingerprint == second.findings[0].fingerprint
     assert first.groups[0].metadata["automatic_deletion_recommended"] is False
+    assert first.groups[0].matched_content == "Same normalized content"
 
 
 def test_exact_chunk_duplicates_and_repeated_chunk_within_document() -> None:
@@ -280,6 +282,43 @@ def test_near_duplicate_groups_deterministically_and_suppresses_exact_pairs() ->
     assert first.groups[0].id == second.groups[0].id
     exact_docs = [doc("x", base), doc("y", base)]
     assert NearDuplicateScanner(config).scan(exact_docs, normalized(exact_docs), []).groups == []
+
+
+def test_near_duplicate_separates_same_path_members_from_cross_document_group() -> None:
+    documents = [doc(f"d{index}", f"source {index}") for index in range(4)]
+    base = (
+        "vpn access requires an approved device identity and a verified token before "
+        "the employee opens the protected support application"
+    )
+    chunks = [
+        chunk("same-a", "d0", 0, base + " alpha", path="same.pdf"),
+        chunk("same-b", "d1", 0, base + " beta", path="same.pdf"),
+        chunk("other-a", "d2", 0, base + " gamma", path="other-a.pdf"),
+        chunk("other-b", "d3", 0, base + " delta", path="other-b.pdf"),
+    ]
+    result = NearDuplicateScanner(
+        NearDuplicateConfig(
+            similarity_threshold=0.5,
+            shingle_size=3,
+            minimum_comparison_characters=40,
+        )
+    ).scan(documents, normalized(documents), chunks)
+
+    within = [
+        group for group in result.groups if group.category == "within_document_near_duplicates"
+    ]
+    cross = [group for group in result.groups if group.category == "near_duplicate_chunk"]
+    assert [[member.item_id for member in group.members] for group in within] == [
+        ["same-a", "same-b"]
+    ]
+    assert [[member.item_id for member in group.members] for group in cross] == [
+        ["other-a", "other-b"]
+    ]
+    assert all(member.source.source_path != "same.pdf" for member in cross[0].members)
+    assert {finding.rule_id for finding in result.findings} >= {
+        "QUALITY-WITHIN-DOCUMENT-NEAR-DUPLICATES",
+        "QUALITY-NEAR-DUPLICATE",
+    }
 
 
 def test_near_duplicate_candidate_limit_warning_on_synthetic_collection() -> None:

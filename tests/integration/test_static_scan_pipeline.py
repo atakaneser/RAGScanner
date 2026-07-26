@@ -454,7 +454,7 @@ def test_single_large_markdown_runs_all_stages_and_intra_document_duplicates(
     assert result.quality_statistics is not None
     assert {group.category for group in result.duplicate_groups} & {
         "repeated_chunk_within_document",
-        "near_duplicate_chunk",
+        "within_document_near_duplicates",
     }
     for check in (
         "cross_document_exact_duplicates",

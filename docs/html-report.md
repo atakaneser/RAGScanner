@@ -10,6 +10,12 @@ file-ingestion remediation table. Technical identifiers and configuration are ke
 technical-details section. Product-defined scores are scoped to assessed checks and are never
 presented as a security guarantee.
 
+Schema 1.6 report views place exact matching content immediately below a duplicate-group heading,
+then show affected-chunk/group counts and every retained source location. Same-file lexical
+repetition is a separate ingestion/synchronization/overlap finding. Optional AI output is divided
+into analysis, score commentary, root causes, ordered actions, decision questions, and an italic
+coverage caveat. Enum values are translated only at display time.
+
 Every dynamic value is escaped. Source HTML, Markdown, and SVG are never rendered; URLs are not made
 clickable; PDF and DOCX files are not embedded. The CSP sets `default-src`, `script-src`, and
 `connect-src` to `none`.

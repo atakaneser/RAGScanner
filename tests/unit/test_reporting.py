@@ -212,6 +212,7 @@ def test_report_duplicate_groups_keep_bounded_comparison_details() -> None:
             similarity=1,
             estimated_redundant_characters=80,
             estimated_redundant_tokens=14,
+            matched_content="x" * 240,
         )
     ]
 
@@ -222,6 +223,9 @@ def test_report_duplicate_groups_keep_bounded_comparison_details() -> None:
     assert [member.canonical for member in group.members] == [True, False]
     assert group.members[1].page == 2
     assert group.members[0].evidence_excerpt == "Shared support answer with [API_KEY_REDACTED]."
+    assert group.matched_content == "x" * 200 + "..."
+    assert group.affected_chunks == 2
+    assert group.group_count == 1
 
 
 def test_terminal_default_is_concise_and_verbose_keeps_technical_details() -> None:
@@ -435,6 +439,41 @@ def test_html_and_json_size_limits_are_enforced() -> None:
     )
     with pytest.raises(ValueError, match="HTML report exceeds"):
         HtmlReporter().render(report, limits=ReportLimits(maximum_html_size=10_000))
+
+
+def test_deterministic_rule_and_coverage_text_is_localized_in_turkish_and_english() -> None:
+    item = finding("localized")
+    item.rule_id = "STATIC-PI-001"
+    item.title = "Prompt injection instruction"
+    item.impact = "A model may follow untrusted retrieved instructions."
+    item.recommendation = (
+        "Keep retrieved content in a data-only trust boundary and enforce instruction priority."
+    )
+    source = report_input(findings=[item])
+    source.assessment_coverage = {
+        "static_security": {
+            "status": "assessed",
+            "reason": "Static document and chunk rules were evaluated.",
+        }
+    }
+
+    turkish = ReportBuilder(report_language="tr").build(source)
+    english = ReportBuilder(report_language="en").build(source)
+
+    assert turkish.report_language == "tr"
+    assert turkish.findings[0].title == "Prompt injection talimatı"
+    assert "güvenilmeyen" in turkish.findings[0].impact
+    assert "güven sınırında" in turkish.findings[0].recommendation
+    assert (
+        turkish.assessment_coverage["static_security"]["reason"]
+        == "Statik belge ve parça kuralları değerlendirildi."
+    )
+    assert english.report_language == "en"
+    assert english.findings[0].title == "Prompt injection instruction"
+    assert (
+        english.assessment_coverage["static_security"]["reason"]
+        == "Static document and chunk rules were evaluated."
+    )
 
 
 def test_reporting_has_no_network_or_subprocess_imports() -> None:

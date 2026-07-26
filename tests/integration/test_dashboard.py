@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from ragscanner.ai_analysis.models import AIReportAnalysis
 from ragscanner.api import create_app
 from ragscanner.application import JobApplicationService, resolve_secret_reference
 from ragscanner.jobs import JobStatus
@@ -483,6 +484,40 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     try:
         baseline_report = report("scan-a", findings=[located], overall=80).model_copy(
             update={
+                "ai_analysis": AIReportAnalysis(
+                    ai_analysis="The scan has one medium finding in the evaluated scope.",
+                    root_causes=[
+                        {
+                            "pattern": "other",
+                            "label": "Source policy",
+                            "finding_rules": ["RULE-a"],
+                            "example_files": ["policy-tr.pdf"],
+                            "explanation": "The supplied evidence requires a policy decision.",
+                            "confidence": "likely",
+                        }
+                    ],
+                    priority_actions=[
+                        {
+                            "order": 1,
+                            "action": "Review the source policy.",
+                            "target": "corpus",
+                            "addresses": ["RULE-a"],
+                            "expected_effect": "Clarifies the deterministic finding.",
+                            "effort": "low",
+                        }
+                    ],
+                    review_questions=[
+                        {
+                            "question": "Who owns this policy?",
+                            "informs": "The remediation owner.",
+                        }
+                    ],
+                    score_commentary="The overall score reflects the supplied finding.",
+                    coverage_caveat=None,
+                    provider="ollama",
+                    model="synthetic-model",
+                    remote=False,
+                ),
                 "rag_configuration_advice": RAGConfigurationAdvice(
                     profile=RAGProfile.POLICY_PROCEDURE,
                     configured={"target_tokens": 300},
@@ -497,7 +532,7 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
                     observed={"median_chunk_tokens": 220, "chunks": 12},
                     actions=["Benchmark representative policy questions."],
                     validation_metrics=["Recall@k"],
-                )
+                ),
             }
         )
         baseline = history.save(baseline_report)
@@ -548,6 +583,10 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert "Page</span> 4" in detail.text
     assert "Line</span> 18" in detail.text
     assert "Download report" in detail.text
+    assert "Root cause analysis" in detail.text
+    assert "Score commentary" in detail.text
+    assert "Review the source policy." in detail.text
+    assert "Who owns this policy?" in detail.text
     assert "Recommended chunk size" in detail.text
     assert "450 tokens" in detail.text
     assert "Why this range?" in detail.text

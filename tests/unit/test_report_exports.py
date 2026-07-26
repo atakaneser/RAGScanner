@@ -5,6 +5,7 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 from pypdf import PdfReader
+from ragscanner.ai_analysis.models import AIReportAnalysis
 from ragscanner.quality import RAGConfigurationAdvice, RAGProfile
 from ragscanner.reporting import export_report, report_export_filename
 from ragscanner.reporting.models import ReportDuplicateGroup, ReportDuplicateMember
@@ -114,6 +115,7 @@ def test_all_exports_explain_duplicate_groups_with_both_locations(report) -> Non
                     estimated_redundant_tokens=15,
                     members=members,
                     shared_phrases=["shared policy text"],
+                    matched_content="Shared policy text after normalization.",
                 )
             ]
         }
@@ -129,12 +131,81 @@ def test_all_exports_explain_duplicate_groups_with_both_locations(report) -> Non
     )
 
     assert "Yinelenen içerik karşılaştırmaları" in html_text
+    assert "Eşleşen içerik" in html_text
+    assert "Shared policy text after normalization." in html_text
+    assert "Etkilenen parça sayısı" in html_text
     assert "policy-0.md" in html_text and "policy-1.md" in html_text
     assert "Shared policy text from occurrence 0." in html_text
     assert "Yinelenen Karşılaştırma" in workbook.sheetnames
     assert workbook["Yinelenen Karşılaştırma"]["E2"].value == "policy-0.md"
+    assert workbook["Yinelenen Karşılaştırma"]["J2"].value == (
+        "Shared policy text after normalization."
+    )
+    assert workbook["Yinelenen Karşılaştırma"]["K2"].value == 2
     assert "Yinelenen içerik karşılaştırmaları" in pdf_text
+    assert "Eşleşen içerik" in pdf_text
+    assert "Shared policy text after normalization." in pdf_text
     assert "policy-0.md" in pdf_text and "policy-1.md" in pdf_text
+
+
+def test_all_exports_render_structured_ai_sections_and_localize_enums(report) -> None:  # type: ignore[no-untyped-def]
+    analysis = AIReportAnalysis(
+        ai_analysis="Tarama, değerlendirilen kapsamda düşük önem çerçevesindedir.",
+        root_causes=[
+            {
+                "pattern": "P1",
+                "label": "Şablon metni",
+                "finding_rules": ["QUALITY-EXACT-DUPLICATE-CHUNK"],
+                "example_files": ["politika.pdf"],
+                "explanation": "Kanıt, ortak sınıflandırma başlığını gösteriyor.",
+                "confidence": "confirmed",
+            }
+        ],
+        priority_actions=[
+            {
+                "order": 1,
+                "action": "Üstbilgiyi veri alımı sırasında ayırın.",
+                "target": "ingestion",
+                "addresses": ["P1"],
+                "expected_effect": "Yinelenen içerik grubunu azaltır.",
+                "effort": "low",
+            }
+        ],
+        review_questions=[
+            {
+                "question": "Üstbilgi tüm dosyalarda zorunlu mu?",
+                "informs": "Ayırma kuralı kararını destekler.",
+            }
+        ],
+        score_commentary="Kalite puanı yinelenen şablon metninden etkileniyor.",
+        coverage_caveat="Puan yalnızca değerlendirilen alanları kapsar.",
+        provider="ollama",
+        model="qwen",
+        remote=False,
+    )
+    value = report("scan-ai").model_copy(update={"ai_analysis": analysis})
+
+    html_text = export_report(value, "html", locale="tr").content.decode("utf-8")
+    workbook = load_workbook(
+        BytesIO(export_report(value, "xlsx", locale="tr").content), data_only=True
+    )
+    pdf_text = "\n".join(
+        page.extract_text() or ""
+        for page in PdfReader(BytesIO(export_report(value, "pdf", locale="tr").content)).pages
+    )
+
+    assert "Kök neden analizi" in html_text
+    assert "Kapsam uyarısı" in html_text
+    assert "veri alımı" in html_text
+    assert ">ingestion<" not in html_text
+    assert "AI Analizi" in workbook.sheetnames
+    ai_values = "\n".join(
+        str(cell.value or "") for row in workbook["AI Analizi"].iter_rows() for cell in row
+    )
+    assert "Kök neden analizi" in ai_values
+    assert "Hedef: veri alımı" in ai_values
+    assert "Kök neden analizi" in pdf_text
+    assert "Kapsam uyarısı" in pdf_text
 
 
 @pytest.mark.parametrize(
@@ -231,9 +302,10 @@ def test_pdf_groups_repeated_findings_and_bounds_occurrence_details(report, find
     reader = PdfReader(BytesIO(exported.content))
     extracted = "\n".join(page.extract_text() or "" for page in reader.pages)
 
-    assert "Aşırı bindirme" in extracted
-    assert "Tekrarlar: 80" in extracted
-    assert "60 tekrar daha PDF özetinden çıkarıldı" in extracted
+    assert "Aşırı Örtüşme" in extracted
+    assert "Etkilenen parça sayısı: 80" in extracted
+    assert "Grup sayısı: 1" in extracted
+    assert "60 etkilenen parça daha PDF özetinden çıkarıldı" in extracted
     assert len(reader.pages) < 10
 
 

@@ -155,14 +155,15 @@ from remaining the long-term command owner.
 ## Optional AI report flow
 
 Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the
-deterministic report is built, the provider receives only a bounded, redacted summary of scores,
-coverage, and up to 25 findings; it never receives raw documents or finding evidence. Structured
-output is schema-validated and stored as an advisory section on the report. A model failure leaves
-the deterministic report complete and records a retryable analysis-unavailable state. Remote
-providers require HTTPS, an external credential reference, and explicit consent on that scan.
-Common structured-output drift is normalized within the declared schema. References to findings
-outside the bounded request are discarded and recorded rather than failing otherwise valid analysis.
-Accepted output may attach advisory remediation and verification steps only to supplied findings.
+deterministic report is built, the provider receives only bounded, secret-masked scores, coverage,
+and at most 25 finding groups. A group carries at most ten evidence rows with source/page/line
+provenance and a truncated snippet; raw documents are never transmitted. The adapter requests
+versioned JSON at temperature `0.1`, strips one optional JSON fence, validates the exact schema and
+severity/coverage consistency, then retries invalid output once with a JSON-only instruction.
+A second failure stores a localized advisory-unavailable state while leaving the deterministic
+report complete. Remote providers require HTTPS, an external credential reference, and explicit
+consent on that scan. Accepted group actions may attach advisory remediation only to supplied
+findings whose deterministic rule IDs the action addresses.
 
 ## OpenWebUI content flow
 

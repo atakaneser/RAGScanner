@@ -43,3 +43,5 @@ ADRs capture durable decisions. Status is Proposed, Accepted, Superseded, or Rej
 - [ADR-0040 Source-owned chunk-quality findings](0040-source-owned-chunk-quality-findings.md)
 - [ADR-0041 Plain evidence and source-relative chunk sizing](0041-plain-evidence-and-source-relative-chunk-sizing.md)
 - [ADR-0042 Source-owned quality evidence calibration](0042-source-owned-quality-evidence-calibration.md)
+- [ADR-0044 Bounded duplicate comparison snapshots](0044-bounded-duplicate-comparison-snapshots.md)
+- [ADR-0045 Structured evidence-bound AI report analysis](0045-structured-evidence-bound-ai-report-analysis.md)

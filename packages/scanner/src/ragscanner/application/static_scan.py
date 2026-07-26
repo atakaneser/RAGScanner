@@ -33,10 +33,20 @@ from ragscanner.pipeline import (
 from ragscanner.providers import ModelProviderError, create_analysis_provider
 from ragscanner.quality import RAGConfigurationConfig
 from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
+from ragscanner.reporting.language import infer_report_language
 from ragscanner.reporting.models import ReportDocument
 from ragscanner.storage.machine_secrets import resolve_file_secret_reference
 
 AI_HEARTBEAT_SECONDS = 10.0
+
+_AI_OUTPUT_FALLBACKS = {
+    "en": "AI analysis could not be generated.",
+    "tr": "AI analizi üretilemedi.",
+    "de": "Die KI-Analyse konnte nicht erstellt werden.",
+    "fr": "L’analyse IA n’a pas pu être générée.",
+    "zh-CN": "无法生成 AI 分析。",
+    "it": "Non è stato possibile generare l’analisi AI.",
+}
 
 
 class StaticScanJobPayload(BaseModel):
@@ -145,6 +155,7 @@ class StaticScanApplicationService:
             result,
             show_absolute_paths=not config.show_relative_paths,
             maximum_findings=config.maximum_findings,
+            report_language=(ai_config or AIProviderConfig()).output_language,
         )
         if source_name:
             report = report.model_copy(update={"scan": {**report.scan, "source_name": source_name}})
@@ -249,10 +260,21 @@ class StaticScanApplicationService:
             )
             pipeline_holder["pipeline"] = pipeline
             result = await pipeline.run()
+            report_language = ai_config.output_language
+            if isinstance(connector, WebsiteSourceConnector):
+                report_language = infer_report_language(
+                    (
+                        (document.normalized_content, document.language)
+                        for document in result.documents
+                    ),
+                    fallback=report_language,
+                )
+                ai_config = ai_config.model_copy(update={"output_language": report_language})
             report = build_pipeline_report(
                 result,
                 show_absolute_paths=False,
                 maximum_findings=config.maximum_findings,
+                report_language=report_language,
             )
             if source_name:
                 report = report.model_copy(
@@ -310,7 +332,11 @@ class StaticScanApplicationService:
             return enriched
         except ModelProviderError as error:
             failure_code = error.code
-            failure_message = error.safe_message
+            failure_message = (
+                _AI_OUTPUT_FALLBACKS.get(config.output_language, _AI_OUTPUT_FALLBACKS["en"])
+                if error.code == "ai_output_invalid"
+                else error.safe_message
+            )
         except ValueError:
             failure_code = (
                 "ai_credential_unavailable"
@@ -410,11 +436,13 @@ def build_pipeline_report(
     *,
     show_absolute_paths: bool = False,
     maximum_findings: int = 500,
+    report_language: str = "en",
 ) -> ReportDocument:
     return ReportBuilder(
         filters=ReportFilter(),
         limits=ReportLimits(maximum_findings=maximum_findings),
         show_absolute_paths=show_absolute_paths,
+        report_language=report_language,
     ).build(pipeline_report_input(result))
 
 

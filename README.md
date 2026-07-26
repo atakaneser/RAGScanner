@@ -123,12 +123,14 @@ AI analysis is optional and does not replace deterministic findings. Settings di
 models from Ollama, LM Studio, LocalAI, or vLLM instead of retaining a stale model name. Remote
 providers require HTTPS, an external credential reference, and explicit per-scan consent.
 
-Only a bounded, redacted finding summary is sent to the selected model—never raw documents or
-finding evidence. Output is schema-validated. If a local compatible server rejects structured-output
-fields with HTTP 400, RAGScanner retries once in JSON compatibility mode and records an actionable
-error code if that also fails. Common schema drift is normalized, invented finding references are
-discarded safely, and accepted analysis can attach remediation and verification steps to each real
-finding.
+Only bounded, secret-masked report context is sent to the selected model—never a raw document.
+Each finding group includes at most ten evidence rows with source/page/line provenance and a
+truncated snippet; the complete affected-chunk count remains explicit. Output must match the
+versioned JSON schema. RAGScanner strips one optional JSON fence and retries malformed model output
+once with a JSON-only instruction. Compatible providers use JSON mode with temperature `0.1`.
+A second schema failure records a localized `ai_output_invalid` fallback while preserving every
+deterministic finding and score. Accepted group actions are attached only to real findings whose
+rule IDs they address.
 
 ## Reports and operations
 
@@ -140,6 +142,9 @@ their next run time and interval for editing. Reports show security, content-qua
 scores, file/page/line provenance, highlighted evidence, and the same score bands everywhere: below
 85 yellow, below 70 orange, and below 55 red. AI analysis waits up to 180 seconds by default for
 slower local models; provider errors and report UI data follow the selected dashboard language.
+Exact duplicate groups show the normalized matching content and every retained location. Lexical
+matches repeated inside one file are reported separately as ingestion/synchronization/chunk-overlap
+diagnostics instead of appearing as unexplained cross-document duplicates.
 Every saved report can be downloaded from its detail page as a network-free standalone HTML file,
 a structured multi-sheet Excel workbook, or a paginated PDF. Exports use the selected interface
 language while preserving source evidence in its original language.

@@ -103,9 +103,10 @@
 - Workload-aware RAG configuration advice for factual lookup, general QA, policies/procedures,
   research, code, and tables; reports compare configured, recommended, and observed chunk values and
   require representative retrieval/answer validation metrics
-- Report schema 1.5 duplicate comparisons with both bounded redacted excerpts, source/page/line
-  provenance, exact/near match explanation, shared lexical phrases, historical-report rerun guidance,
-  and short template/heading materiality suppression
+- Report schema 1.6 duplicate comparisons with both bounded redacted excerpts, source/page/line
+  provenance, exact matching content, affected-chunk/group counts, separate same-document lexical
+  repetition diagnostics, historical-report rerun guidance, and short template/heading materiality
+  suppression
 - Local labelled-corpus calibration with precision, recall, F1, false-positive rate, Wilson 95%
   intervals, CI thresholds, and rule/language/format slices; the bundled positive/negative smoke
   corpus covers all six supported languages across text, Markdown, HTML, and JSON
@@ -137,8 +138,11 @@
   model selection, update-safe machine credential files, and secret-safe success/failure activity codes
 - Compatibility retry for Ollama and OpenAI-compatible HTTP 400 structured-output rejection, with
   an actionable `ai_provider_request_invalid` terminal error when compatibility mode also fails
-- Tolerant schema normalization for advisory AI output, safe removal of invented finding references,
-  and per-finding AI remediation plus verification steps
+- Exact version 2 advisory AI schema with evidence-bound root causes, score commentary, ordered
+  actions, decision questions, translated display enums, one JSON-only retry, severity/coverage
+  consistency validation, localized safe fallback, and rule-bound per-finding remediation
+- Conservative source-language inference for website reports, preserving the selected interface
+  language when a page is ambiguous
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after

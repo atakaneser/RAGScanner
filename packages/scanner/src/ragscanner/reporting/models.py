@@ -18,8 +18,8 @@ from ragscanner.quality.models import ChunkQualityStatistics
 from ragscanner.scoring import ScorePolicySnapshot
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.5.0"
-REPORTER_VERSION = "1.5.0"
+REPORT_SCHEMA_VERSION = "1.6.0"
+REPORTER_VERSION = "1.6.0"
 
 
 class ReportFilter(BaseModel):
@@ -106,6 +106,7 @@ class ReportFinding(BaseModel):
     source: str | None = None
     document_id: str | None = None
     page: int | None = None
+    section: str | None = None
     line_start: int | None = None
     line_end: int | None = None
     chunk_id: str | None = None
@@ -147,9 +148,18 @@ class ReportDuplicateGroup(BaseModel):
     similarity: float = Field(ge=0, le=1)
     estimated_redundant_characters: int = Field(ge=0)
     estimated_redundant_tokens: int = Field(ge=0)
+    matched_content: str | None = Field(default=None, max_length=203)
+    affected_chunks: int = Field(default=0, ge=0)
+    group_count: int = Field(default=1, ge=1)
     members_truncated: bool = False
     members: list[ReportDuplicateMember] = Field(default_factory=list)
     shared_phrases: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def populate_counts(self) -> "ReportDuplicateGroup":
+        if self.affected_chunks == 0:
+            self.affected_chunks = len(self.members) or len(self.related_item_ids) + 1
+        return self
 
 
 class ReportProcessingSummary(BaseModel):
@@ -180,6 +190,7 @@ class ReportDocument(BaseModel):
     schema_version: str = REPORT_SCHEMA_VERSION
     reporter_version: str = REPORTER_VERSION
     generated_at: AwareDatetime
+    report_language: str = Field(default="en", pattern=r"^(en|tr|de|fr|zh-CN|it)$")
     scan: dict[str, Any]
     processing: ReportProcessingSummary
     scores: dict[str, float | None]

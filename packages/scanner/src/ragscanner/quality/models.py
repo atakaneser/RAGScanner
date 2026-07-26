@@ -33,6 +33,7 @@ class DuplicateGroup(BaseModel):
     similarity: float = Field(ge=0, le=1)
     estimated_redundant_characters: int = Field(ge=0)
     estimated_redundant_tokens: int = Field(ge=0)
+    matched_content: str | None = Field(default=None, max_length=4_096)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

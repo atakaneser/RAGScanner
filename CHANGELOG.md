@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added report schema 1.6 with exact matching content, affected-chunk/group counts, and separate
+  same-document lexical-repetition diagnostics across dashboard, HTML, PDF, and Excel. Replaced
+  tolerant AI output repair with a version 2 evidence-bound schema, temperature `0.1`, provider JSON
+  mode, one strict JSON-only retry, severity/coverage consistency checks, structured root causes and
+  actions, translated display enums, localized safe fallback, and conservative website-language
+  inference. Deterministic findings and scores remain authoritative when enrichment fails.
+
 - Added report schema 1.5 duplicate comparison snapshots so dashboard, standalone HTML, Excel, and
   PDF show both bounded redacted excerpts with source/page/line provenance, match type, similarity,
   shared lexical phrases, and estimated redundant tokens. Short template labels and headings no

@@ -150,7 +150,7 @@ def _finding(
 
 class ExactDuplicateScanner:
     name = "exact_duplicate_scanner"
-    version = "1.3.0"
+    version = "1.4.0"
 
     def __init__(
         self,
@@ -339,6 +339,11 @@ class ExactDuplicateScanner:
             similarity=similarity,
             estimated_redundant_characters=sum(len(member.text) for member in redundant),
             estimated_redundant_tokens=sum(member.token_count for member in redundant),
+            matched_content=(
+                _safe_evidence(members[0].text, min(4_096, self.config.maximum_evidence_length))
+                if similarity == 1.0
+                else None
+            ),
             metadata={"automatic_deletion_recommended": False},
         )
 
@@ -369,6 +374,9 @@ class ExactDuplicateScanner:
                 "related_item_ids": related,
                 "similarity": 1.0,
                 "estimated_redundant_tokens": group.estimated_redundant_tokens,
+                "matched_content": group.matched_content,
+                "affected_chunks": len(group.members),
+                "group_count": 1,
             },
             observed_at=item.observed_at,
         )
@@ -424,7 +432,7 @@ class ExactDuplicateScanner:
 
 class NearDuplicateScanner(ExactDuplicateScanner):
     name = "near_duplicate_scanner"
-    version = "1.2.0"
+    version = "1.3.0"
 
     def __init__(
         self,
@@ -521,30 +529,29 @@ class NearDuplicateScanner(ExactDuplicateScanner):
                 stack.extend(sorted(adjacency[current] - component))
             visited.update(component)
             members = sorted((item_by_id[value] for value in component), key=self._canonical_key)
-            pair_scores = [
-                score
-                for pair, score in similarity.items()
-                if pair[0] in component and pair[1] in component
-            ]
-            category = (
-                "near_duplicate_document"
-                if members[0].item_type is DuplicateItemType.DOCUMENT
-                else "near_duplicate_chunk"
-            )
-            group = self._group(
-                category,
-                _stable_hash("near-signature", sorted(component)),
-                members,
-                min(pair_scores),
-            )
-            canonical_shingles = signatures[members[0].item_id]
-            shared = canonical_shingles.intersection(
-                *[signatures[member.item_id] for member in members[1:]]
-            )
-            group.metadata["shared_phrases"] = [
-                _safe_evidence(value, 200) for value in sorted(shared)[:5]
-            ]
-            groups.append(group)
+            for category, separated_members in self._separate_document_repetitions(members):
+                separated_ids = {member.item_id for member in separated_members}
+                pair_scores = [
+                    score
+                    for pair, score in similarity.items()
+                    if pair[0] in separated_ids and pair[1] in separated_ids
+                ]
+                if not pair_scores:
+                    continue
+                group = self._group(
+                    category,
+                    _stable_hash("near-signature", sorted(separated_ids)),
+                    separated_members,
+                    min(pair_scores),
+                )
+                canonical_shingles = signatures[separated_members[0].item_id]
+                shared = canonical_shingles.intersection(
+                    *[signatures[member.item_id] for member in separated_members[1:]]
+                )
+                group.metadata["shared_phrases"] = [
+                    _safe_evidence(value, 200) for value in sorted(shared)[:5]
+                ]
+                groups.append(group)
             if len(groups) >= self.near_config.maximum_groups:
                 warnings.append(
                     QualityWarning(
@@ -557,6 +564,36 @@ class NearDuplicateScanner(ExactDuplicateScanner):
             for group in groups[: self.near_config.maximum_findings]
         ]
         return self._result(docs, chunk_values, groups, findings, warnings, skipped, compared)
+
+    @staticmethod
+    def _source_identity(item: _Item) -> str:
+        return item.source.source_path or item.source.source_name or item.document_id
+
+    def _separate_document_repetitions(self, members: list[_Item]) -> list[tuple[str, list[_Item]]]:
+        """Keep same-file repetitions out of cross-document near-duplicate groups."""
+
+        if members[0].item_type is DuplicateItemType.DOCUMENT:
+            return [("near_duplicate_document", members)]
+        by_source: defaultdict[str, list[_Item]] = defaultdict(list)
+        for member in members:
+            by_source[self._source_identity(member)].append(member)
+        repeated_sources = {
+            source for source, source_members in by_source.items() if len(source_members) >= 2
+        }
+        separated: list[tuple[str, list[_Item]]] = [
+            (
+                "within_document_near_duplicates",
+                sorted(by_source[source], key=self._canonical_key),
+            )
+            for source in sorted(repeated_sources)
+        ]
+        cross_document = sorted(
+            [member for member in members if self._source_identity(member) not in repeated_sources],
+            key=self._canonical_key,
+        )
+        if len(cross_document) >= 2:
+            separated.append(("near_duplicate_chunk", cross_document))
+        return separated
 
     def _shingles(self, value: str) -> set[str]:
         tokens = [token.casefold() for token in _WORD.findall(value)]
@@ -612,13 +649,27 @@ class NearDuplicateScanner(ExactDuplicateScanner):
 
     def _near_finding(self, group: DuplicateGroup, items: dict[str, _Item]) -> Finding:
         item = items[group.canonical_item_id]
+        within_document = group.category == "within_document_near_duplicates"
         return _finding(
             scanner=self.name,
             version=self.version,
-            rule_id="QUALITY-NEAR-DUPLICATE",
+            rule_id=(
+                "QUALITY-WITHIN-DOCUMENT-NEAR-DUPLICATES"
+                if within_document
+                else "QUALITY-NEAR-DUPLICATE"
+            ),
             category=group.category,
-            title="Near-duplicate content group",
-            description="Items have high lexical shingle similarity after boilerplate-aware comparison.",
+            title=(
+                "Within-document near-duplicate chunks"
+                if within_document
+                else "Near-duplicate content group"
+            ),
+            description=(
+                "The same source contains highly similar chunks, which can indicate repeated "
+                "ingestion or excessive overlap."
+                if within_document
+                else "Items have high lexical shingle similarity after boilerplate-aware comparison."
+            ),
             severity=Severity.LOW,
             confidence=group.similarity,
             classification=EvaluationClassification.PROBABLE,
@@ -626,8 +677,17 @@ class NearDuplicateScanner(ExactDuplicateScanner):
             document_id=item.document_id,
             chunk_id=item.chunk_id,
             evidence=_safe_evidence(item.text, self.near_config.maximum_evidence_length),
-            impact="Near-identical content may waste retrieval capacity or over-weight one statement.",
-            recommendation="Review the group manually; similarity is not proof that an item should be deleted.",
+            impact=(
+                "Same-document repetition may come from duplicate upload, synchronization replay, "
+                "or chunk overlap and can bias retrieval."
+                if within_document
+                else "Near-identical content may waste retrieval capacity or over-weight one statement."
+            ),
+            recommendation=(
+                "Check indexing history and chunk-overlap configuration before changing source content."
+                if within_document
+                else "Review the group manually; similarity is not proof that an item should be deleted."
+            ),
             metadata={
                 "group_id": group.id,
                 "canonical_item_id": group.canonical_item_id,
@@ -635,6 +695,8 @@ class NearDuplicateScanner(ExactDuplicateScanner):
                 "similarity": group.similarity,
                 "method": "bounded_size_balanced_token_shingles",
                 "estimated_redundant_tokens": group.estimated_redundant_tokens,
+                "affected_chunks": len(group.members),
+                "group_count": 1,
             },
             observed_at=item.observed_at,
         )

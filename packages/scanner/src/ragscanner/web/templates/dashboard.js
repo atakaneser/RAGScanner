@@ -390,7 +390,7 @@
       consent?.classList.toggle("hidden", local);
       privacy.textContent = local
         ? t("Local providers keep the bounded, redacted analysis context on this machine.")
-        : t("Remote providers receive only a bounded, redacted findings summary—never raw documents or finding evidence.");
+        : t("Remote providers receive bounded, redacted finding groups with at most ten truncated evidence rows—never raw documents.");
       const defaults = { ollama: "llama3.1:8b", "lm-studio": "local-model", localai: "local-model", vllm: "local-model", openai: "gpt-4.1-mini", openrouter: "openai/gpt-4.1-mini", "nvidia-nim": "meta/llama-3.1-70b-instruct", anthropic: "claude-sonnet-4-20250514", "google-gemini": "gemini-2.5-flash", groq: "llama-3.3-70b-versatile", mistral: "mistral-small-latest", together: "meta-llama/Llama-3.3-70B-Instruct-Turbo" };
       if (model && !model.dataset.edited) model.value = defaults[option.value] || "";
       modelResultsRow?.classList.add("hidden");

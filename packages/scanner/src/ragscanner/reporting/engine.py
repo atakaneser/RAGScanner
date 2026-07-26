@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from ragscanner.domain import EvaluationClassification, ExecutionStatus, Severity
 from ragscanner.domain.helpers import REDACTED, mask_secret_like_values, truncate_text
+from ragscanner.reporting.localization import localize_coverage_reason, localize_rule_field
 from ragscanner.reporting.models import (
     ReportDocument,
     ReportDuplicateGroup,
@@ -77,6 +78,11 @@ def _safe_string(value: str, limit: int) -> str:
     return truncate_text(value, limit)
 
 
+def _matched_content(value: str) -> str:
+    safe = _safe_string(value, 4_096)
+    return safe if len(safe) <= 200 else safe[:200] + "..."
+
+
 def _safe_value(value: Any, limits: ReportLimits, *, key: str = "") -> Any:
     if _SENSITIVE_KEY.search(key):
         return REDACTED
@@ -108,10 +114,12 @@ class ReportBuilder:
         filters: ReportFilter | None = None,
         limits: ReportLimits | None = None,
         show_absolute_paths: bool = False,
+        report_language: str = "en",
     ) -> None:
         self.filters = filters or ReportFilter()
         self.limits = limits or ReportLimits()
         self.show_absolute_paths = show_absolute_paths
+        self.report_language = report_language
 
     def build(self, source: ReportInput) -> ReportDocument:
         notices: list[str] = []
@@ -169,11 +177,15 @@ class ReportBuilder:
                 for g in groups
             ),
             "near_duplicate_groups": sum(g.category.startswith("near_duplicate") for g in groups),
+            "within_document_near_duplicate_groups": sum(
+                g.category == "within_document_near_duplicates" for g in groups
+            ),
             "estimated_redundant_characters": sum(g.estimated_redundant_characters for g in groups),
             "estimated_redundant_tokens": sum(g.estimated_redundant_tokens for g in groups),
         }
         return ReportDocument(
             generated_at=source.generated_at,
+            report_language=self.report_language,
             scan={
                 "id": scan.id,
                 "type": scan.scan_type.value,
@@ -239,7 +251,19 @@ class ReportBuilder:
             metadata=_safe_value(source.metadata, self.limits),
             knowledge_base_mode=_safe_string(source.knowledge_base_mode, 128),
             source_count=source.source_count,
-            assessment_coverage=_safe_value(source.assessment_coverage, self.limits),
+            assessment_coverage=_safe_value(
+                {
+                    area: {
+                        **value,
+                        "reason": localize_coverage_reason(
+                            str(value.get("reason") or ""),
+                            self.report_language,
+                        ),
+                    }
+                    for area, value in source.assessment_coverage.items()
+                },
+                self.limits,
+            ),
             ingestion_issues=[self._ingestion_issue(item) for item in source.ingestion_issues],
         )
 
@@ -296,7 +320,10 @@ class ReportBuilder:
             path = Path(path).name
         return ReportFinding(
             id=_safe_string(item.id, 512),
-            title=_safe_string(item.title, 1_024),
+            title=_safe_string(
+                localize_rule_field(item.rule_id, self.report_language, "title", item.title),
+                1_024,
+            ),
             category=_safe_string(item.category, 256),
             severity=item.severity,
             confidence=item.confidence,
@@ -308,6 +335,11 @@ class ReportBuilder:
             source=_safe_string(path, 1_024) if path else None,
             document_id=item.document_id,
             page=item.source.page_number if item.source else None,
+            section=(
+                _safe_string(item.source.section, self.limits.maximum_string_length)
+                if item.source and item.source.section
+                else None
+            ),
             line_start=item.source.line_start if item.source else None,
             line_end=item.source.line_end if item.source else None,
             chunk_id=item.chunk_id,
@@ -320,8 +352,19 @@ class ReportBuilder:
                 if item.metadata.get("matched_text")
                 else None
             ),
-            impact=_safe_string(item.impact, self.limits.maximum_string_length),
-            recommendation=_safe_string(item.recommendation, self.limits.maximum_string_length),
+            impact=_safe_string(
+                localize_rule_field(item.rule_id, self.report_language, "impact", item.impact),
+                self.limits.maximum_string_length,
+            ),
+            recommendation=_safe_string(
+                localize_rule_field(
+                    item.rule_id,
+                    self.report_language,
+                    "recommendation",
+                    item.recommendation,
+                ),
+                self.limits.maximum_string_length,
+            ),
             references=[_safe_string(value, 1_024) for value in item.references[:50]],
             first_seen=item.first_seen,
             last_seen=item.last_seen,
@@ -379,6 +422,11 @@ class ReportBuilder:
             similarity=item.similarity,
             estimated_redundant_characters=item.estimated_redundant_characters,
             estimated_redundant_tokens=item.estimated_redundant_tokens,
+            matched_content=(
+                _matched_content(item.matched_content) if item.matched_content else None
+            ),
+            affected_chunks=len(item.members),
+            group_count=1,
             members_truncated=truncated,
             members=members,
             shared_phrases=[

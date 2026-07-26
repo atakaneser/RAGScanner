@@ -34,10 +34,17 @@ source content. Because lexical similarity does not prove semantic equivalence, 
 Size balancing prevents a common subsection contained in a much longer document from being treated
 as if both complete documents were near duplicates.
 
-Report schema 1.5 preserves each retained member's basename, page, line range, and bounded redacted
-excerpt. Reports present the reference and matching occurrences together. Exact groups highlight
-the compared excerpts; near groups also show bounded common phrases. Older report snapshots remain
-readable but require a rerun to populate these comparison details.
+Report schema 1.6 preserves each retained member's basename, page, line range, and bounded redacted
+excerpt. It also stores `affected_chunks`, `group_count`, and up to 200 characters of
+`matched_content` for an exact group. HTML, PDF, and Excel place that matching text beside the group
+summary before listing all retained locations. Near matches whose repeated members have the same
+source path are split into `QUALITY-WITHIN-DOCUMENT-NEAR-DUPLICATES`; their guidance checks duplicate
+upload, synchronization replay, and chunk overlap instead of suggesting unexplained document
+deletion. Removing same-path members never leaves a singleton cross-document group.
+
+Reports present the reference and matching occurrences together. Near cross-document groups show
+bounded common phrases. Older report snapshots remain readable but require a rerun to populate
+comparison details.
 
 Document, chunk, group, finding, shingle, bucket, comparison, evidence, and runtime limits produce
 typed warnings and visible skipped IDs. Identical input, configuration, and scanner version produce
