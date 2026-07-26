@@ -92,6 +92,18 @@ ragscanner serve
 远程网站扫描拒绝重定向和跨源站点地图项，不执行脚本，并限制页面数、响应大小和超时。
 经过身份验证的 Microsoft Graph 站点/库发现是另行规划的连接器。
 
+## RAG 配置与验证
+
+每份新报告都会记录所选工作负载配置，并将当前分块设置与观测到的分块统计进行比较。系统会针对
+事实检索、通用问答、政策/流程、长上下文研究、代码或表格给出可解释的起始范围、重叠量和初始
+检索 top-k。不存在通用的最佳分块大小；报告始终列出需要通过代表性查询验证的检索、回答、引用、
+延迟和成本指标。
+
+直接或排队的 CLI 扫描可使用 `--rag-profile` 及可选的模型上下文/top-k 参数，也可在
+`ragscanner.toml` 中设置 `[rag]`。详情见 [RAG configuration advice](docs/rag-configuration-advice.md)。
+使用 `ragscanner quality calibrate` 可评估本地标注语料；见
+[Quality calibration](docs/quality-calibration.md)。内置六语言语料仅用于回归检查，并不能证明生产准确率。
+
 ## AI 辅助报告
 
 AI 分析是可选建议，不替代确定性发现。设置会从 Ollama、LM Studio、LocalAI 或 vLLM 中检测

@@ -34,6 +34,7 @@ from ragscanner.onboarding import (
     discover_openwebui_knowledge_bases,
 )
 from ragscanner.providers import PROVIDER_CATALOG, ModelProviderError, discover_provider_models
+from ragscanner.quality import RAGConfigurationConfig, RAGProfile
 from ragscanner.reporting import ReportExportFormat, export_report, report_export_filename
 from ragscanner.storage import (
     ENV_CREDENTIAL_REFERENCE_ERROR,
@@ -85,6 +86,20 @@ def _score_band(value: float | None) -> str:
 
 
 templates.env.filters["score_band"] = _score_band
+
+
+def _rag_config(
+    profile: str,
+    embedding_context_tokens: int | None,
+    generator_context_tokens: int | None,
+    retrieval_top_k: int | None,
+) -> RAGConfigurationConfig:
+    return RAGConfigurationConfig(
+        profile=RAGProfile(profile),
+        embedding_context_tokens=embedding_context_tokens,
+        generator_context_tokens=generator_context_tokens,
+        retrieval_top_k=retrieval_top_k,
+    )
 
 
 def _source_secret_reference(profile_id: str) -> str:
@@ -789,6 +804,10 @@ def register_dashboard(
         ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
         ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
         ai_remote_consent: Annotated[bool, Form()] = False,
+        rag_profile: Annotated[str, Form(max_length=80)] = "general_qa",
+        embedding_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        generator_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        retrieval_top_k: Annotated[int | None, Form(ge=1, le=1000)] = None,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         if not scan_consent:
@@ -813,6 +832,12 @@ def register_dashboard(
             )
             if ai_api_key:
                 created_ai_reference = ai_config.credential_ref
+            rag_config = _rag_config(
+                rag_profile,
+                embedding_context_tokens,
+                generator_context_tokens,
+                retrieval_top_k,
+            )
             if execution_mode == "scheduled":
                 schedule_repository = SQLiteScheduleRepository(database_path)
                 try:
@@ -827,6 +852,7 @@ def register_dashboard(
                                 source_name=friendly_name,
                                 path=str(resolved),
                                 ai=ai_config,
+                                rag=rag_config,
                             ).model_dump(mode="json", exclude_none=True),
                         )
                     )
@@ -838,6 +864,7 @@ def register_dashboard(
                     source_name=friendly_name,
                     idempotency_key=idempotency_key,
                     ai_config=ai_config,
+                    rag_config=rag_config,
                 )
         except (OSError, ValueError, JobStateError):
             MachineSecretStore(database_path.parent).delete(created_ai_reference)
@@ -953,6 +980,10 @@ def register_dashboard(
         ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
         ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
         ai_remote_consent: Annotated[bool, Form()] = False,
+        rag_profile: Annotated[str, Form(max_length=80)] = "general_qa",
+        embedding_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        generator_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        retrieval_top_k: Annotated[int | None, Form(ge=1, le=1000)] = None,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         repository = SQLiteJobRepository(database_path)
@@ -973,6 +1004,12 @@ def register_dashboard(
             )
             if ai_api_key:
                 created_ai_reference = ai_config.credential_ref
+            rag_config = _rag_config(
+                rag_profile,
+                embedding_context_tokens,
+                generator_context_tokens,
+                retrieval_top_k,
+            )
             friendly_name = (source_name or f"OpenWebUI · {knowledge_id}").strip()
             if execution_mode == "scheduled":
                 schedule_repository = SQLiteScheduleRepository(database_path)
@@ -991,6 +1028,7 @@ def register_dashboard(
                                 credential_ref=credential_ref,
                                 content_consent=content_consent,
                                 ai=ai_config,
+                                rag=rag_config,
                             ).model_dump(mode="json", exclude_none=True),
                         )
                     )
@@ -1005,6 +1043,7 @@ def register_dashboard(
                     source_name=friendly_name,
                     idempotency_key=idempotency_key,
                     ai_config=ai_config,
+                    rag_config=rag_config,
                 )
         except (ValueError, JobStateError):
             MachineSecretStore(database_path.parent).delete(created_ai_reference)
@@ -1034,6 +1073,10 @@ def register_dashboard(
         ai_credential_ref: Annotated[str | None, Form(max_length=500)] = None,
         ai_api_key: Annotated[str | None, Form(max_length=4096)] = None,
         ai_remote_consent: Annotated[bool, Form()] = False,
+        rag_profile: Annotated[str, Form(max_length=80)] = "general_qa",
+        embedding_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        generator_context_tokens: Annotated[int | None, Form(ge=128)] = None,
+        retrieval_top_k: Annotated[int | None, Form(ge=1, le=1000)] = None,
     ) -> RedirectResponse:
         _validate_csrf(request, csrf_token)
         repository = SQLiteJobRepository(database_path)
@@ -1054,6 +1097,12 @@ def register_dashboard(
             )
             if ai_api_key:
                 created_ai_reference = ai_config.credential_ref
+            rag_config = _rag_config(
+                rag_profile,
+                embedding_context_tokens,
+                generator_context_tokens,
+                retrieval_top_k,
+            )
             normalized_reference = normalize_env_credential_reference(credential_ref)
             friendly_name = (source_name or urlparse(url).hostname or "Website").strip()
             if execution_mode == "scheduled":
@@ -1072,6 +1121,7 @@ def register_dashboard(
                                 credential_ref=normalized_reference,
                                 content_consent=content_consent,
                                 ai=ai_config,
+                                rag=rag_config,
                             ).model_dump(mode="json", exclude_none=True),
                         )
                     )
@@ -1085,6 +1135,7 @@ def register_dashboard(
                     source_name=friendly_name,
                     idempotency_key=idempotency_key,
                     ai_config=ai_config,
+                    rag_config=rag_config,
                 )
         except (ValueError, JobStateError):
             MachineSecretStore(database_path.parent).delete(created_ai_reference)

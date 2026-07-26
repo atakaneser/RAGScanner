@@ -13,6 +13,7 @@ from ragscanner.jobs import (
     JobRepository,
     JobRequest,
 )
+from ragscanner.quality import RAGConfigurationConfig
 
 
 class JobApplicationService:
@@ -27,6 +28,7 @@ class JobApplicationService:
         idempotency_key: str | None = None,
         max_attempts: int = 3,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> JobRecord:
         resolved_path = path.expanduser().resolve(strict=True)
@@ -38,6 +40,7 @@ class JobApplicationService:
             path=str(resolved_path),
             config_path=str(resolved_config) if resolved_config else None,
             ai=ai_config or AIProviderConfig(),
+            rag=rag_config,
             source_name=source_name or resolved_path.name,
         )
         return self.repository.enqueue(
@@ -59,6 +62,7 @@ class JobApplicationService:
         idempotency_key: str | None = None,
         max_attempts: int = 3,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> JobRecord:
         OpenWebUISourceConfig(
@@ -74,6 +78,7 @@ class JobApplicationService:
             credential_ref=credential_ref,
             content_consent=content_consent,
             ai=ai_config or AIProviderConfig(),
+            rag=rag_config,
             source_name=source_name or f"OpenWebUI · {knowledge_id}",
         )
         return self.repository.enqueue(
@@ -100,6 +105,7 @@ class JobApplicationService:
         idempotency_key: str | None = None,
         max_attempts: int = 3,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> JobRecord:
         config = WebsiteSourceConfig(
@@ -114,6 +120,7 @@ class JobApplicationService:
             credential_ref=credential_ref,
             content_consent=content_consent,
             ai=ai_config or AIProviderConfig(),
+            rag=rag_config,
             source_name=config.source_name,
         )
         return self.repository.enqueue(

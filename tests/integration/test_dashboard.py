@@ -73,6 +73,10 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
                 "path": str(source),
                 "idempotency_key": request_id.group(1),
                 "scan_consent": "true",
+                "rag_profile": "policy_procedure",
+                "embedding_context_tokens": "8192",
+                "generator_context_tokens": "32768",
+                "retrieval_top_k": "6",
             },
         )
         executed = await client.post(
@@ -152,6 +156,17 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
     assert "completed" in refreshed.text
     assert 'class="recent-job-list"' in refreshed.text
     assert 'class="recent-job-card"' in refreshed.text
+    repository = SQLiteJobRepository(database)
+    try:
+        payload = repository.list(limit=1).items[0].payload
+    finally:
+        repository.close()
+    assert payload["rag"] == {
+        "profile": "policy_procedure",
+        "embedding_context_tokens": 8192,
+        "generator_context_tokens": 32768,
+        "retrieval_top_k": 6,
+    }
 
 
 @pytest.mark.anyio

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.jobs import JobRecord
+from ragscanner.quality import RAGConfigurationConfig
 
 
 class ApiErrorDetail(BaseModel):
@@ -28,6 +29,7 @@ class LocalScanCreateRequest(BaseModel):
     config_path: str | None = Field(default=None, min_length=1, max_length=4096)
     max_attempts: int = Field(default=3, ge=1, le=10)
     ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
+    rag: RAGConfigurationConfig | None = None
 
 
 class OpenWebUIScanCreateRequest(BaseModel):
@@ -39,6 +41,7 @@ class OpenWebUIScanCreateRequest(BaseModel):
     content_consent: bool
     max_attempts: int = Field(default=3, ge=1, le=10)
     ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
+    rag: RAGConfigurationConfig | None = None
 
 
 class JobAccepted(BaseModel):

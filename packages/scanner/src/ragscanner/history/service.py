@@ -28,6 +28,13 @@ def _coverage_signature(report: ReportDocument) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _score_policy_version(report: ReportDocument) -> str | None:
+    if report.score_policy_details is not None:
+        return report.score_policy_details.policy_version
+    value = report.configuration.get("score_policy_version")
+    return str(value) if value is not None else None
+
+
 def compare_scans(baseline: ReportDocument, candidate: ReportDocument) -> ScanComparison:
     """Classify finding and score changes without inferring causation."""
     warnings: list[str] = []
@@ -61,6 +68,11 @@ def compare_scans(baseline: ReportDocument, candidate: ReportDocument) -> ScanCo
     if not rule_pack_equal:
         warnings.append(
             "Rule-pack version differs; missing baseline findings are classified as not observed."
+        )
+    score_policy_equal = _score_policy_version(baseline) == _score_policy_version(candidate)
+    if not score_policy_equal:
+        warnings.append(
+            "Score-policy version differs; score deltas reflect a methodology change and are not directly comparable."
         )
     resolution_is_safe = coverage_equal and rule_pack_equal
 

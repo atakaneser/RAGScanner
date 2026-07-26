@@ -101,6 +101,21 @@ Les analyses web refusent redirections et entrées de sitemap d’une autre orig
 script et limitent pages, taille et délais. La découverte authentifiée des sites/bibliothèques
 Microsoft Graph reste un connecteur distinct planifié.
 
+## Configuration et validation RAG
+
+Chaque nouveau rapport enregistre le profil de charge choisi et compare le découpage configuré aux
+statistiques observées. Il propose une plage initiale explicable, un chevauchement et un top-k de
+recherche pour les faits, les questions générales, les politiques/procédures, la recherche, le code
+ou les tableaux. Il n’existe pas de taille de fragment universellement optimale ; le rapport liste
+toujours les métriques de recherche, réponse, citation, latence et coût à valider avec des requêtes
+représentatives.
+
+Utilisez `--rag-profile` avec les options facultatives de contexte/top-k, ou la table `[rag]` de
+`ragscanner.toml`. Voir [RAG configuration advice](docs/rag-configuration-advice.md). Mesurez un
+corpus local étiqueté avec `ragscanner quality calibrate` ; voir
+[Quality calibration](docs/quality-calibration.md). Le corpus intégré en six langues est un test de
+régression, pas une preuve de précision en production.
+
 ## Rapports assistés par IA
 
 L’analyse IA est facultative et ne remplace pas les constats déterministes. Les paramètres détectent

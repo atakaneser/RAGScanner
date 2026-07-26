@@ -13,7 +13,7 @@
     "knowledge_base_mode", "source_count", "assessment_coverage", "ingestion_issues"
   ],
   "properties": {
-    "schema_version": {"const": "1.3.0"},
+    "schema_version": {"const": "1.4.0"},
     "reporter_version": {"type": "string"},
     "generated_at": {"type": "string", "format": "date-time"},
     "scan": {"type": "object"},
@@ -23,6 +23,8 @@
       "additionalProperties": {"type": ["number", "null"], "minimum": 0, "maximum": 100}
     },
     "score_policy": {"type": "string"},
+    "score_policy_details": {"type": ["object", "null"]},
+    "rag_configuration_advice": {"type": ["object", "null"]},
     "severity_summary": {"$ref": "#/$defs/counts"},
     "classification_summary": {"$ref": "#/$defs/counts"},
     "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},

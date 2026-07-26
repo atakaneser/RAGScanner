@@ -62,6 +62,7 @@ ragscanner scan ./knowledge-base
 ragscanner scan ./knowledge-base/one-large.pdf
 ragscanner scan ./knowledge-base --format html --output report.html
 ragscanner scan ./knowledge-base --save-history
+ragscanner scan ./knowledge-base --rag-profile policy_procedure --retrieval-top-k 6
 ragscanner history list
 ragscanner history show HISTORY_ID --verbose
 ragscanner history compare BASELINE_HISTORY_ID CANDIDATE_HISTORY_ID
@@ -76,6 +77,7 @@ ragscanner worker
 ragscanner serve
 ragscanner security scan ./knowledge --format json
 ragscanner quality scan ./knowledge --format terminal
+ragscanner quality calibrate ./calibration/manifest.json --minimum-precision 0.95 --minimum-recall 0.90
 ragscanner report report-input.json --format html --output report.html
 ```
 

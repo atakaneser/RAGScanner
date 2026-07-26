@@ -430,6 +430,229 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     },
 }
 
+_RAG_TRANSLATIONS = {
+    "tr": {
+        "RAG configuration advice": "RAG yapılandırma önerisi",
+        "RAG Configuration": "RAG Yapılandırması",
+        "Workload profile": "İş yükü profili",
+        "Recommended chunk range": "Önerilen chunk aralığı",
+        "Overlap": "Bindirme",
+        "Retrieval top-k": "Getirme top-k",
+        "Actions": "Eylemler",
+        "Validation metrics": "Doğrulama metrikleri",
+        "tokens": "token",
+        "target": "hedef",
+        "Starting point only; validate with representative queries before production use.": "Yalnızca başlangıç noktasıdır; üretimden önce temsili sorgularla doğrulayın.",
+        "fact_lookup": "olgusal arama",
+        "general_qa": "genel soru-cevap",
+        "policy_procedure": "politika ve prosedür",
+        "long_context_research": "uzun bağlam araştırması",
+        "code_assistant": "kod asistanı",
+        "table_analytics": "tablo analizi",
+        "structure_aware": "yapıya duyarlı",
+    },
+    "de": {
+        "RAG configuration advice": "RAG-Konfigurationsempfehlung",
+        "RAG Configuration": "RAG-Konfiguration",
+        "Workload profile": "Arbeitslastprofil",
+        "Recommended chunk range": "Empfohlener Chunk-Bereich",
+        "Overlap": "Überlappung",
+        "Retrieval top-k": "Abruf Top-k",
+        "Actions": "Maßnahmen",
+        "Validation metrics": "Validierungsmetriken",
+        "tokens": "Token",
+        "target": "Ziel",
+        "Starting point only; validate with representative queries before production use.": "Nur ein Ausgangspunkt; vor dem Produktionseinsatz mit repräsentativen Abfragen validieren.",
+        "fact_lookup": "Faktensuche",
+        "general_qa": "allgemeine Fragen und Antworten",
+        "policy_procedure": "Richtlinien und Verfahren",
+        "long_context_research": "Langkontext-Recherche",
+        "code_assistant": "Code-Assistent",
+        "table_analytics": "Tabellenanalyse",
+        "structure_aware": "strukturbewusst",
+    },
+    "fr": {
+        "RAG configuration advice": "Conseil de configuration RAG",
+        "RAG Configuration": "Configuration RAG",
+        "Workload profile": "Profil de charge",
+        "Recommended chunk range": "Plage de fragments recommandée",
+        "Overlap": "Chevauchement",
+        "Retrieval top-k": "Top-k de recherche",
+        "Actions": "Actions",
+        "Validation metrics": "Métriques de validation",
+        "tokens": "jetons",
+        "target": "cible",
+        "Starting point only; validate with representative queries before production use.": "Point de départ uniquement ; validez avec des requêtes représentatives avant la production.",
+        "fact_lookup": "recherche factuelle",
+        "general_qa": "questions-réponses générales",
+        "policy_procedure": "politiques et procédures",
+        "long_context_research": "recherche en contexte long",
+        "code_assistant": "assistant de code",
+        "table_analytics": "analyse de tableaux",
+        "structure_aware": "sensible à la structure",
+    },
+    "zh-CN": {
+        "RAG configuration advice": "RAG 配置建议",
+        "RAG Configuration": "RAG 配置",
+        "Workload profile": "工作负载配置",
+        "Recommended chunk range": "建议分块范围",
+        "Overlap": "重叠",
+        "Retrieval top-k": "检索 top-k",
+        "Actions": "操作",
+        "Validation metrics": "验证指标",
+        "tokens": "令牌",
+        "target": "目标",
+        "Starting point only; validate with representative queries before production use.": "仅作为起点；生产使用前请用代表性查询进行验证。",
+        "fact_lookup": "事实检索",
+        "general_qa": "通用问答",
+        "policy_procedure": "政策与流程",
+        "long_context_research": "长上下文研究",
+        "code_assistant": "代码助手",
+        "table_analytics": "表格分析",
+        "structure_aware": "结构感知",
+    },
+    "it": {
+        "RAG configuration advice": "Suggerimento di configurazione RAG",
+        "RAG Configuration": "Configurazione RAG",
+        "Workload profile": "Profilo del carico",
+        "Recommended chunk range": "Intervallo di chunk consigliato",
+        "Overlap": "Sovrapposizione",
+        "Retrieval top-k": "Top-k di recupero",
+        "Actions": "Azioni",
+        "Validation metrics": "Metriche di validazione",
+        "tokens": "token",
+        "target": "obiettivo",
+        "Starting point only; validate with representative queries before production use.": "Solo un punto di partenza; valida con query rappresentative prima dell'uso in produzione.",
+        "fact_lookup": "ricerca fattuale",
+        "general_qa": "domande e risposte generali",
+        "policy_procedure": "politiche e procedure",
+        "long_context_research": "ricerca a contesto lungo",
+        "code_assistant": "assistente di codice",
+        "table_analytics": "analisi di tabelle",
+        "structure_aware": "sensibile alla struttura",
+    },
+}
+for _rag_locale, _rag_catalog in _RAG_TRANSLATIONS.items():
+    _TRANSLATIONS[_rag_locale].update(_rag_catalog)
+
+_RAG_NARRATIVE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "Observed chunks are more fragmented than this profile; merge adjacent semantic sections and re-evaluate retrieval.": {
+        "tr": "Gözlenen chunk'lar bu profile göre fazla parçalı; komşu anlamsal bölümleri birleştirip getirmeyi yeniden değerlendirin.",
+        "de": "Die beobachteten Chunks sind stärker fragmentiert; benachbarte semantische Abschnitte zusammenführen und den Abruf neu bewerten.",
+        "fr": "Les fragments observés sont trop morcelés ; fusionnez les sections sémantiques voisines et réévaluez la recherche.",
+        "zh-CN": "观测分块比该配置更碎；合并相邻语义段并重新评估检索。",
+        "it": "I chunk osservati sono più frammentati; unisci le sezioni semantiche adiacenti e rivaluta il recupero.",
+    },
+    "Observed chunks are coarser than this profile; reduce size without splitting lists, tables, code, or procedures.": {
+        "tr": "Gözlenen chunk'lar bu profile göre fazla geniş; listeleri, tabloları, kodu veya prosedürleri bölmeden boyutu azaltın.",
+        "de": "Die beobachteten Chunks sind gröber; Größe reduzieren, ohne Listen, Tabellen, Code oder Verfahren zu trennen.",
+        "fr": "Les fragments observés sont trop larges ; réduisez leur taille sans couper listes, tableaux, code ou procédures.",
+        "zh-CN": "观测分块比该配置更粗；在不拆分列表、表格、代码或流程的情况下减小尺寸。",
+        "it": "I chunk osservati sono più ampi; riduci la dimensione senza dividere elenchi, tabelle, codice o procedure.",
+    },
+    "Repair structural split findings before tuning token counts; boundary quality takes priority over a numeric target.": {
+        "tr": "Token sayılarını ayarlamadan önce yapısal bölünme bulgularını düzeltin; sınır kalitesi sayısal hedeften önce gelir.",
+        "de": "Strukturelle Teilungsbefunde vor der Token-Abstimmung beheben; Grenzqualität hat Vorrang.",
+        "fr": "Corrigez les divisions structurelles avant d’ajuster les jetons ; la qualité des limites prime.",
+        "zh-CN": "调整令牌数前先修复结构切分问题；边界质量优先于数值目标。",
+        "it": "Correggi le divisioni strutturali prima dei token; la qualità dei confini ha priorità.",
+    },
+    "More than one quarter of assessed chunks are undersized; review heading-only and fragmented upstream chunks.": {
+        "tr": "Değerlendirilen chunk'ların dörtte birinden fazlası küçük; yalnız başlık içeren ve parçalanmış kaynak chunk'ları inceleyin.",
+        "de": "Mehr als ein Viertel der Chunks ist zu klein; reine Überschriften und fragmentierte Quell-Chunks prüfen.",
+        "fr": "Plus d’un quart des fragments sont trop petits ; examinez les titres seuls et les fragments source morcelés.",
+        "zh-CN": "超过四分之一的分块过小；检查仅标题及碎片化的上游分块。",
+        "it": "Oltre un quarto dei chunk è troppo piccolo; esamina titoli isolati e chunk sorgente frammentati.",
+    },
+    "Tables were observed; compare this profile with table_analytics in a retrieval benchmark.": {
+        "tr": "Tablolar gözlendi; getirme karşılaştırmalı testinde bu profili tablo analizi profiliyle karşılaştırın.",
+        "de": "Tabellen wurden erkannt; dieses Profil im Abruf-Benchmark mit dem Tabellenanalyseprofil vergleichen.",
+        "fr": "Des tableaux ont été détectés ; comparez ce profil au profil d’analyse de tableaux dans un benchmark.",
+        "zh-CN": "检测到表格；请在检索基准中与表格分析配置比较。",
+        "it": "Sono state rilevate tabelle; confronta il profilo con quello di analisi delle tabelle in un benchmark.",
+    },
+    "Code blocks were observed; compare this profile with code_assistant and preserve structural boundaries.": {
+        "tr": "Kod blokları gözlendi; bu profili kod asistanı profiliyle karşılaştırın ve yapısal sınırları koruyun.",
+        "de": "Codeblöcke wurden erkannt; mit dem Code-Assistentenprofil vergleichen und Strukturgrenzen erhalten.",
+        "fr": "Des blocs de code ont été détectés ; comparez au profil d’assistant de code et préservez les limites structurelles.",
+        "zh-CN": "检测到代码块；请与代码助手配置比较并保留结构边界。",
+        "it": "Sono stati rilevati blocchi di codice; confronta con il profilo di assistente al codice e conserva i confini strutturali.",
+    },
+    "The profile maximum reaches the declared embedding context limit; leave tokenizer overhead and metadata headroom.": {
+        "tr": "Profil üst sınırı belirtilen embedding bağlam sınırına ulaşıyor; tokenizer ve metadata için pay bırakın.",
+        "de": "Das Profilmaximum erreicht das Embedding-Kontextlimit; Reserve für Tokenizer und Metadaten lassen.",
+        "fr": "Le maximum atteint la limite de contexte d’embedding ; gardez une marge pour le tokenizer et les métadonnées.",
+        "zh-CN": "配置上限达到嵌入上下文限制；请为 tokenizer 和元数据留出余量。",
+        "it": "Il massimo raggiunge il limite del contesto embedding; lascia margine per tokenizer e metadati.",
+    },
+    "Use this as an initial candidate, then compare at least one smaller and one larger configuration on representative queries.": {
+        "tr": "Bunu ilk aday olarak kullanın; ardından temsili sorgularda en az bir küçük ve bir büyük yapılandırmayla karşılaştırın.",
+        "de": "Als ersten Kandidaten verwenden und mit mindestens einer kleineren und größeren Konfiguration vergleichen.",
+        "fr": "Utilisez ce candidat initial, puis comparez une configuration plus petite et une plus grande.",
+        "zh-CN": "将其作为初始候选，并用代表性查询比较至少一个更小和一个更大的配置。",
+        "it": "Usalo come candidato iniziale e confronta almeno una configurazione più piccola e una più grande.",
+    },
+    "context precision and context recall": {
+        "tr": "bağlam kesinliği ve bağlam duyarlılığı",
+        "de": "Kontextpräzision und Kontext-Recall",
+        "fr": "précision et rappel du contexte",
+        "zh-CN": "上下文精确率与召回率",
+        "it": "precisione e richiamo del contesto",
+    },
+    "answer faithfulness": {
+        "tr": "yanıt sadakati",
+        "de": "Antworttreue",
+        "fr": "fidélité de la réponse",
+        "zh-CN": "回答忠实度",
+        "it": "fedeltà della risposta",
+    },
+    "answer relevance": {
+        "tr": "yanıt ilgisi",
+        "de": "Antwortrelevanz",
+        "fr": "pertinence de la réponse",
+        "zh-CN": "回答相关性",
+        "it": "rilevanza della risposta",
+    },
+    "citation correctness": {
+        "tr": "atıf doğruluğu",
+        "de": "Zitatkorrektheit",
+        "fr": "exactitude des citations",
+        "zh-CN": "引用正确性",
+        "it": "correttezza delle citazioni",
+    },
+    "latency and retrieved-token cost": {
+        "tr": "gecikme ve getirilen-token maliyeti",
+        "de": "Latenz und Kosten der abgerufenen Token",
+        "fr": "latence et coût des jetons récupérés",
+        "zh-CN": "延迟与检索令牌成本",
+        "it": "latenza e costo dei token recuperati",
+    },
+    "There is no universal best chunk size; workload, document structure, tokenizer, embedding model, and query distribution change the optimum.": {
+        "tr": "Evrensel bir en iyi chunk boyutu yoktur; iş yükü, belge yapısı, tokenizer, embedding modeli ve sorgu dağılımı optimumu değiştirir.",
+        "de": "Es gibt keine universell beste Chunk-Größe; Arbeitslast, Struktur, Tokenizer, Modell und Abfragen verändern das Optimum.",
+        "fr": "Il n’existe pas de taille universelle optimale ; charge, structure, tokenizer, modèle et requêtes changent l’optimum.",
+        "zh-CN": "不存在通用最佳分块大小；工作负载、结构、tokenizer、模型和查询分布都会改变最优值。",
+        "it": "Non esiste una dimensione universale migliore; carico, struttura, tokenizer, modello e query cambiano l’optimum.",
+    },
+    "Static source analysis cannot prove retrieval or answer quality without representative queries and relevance labels.": {
+        "tr": "Statik kaynak analizi, temsili sorgular ve ilgi etiketleri olmadan getirme veya yanıt kalitesini kanıtlayamaz.",
+        "de": "Statische Analyse kann Abruf- oder Antwortqualität ohne repräsentative Abfragen und Relevanzlabels nicht belegen.",
+        "fr": "L’analyse statique ne peut prouver la qualité sans requêtes représentatives et étiquettes de pertinence.",
+        "zh-CN": "没有代表性查询和相关性标签，静态分析无法证明检索或回答质量。",
+        "it": "L’analisi statica non può provare la qualità senza query rappresentative ed etichette di rilevanza.",
+    },
+    "Token counts are model-independent approximations unless a production tokenizer is supplied.": {
+        "tr": "Üretim tokenizer'ı sağlanmadıkça token sayıları modelden bağımsız yaklaşık değerlerdir.",
+        "de": "Tokenzahlen sind modellunabhängige Näherungen, solange kein Produktionstokenizer vorliegt.",
+        "fr": "Les nombres de jetons sont approximatifs sans tokenizer de production.",
+        "zh-CN": "除非提供生产 tokenizer，否则令牌数只是与模型无关的近似值。",
+        "it": "I conteggi dei token sono approssimazioni senza un tokenizer di produzione.",
+    },
+}
+for _source_text, _localized_values in _RAG_NARRATIVE_TRANSLATIONS.items():
+    for _rag_locale, _localized_text in _localized_values.items():
+        _TRANSLATIONS[_rag_locale][_source_text] = _localized_text
+
 
 def _locale(value: str) -> str:
     return value if value in _LOCALES else "en"
@@ -569,6 +792,23 @@ def _render_html(report: ReportDocument, locale: str) -> str:
             f"<section><h2>{esc(t('AI analysis unavailable'))}</h2>"
             f"<p><code>{esc(report.ai_analysis_error_code)}</code> {esc(report.ai_analysis_error)}</p></section>"
         )
+    rag_section = ""
+    if report.rag_configuration_advice:
+        rag = report.rag_configuration_advice
+        recommended = rag.recommended
+        rag_section = (
+            f"<section><h2>{esc(t('RAG configuration advice'))}</h2>"
+            f"<p><strong>{esc(t('Workload profile'))}:</strong> {esc(t(rag.profile.value))}</p>"
+            f'<div class="columns"><div><h3>{esc(t("Recommended chunk range"))}</h3>'
+            f"<p>{esc(recommended.get('minimum_tokens'))}–{esc(recommended.get('maximum_tokens'))} "
+            f"{esc(t('tokens'))}; {esc(t('target'))} {esc(recommended.get('target_tokens'))}</p></div>"
+            f"<div><h3>{esc(t('Overlap'))}</h3><p>{esc(recommended.get('overlap_tokens'))} "
+            f"{esc(t('tokens'))}</p></div><div><h3>{esc(t('Retrieval top-k'))}</h3>"
+            f"<p>{esc(recommended.get('retrieval_top_k'))}</p></div></div>"
+            f"<h3>{esc(t('Actions'))}</h3><ul>{''.join(f'<li>{esc(t(item))}</li>' for item in rag.actions)}</ul>"
+            f"<h3>{esc(t('Validation metrics'))}</h3><ul>{''.join(f'<li>{esc(t(item))}</li>' for item in rag.validation_metrics)}</ul>"
+            f'<p class="muted">{esc(t("Starting point only; validate with representative queries before production use."))}</p></section>'
+        )
     coverage_rows = "".join(
         f"<tr><td>{esc(area)}</td><td>{esc(t(str(value.get('status'))))}</td><td>{esc(t(str(value.get('reason'))))}</td></tr>"
         for area, value in sorted(report.assessment_coverage.items())
@@ -579,7 +819,7 @@ def _render_html(report: ReportDocument, locale: str) -> str:
     )
     return f'''<!doctype html><html lang="{html.escape(locale, quote=True)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>{esc(t("RAGScanner report"))}</title><style>
 :root{{--ink:#10233d;--muted:#5f6d7d;--line:#dce4ea;--accent:#078c91;--panel:#fff;--bg:#f3f7f9}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}}header{{padding:32px;background:linear-gradient(120deg,#061a35,#075b70);color:#fff}}header>div,main,footer{{max-width:1180px;margin:auto}}main,footer{{padding:24px}}section,.finding{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0}}h1,h2,h3{{line-height:1.2}}.meta,.score-grid,.severity,.columns{{display:grid;gap:12px}}.meta{{grid-template-columns:repeat(3,1fr)}}.score-grid{{grid-template-columns:repeat(4,1fr)}}.severity{{grid-template-columns:repeat(5,1fr)}}.columns{{grid-template-columns:repeat(3,1fr)}}.score,.severity>div{{border:1px solid var(--line);border-radius:10px;padding:14px}}.score strong,.severity strong{{display:block;font-size:24px}}.healthy{{border-top:5px solid #15935a}}.warning{{border-top:5px solid #e2b100;background:#fffbeb}}.poor{{border-top:5px solid #e17016;background:#fff4e8}}.critical{{border-top:5px solid #d23845;background:#fff0f1}}.unassessed{{border-top:5px solid #84909c}}.badge{{border:1px solid currentColor;border-radius:99px;padding:2px 8px;font-weight:700}}summary{{cursor:pointer;font-weight:700}}blockquote,mark{{overflow-wrap:anywhere}}blockquote{{margin:8px 0;padding:12px;border-left:4px solid var(--accent);background:#f6fafb}}mark{{background:#fff1a8;padding:2px}}table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}.muted{{color:var(--muted)}}code{{overflow-wrap:anywhere}}@media(max-width:760px){{.meta,.score-grid,.severity,.columns{{grid-template-columns:1fr}}table{{display:block;overflow:auto}}main,footer{{padding:14px}}}}@media print{{body{{background:#fff}}header{{background:#fff;color:#000;border-bottom:2px solid #000}}section,.finding{{break-inside:avoid}}}}
-</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(t(str(report.scan.get("status"))))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
+</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(t(str(report.scan.get("status"))))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{rag_section}{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
 
 
 def _cell(value: Any) -> str | int | float:
@@ -709,6 +949,30 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
             [_cell(item.path), _cell(item.stage), _cell(item.message), _cell(item.remediation)]
         )
     _style_sheet(ingestion, freeze="A2", auto_filter=True)
+
+    if report.rag_configuration_advice:
+        rag = report.rag_configuration_advice
+        rag_sheet = workbook.create_sheet(t("RAG Configuration"))
+        rag_sheet.append([t("Area"), t("Report details")])
+        _append_key_value(rag_sheet, t("Workload profile"), t(rag.profile.value))
+        for key, value in rag.recommended.items():
+            _append_key_value(
+                rag_sheet,
+                t(f"Recommended {key.replace('_', ' ')}"),
+                t(value) if isinstance(value, str) else value,
+            )
+        for key, value in rag.observed.items():
+            _append_key_value(rag_sheet, t(f"Observed {key.replace('_', ' ')}"), value)
+        _append_key_value(rag_sheet, t("Actions"), "\n".join(t(item) for item in rag.actions))
+        _append_key_value(
+            rag_sheet,
+            t("Validation metrics"),
+            "\n".join(t(item) for item in rag.validation_metrics),
+        )
+        _append_key_value(
+            rag_sheet, t("Limitations"), "\n".join(t(item) for item in rag.limitations)
+        )
+        _style_sheet(rag_sheet)
 
     if report.ai_analysis or report.ai_analysis_error:
         ai_sheet = workbook.create_sheet(t("AI Analysis"))
@@ -978,6 +1242,36 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
         )
     )
     story.extend([Spacer(1, 7), severity])
+
+    if report.rag_configuration_advice:
+        rag = report.rag_configuration_advice
+        recommended = rag.recommended
+        story.extend(
+            [
+                Paragraph(esc(t("RAG configuration advice")), h2),
+                Paragraph(
+                    f"<b>{esc(t('Workload profile'))}:</b> {esc(t(rag.profile.value))} · "
+                    f"<b>{esc(t('Recommended chunk range'))}:</b> "
+                    f"{esc(recommended.get('minimum_tokens'))}–{esc(recommended.get('maximum_tokens'))} "
+                    f"{esc(t('tokens'))} ({esc(t('target'))} {esc(recommended.get('target_tokens'))}) · "
+                    f"<b>{esc(t('Overlap'))}:</b> {esc(recommended.get('overlap_tokens'))} · "
+                    f"<b>{esc(t('Retrieval top-k'))}:</b> {esc(recommended.get('retrieval_top_k'))}",
+                    body,
+                ),
+                Paragraph(esc(t("Actions")), h3),
+                *[Paragraph(f"- {esc(t(item))}", body) for item in rag.actions],
+                Paragraph(esc(t("Validation metrics")), h3),
+                *[Paragraph(f"- {esc(t(item))}", body) for item in rag.validation_metrics],
+                Paragraph(
+                    esc(
+                        t(
+                            "Starting point only; validate with representative queries before production use."
+                        )
+                    ),
+                    small,
+                ),
+            ]
+        )
 
     if report.ai_analysis:
         ai = report.ai_analysis

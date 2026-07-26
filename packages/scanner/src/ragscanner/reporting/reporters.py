@@ -91,6 +91,21 @@ class TerminalReporter:
         )
         if report.truncation_notices:
             lines.extend(f"LIMIT: {item}" for item in report.truncation_notices)
+        if report.rag_configuration_advice:
+            rag = report.rag_configuration_advice
+            lines.extend(
+                [
+                    "RAG configuration advice (starting point; benchmark before production):",
+                    f"  Profile: {rag.profile.value}",
+                    f"  Chunk range: {rag.recommended.get('minimum_tokens')}–"
+                    f"{rag.recommended.get('maximum_tokens')} tokens; target="
+                    f"{rag.recommended.get('target_tokens')}; overlap="
+                    f"{rag.recommended.get('overlap_tokens')}",
+                    f"  Retrieval top-k: {rag.recommended.get('retrieval_top_k')}",
+                    *[f"  Action: {item}" for item in rag.actions],
+                    *[f"  Validate: {item}" for item in rag.validation_metrics],
+                ]
+            )
         lines.append(f"Findings: {len(report.findings)}")
         for finding in report.findings:
             classification = (
@@ -249,6 +264,20 @@ class HtmlReporter:
                 "AI analysis unavailable</h2>"
                 f"{error_code}<p>{esc(report.ai_analysis_error)}</p></section>"
             )
+        rag_section = ""
+        if report.rag_configuration_advice:
+            rag = report.rag_configuration_advice
+            rag_json = json.dumps(
+                rag.model_dump(mode="json"), ensure_ascii=False, sort_keys=True, indent=2
+            )
+            rag_section = (
+                '<section aria-labelledby="rag-configuration"><h2 id="rag-configuration">'
+                "RAG configuration advice</h2>"
+                "<p>This is a starting point; validate it with representative retrieval "
+                "queries before production use.</p>"
+                f"<p><strong>Profile:</strong> {esc(rag.profile.value)}</p>"
+                f"<pre>{esc(rag_json)}</pre></section>"
+            )
 
         html_value = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -258,6 +287,7 @@ class HtmlReporter:
 </style></head><body><header role="banner"><div><h1>RAGScanner report</h1><p>{esc(report.scan["id"])} · {esc(report.scan["type"])} · {esc(report.scan["status"])}</p></div></header>
 <main id="main-content"><section class="summary" aria-labelledby="summary"><h2 id="summary">Executive summary</h2><p class="metric">{esc(status_label)}</p><div class="grid"><div><strong>Discovered</strong><p class="metric">{report.processing.files_discovered}</p></div><div><strong>Processed</strong><p class="metric">{report.processing.files_scanned}</p></div><div><strong>Skipped</strong><p class="metric">{report.processing.files_skipped}</p></div><div><strong>Findings</strong><p class="metric">{len(report.findings)}</p></div></div><p class="notice">{esc(coverage_notice)}</p><h3>What to do next</h3><ol>{priority_actions}</ol></section>
 {ai_section}
+{rag_section}
 <section aria-labelledby="ingestion"><h2 id="ingestion">File ingestion</h2><p>Files that could not be processed are listed separately from security and quality findings.</p><table><thead><tr><th>File</th><th>Stage</th><th>What happened</th><th>What to do</th></tr></thead><tbody>{ingestion_rows}</tbody></table></section>
 <section aria-labelledby="scores"><h2 id="scores">Scores</h2><p class="muted">Product-defined scores. Missing values are Not assessed, never zero.</p><div class="grid">{score_cards}</div></section>
 <section aria-labelledby="severity"><h2 id="severity">Severity distribution</h2><div class="grid">{"".join(f'<div class="card {esc(k)}"><strong>{esc(k.title())}</strong><p>{v}</p></div>' for k, v in report.severity_summary.items())}</div></section>

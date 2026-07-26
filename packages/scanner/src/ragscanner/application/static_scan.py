@@ -31,6 +31,7 @@ from ragscanner.pipeline import (
     run_static_pipeline,
 )
 from ragscanner.providers import ModelProviderError, create_analysis_provider
+from ragscanner.quality import RAGConfigurationConfig
 from ragscanner.reporting import ReportBuilder, ReportFilter, ReportInput, ReportLimits
 from ragscanner.reporting.models import ReportDocument
 from ragscanner.storage.machine_secrets import resolve_file_secret_reference
@@ -54,6 +55,7 @@ class StaticScanJobPayload(BaseModel):
     credential_ref: str | None = Field(default=None, max_length=500)
     content_consent: bool = False
     ai: AIProviderConfig = Field(default_factory=AIProviderConfig)
+    rag: RAGConfigurationConfig | None = None
 
     @model_validator(mode="after")
     def validate_source(self) -> "StaticScanJobPayload":
@@ -116,11 +118,14 @@ class StaticScanApplicationService:
         config_path: Path | None = None,
         checkpoint: JobCheckpoint | None = None,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         resolved_source = source_path.expanduser().resolve(strict=True)
         resolved_config = config_path.expanduser().resolve(strict=True) if config_path else None
         config = load_local_scan_config(resolved_config).pipeline_config(resolved_source)
+        if rag_config is not None:
+            config = config.model_copy(update={"rag": rag_config})
         if (
             resolved_source.is_file()
             and resolved_source.suffix.casefold() not in config.allowed_extensions
@@ -160,6 +165,7 @@ class StaticScanApplicationService:
         content_consent: bool,
         checkpoint: JobCheckpoint | None = None,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         api_key = resolve_secret_reference(credential_ref)
@@ -173,6 +179,8 @@ class StaticScanApplicationService:
             api_key=api_key,
         )
         config = LocalScanFileConfig().pipeline_config(Path(f"/openwebui/{knowledge_id}"))
+        if rag_config is not None:
+            config = config.model_copy(update={"rag": rag_config})
         return asyncio.run(
             self._run_connector(
                 config,
@@ -191,6 +199,7 @@ class StaticScanApplicationService:
         content_consent: bool,
         checkpoint: JobCheckpoint | None = None,
         ai_config: AIProviderConfig | None = None,
+        rag_config: RAGConfigurationConfig | None = None,
         source_name: str | None = None,
     ) -> tuple[str, ReportDocument]:
         token = resolve_secret_reference(credential_ref) if credential_ref else ""
@@ -204,6 +213,8 @@ class StaticScanApplicationService:
             bearer_token=token,
         )
         config = LocalScanFileConfig().pipeline_config(Path("/website/content"))
+        if rag_config is not None:
+            config = config.model_copy(update={"rag": rag_config})
         return asyncio.run(
             self._run_connector(
                 config,
@@ -349,6 +360,7 @@ class StaticScanJobHandler(JobHandler):
                 config_path=Path(payload.config_path) if payload.config_path else None,
                 checkpoint=checkpoint,
                 ai_config=payload.ai,
+                rag_config=payload.rag,
                 source_name=payload.source_name,
             )
         elif (
@@ -364,6 +376,7 @@ class StaticScanJobHandler(JobHandler):
                 content_consent=payload.content_consent,
                 checkpoint=checkpoint,
                 ai_config=payload.ai,
+                rag_config=payload.rag,
                 source_name=payload.source_name,
             )
         elif payload.source_kind == "website" and payload.website_url is not None:
@@ -373,6 +386,7 @@ class StaticScanJobHandler(JobHandler):
                 content_consent=payload.content_consent,
                 checkpoint=checkpoint,
                 ai_config=payload.ai,
+                rag_config=payload.rag,
                 source_name=payload.source_name,
             )
         else:
@@ -457,6 +471,8 @@ def pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
         scan=result.scan,
         findings=result.findings,
         scores=result.score_summary,
+        score_policy_details=result.score_policy,
+        rag_configuration_advice=result.rag_configuration_advice,
         duplicate_groups=result.duplicate_groups,
         chunk_quality_statistics=result.quality_statistics,
         security_statistics=result.security_statistics,
@@ -474,6 +490,8 @@ def pipeline_report_input(result: StaticPipelineResult) -> ReportInput:
             "offline": bool(result.metadata.get("offline", True)),
             "network_calls": bool(result.metadata.get("network_calls", False)),
             "external_ai": False,
+            "rag_profile": result.rag_configuration_advice.profile.value,
+            "score_policy_version": result.score_policy.policy_version,
         },
         methodology=[
             "Static security rules, normalized-content duplicate analysis, and chunk-quality heuristics"

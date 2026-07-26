@@ -13,12 +13,13 @@ from ragscanner.domain import (
     Severity,
     TestExecution,
 )
-from ragscanner.quality import DuplicateGroup
+from ragscanner.quality import DuplicateGroup, RAGConfigurationAdvice
 from ragscanner.quality.models import ChunkQualityStatistics
+from ragscanner.scoring import ScorePolicySnapshot
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.3.0"
-REPORTER_VERSION = "1.3.0"
+REPORT_SCHEMA_VERSION = "1.4.0"
+REPORTER_VERSION = "1.4.0"
 
 
 class ReportFilter(BaseModel):
@@ -58,6 +59,8 @@ class ReportInput(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     executions: list[TestExecution] = Field(default_factory=list)
     scores: ScoreSummary | None = None
+    score_policy_details: ScorePolicySnapshot | None = None
+    rag_configuration_advice: RAGConfigurationAdvice | None = None
     duplicate_groups: list[DuplicateGroup] = Field(default_factory=list)
     chunk_quality_statistics: ChunkQualityStatistics | None = None
     security_statistics: StaticScanStatistics | None = None
@@ -166,6 +169,8 @@ class ReportDocument(BaseModel):
         "RAGScanner product-defined assessed-dimension weighted scores; security receives the "
         "highest weight, and missing dimensions are not assessed."
     )
+    score_policy_details: ScorePolicySnapshot | None = None
+    rag_configuration_advice: RAGConfigurationAdvice | None = None
     severity_summary: dict[str, int]
     classification_summary: dict[str, int]
     findings: list[ReportFinding]

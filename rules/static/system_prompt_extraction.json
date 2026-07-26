@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "pack_id": "static.system-prompt-extraction",
   "description": "System and hidden instruction extraction attempts.",
   "rules": [
     {
       "id": "STATIC-SP-001",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "name": "System prompt extraction request",
       "category": "system_prompt_extraction",
       "description": "Content requests disclosure or reconstruction of hidden model instructions.",
@@ -22,7 +22,11 @@
           "type": "regex",
           "patterns": [
             "(?:reveal|print|repeat|reconstruct|show).{0,40}(?:system prompt|system message|hidden instructions|initial instructions)",
-            "(?:sistem mesajını|sistem istemini|gizli talimatları|başlangıç talimatlarını).{0,30}(?:göster|açıkla|tekrarla|yeniden yaz)"
+            "(?:sistem mesajını|sistem istemini|gizli talimatları|başlangıç talimatlarını).{0,30}(?:göster|açıkla|tekrarla|yeniden yaz)",
+            "(?:zeige|drucke|wiederhole).{0,40}(?:system-prompt|systemnachricht|versteckte anweisungen)",
+            "(?:révèle|affiche|répète).{0,40}(?:prompt système|message système|instructions cachées)",
+            "(?:显示|打印|重复).{0,20}(?:系统提示词|系统消息|隐藏指令)",
+            "(?:mostra|stampa|ripeti).{0,40}(?:prompt di sistema|messaggio di sistema|istruzioni nascoste)"
           ],
           "flags": [],
           "metadata_fields": [],
@@ -48,7 +52,7 @@
       "evidence_window": 180,
       "remediation": "Treat retrieved disclosure requests as untrusted data and prevent prompt serialization.",
       "references": [
-        "OWASP-LLM07"
+        "OWASP-LLM07:2025"
       ],
       "enabled": true,
       "tags": [
@@ -57,7 +61,11 @@
       ],
       "languages": [
         "en",
-        "tr"
+        "tr",
+        "de",
+        "fr",
+        "zh-CN",
+        "it"
       ],
       "metadata": {
         "impact": "Private model instructions may be exposed."

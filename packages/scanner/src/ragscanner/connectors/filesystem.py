@@ -377,6 +377,8 @@ class LocalFilesystemConnector(SourceConnector):
                     part.startswith(".") for part in Path(relative).parts
                 ):
                     continue
+                if not self._matches(relative):
+                    continue
                 extension = logical_path.suffix.casefold()
                 if extension not in MIME_TYPES:
                     warnings.append(
@@ -387,8 +389,6 @@ class LocalFilesystemConnector(SourceConnector):
                     )
                     continue
                 if extension not in self.config.allowed_extensions:
-                    continue
-                if not self._matches(relative):
                     continue
                 discovered.append((relative, path, info))
                 if len(discovered) >= self.config.maximum_discovered_files:

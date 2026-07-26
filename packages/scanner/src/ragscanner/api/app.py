@@ -253,6 +253,7 @@ def create_app(
                 idempotency_key=idempotency_key,
                 max_attempts=request.max_attempts,
                 ai_config=request.ai,
+                rag_config=request.rag,
             )
         except (OSError, ValueError) as error:
             raise RequestValidationError([]) from error
@@ -281,6 +282,7 @@ def create_app(
                 idempotency_key=idempotency_key,
                 max_attempts=request.max_attempts,
                 ai_config=request.ai,
+                rag_config=request.rag,
             )
         except ValueError as error:
             raise RequestValidationError([]) from error

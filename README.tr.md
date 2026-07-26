@@ -100,6 +100,20 @@ Uzak web taramaları yönlendirmeleri ve farklı kaynaklı sitemap kayıtların�
 ve sayfa, yanıt boyutu ile zaman aşımı sınırları uygular. Kimlik doğrulamalı Microsoft Graph
 site/kitaplık keşfi ayrı ve planlanan bir connector’dır.
 
+## RAG yapılandırması ve doğrulama
+
+Her yeni rapor seçilen iş yükü profilini kaydeder ve mevcut chunk ayarını gözlenen chunk
+istatistikleriyle karşılaştırır. Olgu arama, genel soru yanıtlama, politika/prosedür, uzun bağlamlı
+araştırma, kod veya tablo kullanımı için açıklanabilir bir başlangıç aralığı; bindirme ve ilk getirme
+top-k değeri önerir. Evrensel bir en iyi chunk boyutu yoktur; rapor temsili sorgularla doğrulanması
+gereken getirme, yanıt, atıf, gecikme ve maliyet metriklerini her zaman listeler.
+
+Doğrudan ve kuyruğa alınan CLI taramalarında `--rag-profile` ile isteğe bağlı model bağlamı/top-k
+seçeneklerini veya `ragscanner.toml` içindeki `[rag]` tablosunu kullanın. Ayrıntılar:
+[RAG configuration advice](docs/rag-configuration-advice.md). Etiketli yerel bir külliyatı
+`ragscanner quality calibrate` ile ölçebilirsiniz; bkz. [Quality calibration](docs/quality-calibration.md).
+Altı dilli yerleşik külliyat yalnızca regresyon kontrolüdür, üretim doğruluğu kanıtı değildir.
+
 ## AI destekli raporlar
 
 AI analizi isteğe bağlıdır ve deterministik bulguların yerini almaz. Ayarlar; eski bir model adını

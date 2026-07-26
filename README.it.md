@@ -99,6 +99,20 @@ Le scansioni web rifiutano reindirizzamenti e voci sitemap di altra origine, non
 limitano pagine, dimensioni e timeout. Il rilevamento autenticato di siti/librerie Microsoft Graph
 rimane un connettore separato pianificato.
 
+## Configurazione e validazione RAG
+
+Ogni nuovo rapporto registra il profilo di carico scelto e confronta il chunking configurato con le
+statistiche osservate. Propone un intervallo iniziale spiegabile, la sovrapposizione e un top-k di
+recupero per ricerca fattuale, domande generali, policy/procedure, ricerca, codice o tabelle. Non
+esiste una dimensione dei chunk universalmente migliore; il rapporto elenca sempre le metriche di
+recupero, risposta, citazione, latenza e costo da validare con query rappresentative.
+
+Usa `--rag-profile` con i parametri opzionali di contesto/top-k oppure la tabella `[rag]` in
+`ragscanner.toml`. Vedi [RAG configuration advice](docs/rag-configuration-advice.md). Misura un corpus
+locale etichettato con `ragscanner quality calibrate`; vedi
+[Quality calibration](docs/quality-calibration.md). Il corpus integrato in sei lingue è solo un test
+di regressione, non una prova di accuratezza in produzione.
+
 ## Rapporti assistiti da AI
 
 L’analisi AI è facoltativa e non sostituisce i risultati deterministici. Le impostazioni rilevano i

@@ -100,6 +100,21 @@ Externe Webscans lehnen Weiterleitungen und fremde Sitemap-Einträge ab, führen
 begrenzen Seiten, Antwortgröße und Zeit. Authentifizierte Microsoft-Graph-Site-/Bibliothekserkennung
 ist ein separat geplanter Konnektor.
 
+## RAG-Konfiguration und Validierung
+
+Jeder neue Bericht speichert das gewählte Arbeitslastprofil und vergleicht die konfigurierte
+Chunk-Aufteilung mit den beobachteten Statistiken. Für Faktensuche, allgemeine Fragen,
+Richtlinien/Verfahren, Forschung, Code oder Tabellen werden ein erklärbarer Ausgangsbereich,
+Überlappung und ein anfängliches Abruf-Top-k empfohlen. Es gibt keine universell beste Chunk-Größe;
+der Bericht nennt immer die Abruf-, Antwort-, Zitat-, Latenz- und Kostenmetriken für die Validierung
+mit repräsentativen Abfragen.
+
+Nutzen Sie `--rag-profile` und optionale Kontext-/Top-k-Parameter oder die Tabelle `[rag]` in
+`ragscanner.toml`. Details: [RAG configuration advice](docs/rag-configuration-advice.md). Ein lokal
+beschrifteter Korpus lässt sich mit `ragscanner quality calibrate` messen; siehe
+[Quality calibration](docs/quality-calibration.md). Der mitgelieferte sechssprachige Korpus ist nur
+ein Regressionstest und kein Nachweis der Produktionsgenauigkeit.
+
 ## KI-unterstützte Berichte
 
 KI-Analyse ist optional und ersetzt keine deterministischen Befunde. Die Einstellungen erkennen

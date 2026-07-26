@@ -1223,6 +1223,32 @@ def test_quality_scan_validation_and_fail_on(tmp_path) -> None:  # type: ignore[
     assert failed.exit_code == 2
 
 
+def test_quality_calibration_cli_json_and_threshold() -> None:
+    manifest = Path(__file__).parents[1] / "fixtures" / "calibration" / "security" / "manifest.json"
+    result = runner.invoke(app, ["quality", "calibrate", str(manifest), "--format", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["cases"] == 12
+    assert payload["aggregate"]["precision"] == 1
+    assert payload["aggregate"]["recall"] == 1
+    assert (
+        runner.invoke(
+            app,
+            [
+                "quality",
+                "calibrate",
+                str(manifest),
+                "--minimum-precision",
+                "1",
+                "--minimum-recall",
+                "1",
+            ],
+        ).exit_code
+        == 0
+    )
+
+
 def test_report_cli_terminal_json_html_and_filters(tmp_path) -> None:  # type: ignore[no-untyped-def]
     fixture = Path(__file__).resolve().parents[2] / "examples/reports/sample-report-input.json"
     terminal = runner.invoke(app, ["report", str(fixture), "--severity", "high"])
@@ -1231,7 +1257,7 @@ def test_report_cli_terminal_json_html_and_filters(tmp_path) -> None:  # type: i
     assert "Filters active: yes" in terminal.stdout
     json_result = runner.invoke(app, ["report", str(fixture), "--format", "json"])
     assert json_result.exit_code == 0
-    assert json.loads(json_result.stdout)["schema_version"] == "1.3.0"
+    assert json.loads(json_result.stdout)["schema_version"] == "1.4.0"
     target = tmp_path / "report.html"
     html_result = runner.invoke(
         app, ["report", str(fixture), "--format", "html", "--output", str(target)]

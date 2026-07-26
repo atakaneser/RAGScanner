@@ -10,6 +10,12 @@ from ragscanner.quality.models import (
     NearDuplicateConfig,
     QualityWarning,
 )
+from ragscanner.quality.recommendations import (
+    RAGConfigurationAdvice,
+    RAGConfigurationAdvisor,
+    RAGConfigurationConfig,
+    RAGProfile,
+)
 from ragscanner.quality.scanners import (
     ChunkQualityScanner,
     ExactDuplicateScanner,
@@ -28,4 +34,8 @@ __all__ = [
     "NearDuplicateConfig",
     "NearDuplicateScanner",
     "QualityWarning",
+    "RAGConfigurationAdvice",
+    "RAGConfigurationAdvisor",
+    "RAGConfigurationConfig",
+    "RAGProfile",
 ]

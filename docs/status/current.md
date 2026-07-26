@@ -98,6 +98,14 @@
   collapsed connection/manual fallback controls, and stale local model clearing on discovery failure
 - Assessed-dimension scoring across security, content quality, and efficiency; shared yellow/orange/red
   score bands, source page/line provenance, and bounded matched-evidence highlighting
+- Versioned configurable scoring policy snapshots with token-weighted content quality, explicit
+  assessed-dimension coverage, and a critical-security cap that cannot be averaged away
+- Workload-aware RAG configuration advice for factual lookup, general QA, policies/procedures,
+  research, code, and tables; reports compare configured, recommended, and observed chunk values and
+  require representative retrieval/answer validation metrics
+- Local labelled-corpus calibration with precision, recall, F1, false-positive rate, Wilson 95%
+  intervals, CI thresholds, and rule/language/format slices; the bundled positive/negative smoke
+  corpus covers all six supported languages across text, Markdown, HTML, and JSON
 - AI provider timeout increased from 45 to 180 seconds for slower local models; localized timeout
   guidance and selected-locale AI narratives across all six dashboard languages
 - Persistent browser-local language selection across setup, sign-in, navigation, jobs, sources,

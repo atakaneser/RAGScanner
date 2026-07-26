@@ -102,6 +102,8 @@ from ragscanner.quality import (
     ExactDuplicateScanner,
     NearDuplicateConfig,
     NearDuplicateScanner,
+    RAGConfigurationConfig,
+    RAGProfile,
 )
 from ragscanner.reporting import (
     HtmlReporter,
@@ -900,6 +902,14 @@ def unified_scan(
     ai_base_url: Annotated[str | None, typer.Option("--ai-base-url")] = None,
     ai_credential_ref: Annotated[str | None, typer.Option("--ai-credential-ref")] = None,
     consent_remote_ai: Annotated[bool, typer.Option("--consent-remote-ai")] = False,
+    rag_profile: Annotated[RAGProfile | None, typer.Option("--rag-profile")] = None,
+    embedding_context_tokens: Annotated[
+        int | None, typer.Option("--embedding-context-tokens", min=128)
+    ] = None,
+    generator_context_tokens: Annotated[
+        int | None, typer.Option("--generator-context-tokens", min=128)
+    ] = None,
+    retrieval_top_k: Annotated[int | None, typer.Option("--retrieval-top-k", min=1)] = None,
 ) -> None:
     """Run the complete local static scan pipeline and render a report."""
     del no_color  # Output is deliberately ANSI-free in the first implementation.
@@ -945,6 +955,27 @@ def unified_scan(
             )
         if quality_only:
             updates["security_enabled"] = False
+        if any(
+            value is not None
+            for value in (
+                rag_profile,
+                embedding_context_tokens,
+                generator_context_tokens,
+                retrieval_top_k,
+            )
+        ):
+            updates["rag"] = config.rag.model_copy(
+                update={
+                    key: value
+                    for key, value in {
+                        "profile": rag_profile,
+                        "embedding_context_tokens": embedding_context_tokens,
+                        "generator_context_tokens": generator_context_tokens,
+                        "retrieval_top_k": retrieval_top_k,
+                    }.items()
+                    if value is not None
+                }
+            )
         config = config.model_copy(update=updates)
         selection_updates: dict[str, object] = {}
         if category is not None:
@@ -1093,6 +1124,14 @@ def jobs_enqueue_scan(
     ai_base_url: Annotated[str | None, typer.Option("--ai-base-url")] = None,
     ai_credential_ref: Annotated[str | None, typer.Option("--ai-credential-ref")] = None,
     consent_remote_ai: Annotated[bool, typer.Option("--consent-remote-ai")] = False,
+    rag_profile: Annotated[RAGProfile | None, typer.Option("--rag-profile")] = None,
+    embedding_context_tokens: Annotated[
+        int | None, typer.Option("--embedding-context-tokens", min=128)
+    ] = None,
+    generator_context_tokens: Annotated[
+        int | None, typer.Option("--generator-context-tokens", min=128)
+    ] = None,
+    retrieval_top_k: Annotated[int | None, typer.Option("--retrieval-top-k", min=1)] = None,
 ) -> None:
     """Queue a local static scan without starting an in-process task."""
     repository: SQLiteJobRepository | None = None
@@ -1105,6 +1144,24 @@ def jobs_enqueue_scan(
             max_attempts=max_attempts,
             ai_config=_job_ai_config(
                 ai_provider, ai_model, ai_base_url, ai_credential_ref, consent_remote_ai
+            ),
+            rag_config=(
+                RAGConfigurationConfig(
+                    profile=rag_profile or RAGProfile.GENERAL_QA,
+                    embedding_context_tokens=embedding_context_tokens,
+                    generator_context_tokens=generator_context_tokens,
+                    retrieval_top_k=retrieval_top_k,
+                )
+                if any(
+                    value is not None
+                    for value in (
+                        rag_profile,
+                        embedding_context_tokens,
+                        generator_context_tokens,
+                        retrieval_top_k,
+                    )
+                )
+                else None
             ),
         )
     except (OSError, StorageError, ValueError) as error:
@@ -1765,3 +1822,49 @@ def quality_scan(
         }
         if any(rank[finding.severity] >= rank[fail_severity] for finding in all_findings):
             raise typer.Exit(code=2)
+
+
+@quality_app.command("calibrate")
+def quality_calibrate(
+    manifest: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
+    output_format: Annotated[str, typer.Option("--format")] = "terminal",
+    minimum_precision: Annotated[
+        float | None, typer.Option("--minimum-precision", min=0, max=1)
+    ] = None,
+    minimum_recall: Annotated[float | None, typer.Option("--minimum-recall", min=0, max=1)] = None,
+) -> None:
+    """Measure rule precision/recall on an explicitly labelled local corpus."""
+    from ragscanner.quality.calibration import run_security_calibration
+
+    if output_format not in {"terminal", "json"}:
+        raise typer.BadParameter("format must be terminal or json")
+    try:
+        report = run_security_calibration(manifest)
+    except (OSError, ValueError) as error:
+        raise typer.BadParameter(str(error)) from error
+    if output_format == "json":
+        typer.echo(report.model_dump_json())
+    else:
+        precision = report.aggregate.precision
+        recall = report.aggregate.recall
+        f1 = report.aggregate.f1
+        typer.echo(
+            f"Calibration: {report.corpus_name} · {report.cases} case(s) · "
+            f"precision={precision if precision is not None else 'not assessed'} · "
+            f"recall={recall if recall is not None else 'not assessed'} · "
+            f"f1={f1 if f1 is not None else 'not assessed'}"
+        )
+        for case in report.case_results:
+            if case.false_positive_rule_ids or case.false_negative_rule_ids:
+                typer.echo(
+                    f"  {case.id}: false_positive={','.join(case.false_positive_rule_ids) or '-'} "
+                    f"false_negative={','.join(case.false_negative_rule_ids) or '-'}"
+                )
+    if minimum_precision is not None and (
+        report.aggregate.precision is None or report.aggregate.precision < minimum_precision
+    ):
+        raise typer.Exit(code=3)
+    if minimum_recall is not None and (
+        report.aggregate.recall is None or report.aggregate.recall < minimum_recall
+    ):
+        raise typer.Exit(code=3)

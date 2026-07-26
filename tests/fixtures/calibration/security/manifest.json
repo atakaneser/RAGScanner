@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "corpus_name": "six-language-static-security-smoke",
+  "root": ".",
+  "cases": [
+    {"id": "en-positive", "path": "en-positive.md", "language": "en", "format": "markdown", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "en-negative", "path": "en-negative.md", "language": "en", "format": "markdown", "expected_rule_ids": []},
+    {"id": "tr-positive", "path": "tr-positive.txt", "language": "tr", "format": "text", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "tr-negative", "path": "tr-negative.txt", "language": "tr", "format": "text", "expected_rule_ids": []},
+    {"id": "de-positive", "path": "de-positive.html", "language": "de", "format": "html", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "de-negative", "path": "de-negative.html", "language": "de", "format": "html", "expected_rule_ids": []},
+    {"id": "fr-positive", "path": "fr-positive.json", "language": "fr", "format": "json", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "fr-negative", "path": "fr-negative.json", "language": "fr", "format": "json", "expected_rule_ids": []},
+    {"id": "zh-positive", "path": "zh-positive.md", "language": "zh-CN", "format": "markdown", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "zh-negative", "path": "zh-negative.md", "language": "zh-CN", "format": "markdown", "expected_rule_ids": []},
+    {"id": "it-positive", "path": "it-positive.txt", "language": "it", "format": "text", "expected_rule_ids": ["STATIC-PI-001"]},
+    {"id": "it-negative", "path": "it-negative.txt", "language": "it", "format": "text", "expected_rule_ids": []}
+  ]
+}

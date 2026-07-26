@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "pack_id": "static.hidden-content",
   "description": "Invisible Unicode, parser hidden-text signals, and instruction-bearing comments.",
   "rules": [
     {
       "id": "STATIC-HID-001",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "name": "Hidden or invisible instruction content",
       "category": "hidden_content",
       "description": "Parser or normalization signals indicate hidden or invisible content relevant to model instructions.",
@@ -44,8 +44,8 @@
         {
           "type": "regex",
           "patterns": [
-            "<!--[\\s\\S]{0,300}(?:ignore previous instructions|reveal system prompt|önceki talimatları yok say)[\\s\\S]{0,300}-->",
-            "<(?:div|span|p|section)[^>]{0,300}(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|hidden(?:\\s|=|>))[^>]*>[\\s\\S]{0,500}(?:ignore previous instructions|disable mfa|reveal system prompt|önceki talimatları yok say|mfa'yı devre dışı bırak)[\\s\\S]{0,500}</(?:div|span|p|section)>"
+            "<!--[\\s\\S]{0,300}(?:ignore previous instructions|reveal system prompt|önceki talimatları yok say|ignoriere vorherige anweisungen|ignore les instructions précédentes|忽略之前的指令|ignora le istruzioni precedenti)[\\s\\S]{0,300}-->",
+            "<(?:div|span|p|section)[^>]{0,300}(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|hidden(?:\\s|=|>))[^>]*>[\\s\\S]{0,500}(?:ignore previous instructions|disable mfa|reveal system prompt|önceki talimatları yok say|mfa'yı devre dışı bırak|ignoriere vorherige anweisungen|ignore les instructions précédentes|忽略之前的指令|ignora le istruzioni precedenti)[\\s\\S]{0,500}</(?:div|span|p|section)>"
           ],
           "flags": [],
           "metadata_fields": [],
@@ -58,7 +58,7 @@
       "evidence_window": 160,
       "remediation": "Expose hidden text to trust-boundary checks and prevent it from becoming executable instruction context.",
       "references": [
-        "OWASP-LLM01"
+        "OWASP-LLM01:2025"
       ],
       "enabled": true,
       "tags": [
@@ -68,7 +68,11 @@
       ],
       "languages": [
         "en",
-        "tr"
+        "tr",
+        "de",
+        "fr",
+        "zh-CN",
+        "it"
       ],
       "metadata": {
         "impact": "Invisible instructions can evade human review."

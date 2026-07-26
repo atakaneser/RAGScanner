@@ -25,8 +25,11 @@ from ragscanner.quality import (
     DuplicateGroup,
     DuplicateScanConfig,
     NearDuplicateConfig,
+    RAGConfigurationAdvice,
+    RAGConfigurationConfig,
 )
 from ragscanner.quality.models import ChunkQualityStatistics
+from ragscanner.scoring import ScorePolicySnapshot, ScoringPolicy
 from ragscanner.security import StaticScanConfig
 from ragscanner.security.static_models import StaticScanStatistics
 
@@ -109,6 +112,8 @@ class StaticPipelineConfig(BaseModel):
     near_duplicates: NearDuplicateConfig = Field(default_factory=NearDuplicateConfig)
     chunk_quality_enabled: bool = True
     chunk_quality: ChunkQualityConfig = Field(default_factory=ChunkQualityConfig)
+    rag: RAGConfigurationConfig = Field(default_factory=RAGConfigurationConfig)
+    scoring: ScoringPolicy = Field(default_factory=ScoringPolicy)
     output_format: OutputFormat = OutputFormat.TERMINAL
     output_path: Path | None = None
     minimum_severity: Severity | None = None
@@ -159,6 +164,8 @@ class StaticPipelineResult(BaseModel):
     quality_statistics: ChunkQualityStatistics | None = None
     security_statistics: StaticScanStatistics | None = None
     score_summary: ScoreSummary
+    score_policy: ScorePolicySnapshot
+    rag_configuration_advice: RAGConfigurationAdvice
     parser_warnings: dict[str, list[ParserWarning]] = Field(default_factory=dict)
     normalization_warnings: dict[str, list[str]] = Field(default_factory=dict)
     chunking_warnings: dict[str, list[str]] = Field(default_factory=dict)

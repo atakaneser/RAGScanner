@@ -5,6 +5,7 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 from pypdf import PdfReader
+from ragscanner.quality import RAGConfigurationAdvice, RAGProfile
 from ragscanner.reporting import export_report, report_export_filename
 
 
@@ -45,6 +46,40 @@ def test_xlsx_export_has_structured_sheets_and_blocks_formulas(report, finding) 
     assert str(findings_sheet["C2"].value).startswith("'=")
     assert str(findings_sheet["F2"].value).startswith("'+")
     assert findings_sheet["I2"].value == "Şüpheli metin"
+
+
+def test_all_exports_include_rag_configuration_advice(report) -> None:  # type: ignore[no-untyped-def]
+    value = report("scan-rag").model_copy(
+        update={
+            "rag_configuration_advice": RAGConfigurationAdvice(
+                profile=RAGProfile.POLICY_PROCEDURE,
+                configured={"target_tokens": 300},
+                recommended={
+                    "minimum_tokens": 80,
+                    "target_tokens": 450,
+                    "maximum_tokens": 700,
+                    "overlap_tokens": 45,
+                    "retrieval_top_k": 6,
+                },
+                observed={"median_chunk_tokens": 220},
+                actions=["Benchmark representative policy questions."],
+                validation_metrics=["Recall@k", "faithfulness"],
+                limitations=["Starting point only."],
+            )
+        }
+    )
+
+    html_text = export_report(value, "html").content.decode("utf-8")
+    workbook = load_workbook(BytesIO(export_report(value, "xlsx").content))
+    pdf_text = "\n".join(
+        page.extract_text() or ""
+        for page in PdfReader(BytesIO(export_report(value, "pdf").content)).pages
+    )
+
+    assert "RAG configuration advice" in html_text
+    assert "RAG Configuration" in workbook.sheetnames
+    assert "RAG configuration advice" in pdf_text
+    assert "450" in html_text
 
 
 @pytest.mark.parametrize("locale", ["en", "tr", "de", "fr", "zh-CN", "it"])

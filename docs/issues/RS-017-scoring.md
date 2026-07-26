@@ -10,5 +10,4 @@
 **Acceptance criteria:** Score/category/coverage reproduce from stored inputs; cap and missing-data behavior explicit; calibration limitations appear in outputs.  
 **Tests:** Golden/property/monotonicity, boundary weights, skipped/failed checks, cap cases, policy-version comparison.  
 **Documentation changes:** Scoring, reporting, product limitations.  
-**Completion checklist:** [ ] Policy approved [ ] Coverage visible [ ] Golden vectors [ ] No scientific claim [ ] Docs updated
-
+**Completion checklist:** [x] Policy approved [x] Coverage visible [x] Golden vectors [x] No scientific claim [x] Docs updated

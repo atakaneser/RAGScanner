@@ -17,6 +17,20 @@ max_tokens = 500
 min_tokens = 50
 overlap_tokens = 30
 
+[rag]
+profile = "general_qa"
+embedding_context_tokens = 8192
+generator_context_tokens = 32768
+retrieval_top_k = 5
+
+[scoring]
+version = "1.0.0"
+security_weight = 0.35
+knowledge_quality_weight = 0.20
+efficiency_weight = 0.15
+critical_security_cap = 54.99
+minimum_assessed_dimensions = 2
+
 [duplicates]
 exact = true
 near = true

@@ -48,8 +48,11 @@ from ragscanner.quality import (
     DuplicateScanResult,
     ExactDuplicateScanner,
     NearDuplicateScanner,
+    RAGConfigurationAdvice,
+    RAGConfigurationAdvisor,
 )
 from ragscanner.quality.models import ChunkQualityStatistics
+from ragscanner.scoring import ScoreCalculator, ScorePolicySnapshot
 from ragscanner.security import StaticRuleLibrary, StaticScanResult, StaticSecurityScanner
 from ragscanner.security.static_models import StaticScanStatistics
 from ragscanner.version import __version__
@@ -111,7 +114,7 @@ class StaticScanPipeline:
         self._connector = connector or LocalFilesystemConnector(
             FilesystemSourceConfig(
                 root_path=source_root,
-                recursive=config.recursive,
+                recursive=False if self._single_source else config.recursive,
                 include_patterns=include_patterns,
                 exclude_patterns=config.exclude_patterns,
                 maximum_file_size=config.maximum_file_size,
@@ -461,13 +464,21 @@ class StaticScanPipeline:
                 await self._emit(StaticScanEventType.QUALITY_SCAN_COMPLETED, scan_id)
             except Exception as error:
                 errors.append(self._stage_error(StageName.QUALITY, "quality_scanner_failed", error))
-        scores = self._scores(
-            findings,
-            quality_result,
-            exact_result,
-            near_result,
+        scoring = ScoreCalculator(self.config.scoring).calculate(
+            findings=findings,
+            chunks=chunks,
+            quality_result=quality_result,
+            exact_result=exact_result,
+            near_result=near_result,
             security_assessed=security_stats is not None,
             document_count=len(documents),
+        )
+        rag_advice = RAGConfigurationAdvisor().recommend(
+            config=self.config.rag,
+            chunking=self.config.chunking,
+            documents=documents,
+            chunks=chunks,
+            quality=quality_stats,
         )
         await self._emit(StaticScanEventType.SCORING_COMPLETED, scan_id)
         return await self._finalize(
@@ -487,7 +498,9 @@ class StaticScanPipeline:
             errors,
             started,
             cancelled=False,
-            scores=scores,
+            scores=scoring.summary,
+            score_policy=scoring.policy,
+            rag_configuration_advice=rag_advice,
         )
 
     async def _discover(self, scan_id: str, skipped: list[SkippedItem]) -> list[SourceItem]:
@@ -541,6 +554,8 @@ class StaticScanPipeline:
         started: datetime,
         cancelled: bool,
         scores: ScoreSummary | None = None,
+        score_policy: ScorePolicySnapshot | None = None,
+        rag_configuration_advice: RAGConfigurationAdvice | None = None,
     ) -> StaticPipelineResult:
         completed = self._now()
         if cancelled:
@@ -590,6 +605,26 @@ class StaticScanPipeline:
             quality_statistics=quality_stats,
             security_statistics=security_stats,
             score_summary=scores or ScoreSummary(),
+            score_policy=score_policy
+            or ScoreCalculator(self.config.scoring)
+            .calculate(
+                findings=findings,
+                chunks=chunks,
+                quality_result=None,
+                exact_result=None,
+                near_result=None,
+                security_assessed=False,
+                document_count=len(documents),
+            )
+            .policy,
+            rag_configuration_advice=rag_configuration_advice
+            or RAGConfigurationAdvisor().recommend(
+                config=self.config.rag,
+                chunking=self.config.chunking,
+                documents=documents,
+                chunks=chunks,
+                quality=quality_stats,
+            ),
             parser_warnings=parser_warnings,
             normalization_warnings=normalization_warnings,
             chunking_warnings=chunking_warnings,
@@ -716,64 +751,6 @@ class StaticScanPipeline:
             decoded_payloads_inspected=sum(
                 item.statistics.decoded_payloads_inspected for item in results
             ),
-        )
-
-    @staticmethod
-    def _scores(
-        findings: list[Finding],
-        quality_result: ChunkQualityResult | None,
-        exact_result: DuplicateScanResult | None,
-        near_result: DuplicateScanResult | None,
-        *,
-        security_assessed: bool,
-        document_count: int,
-    ) -> ScoreSummary:
-        penalties = {
-            Severity.CRITICAL: 25,
-            Severity.HIGH: 15,
-            Severity.MEDIUM: 8,
-            Severity.LOW: 3,
-            Severity.INFO: 1,
-        }
-        security_findings = [item for item in findings if item.scanner == "static_security_scanner"]
-        security = None
-        if security_assessed:
-            security = max(
-                0.0,
-                100.0
-                - sum(penalties[item.severity] * item.confidence for item in security_findings),
-            )
-        knowledge: float | None = None
-        if quality_result is not None and quality_result.scores:
-            knowledge = sum(item.overall for item in quality_result.scores.values()) / len(
-                quality_result.scores
-            )
-        percentages = [
-            item.statistics.duplicate_content_percentage
-            for item in (exact_result, near_result)
-            if item is not None
-        ]
-        efficiency = max(0.0, 100.0 - max(percentages)) if percentages else None
-        dimensions = {
-            "security": (
-                security,
-                0.35 + min(0.15, len(security_findings) / max(1, document_count) * 0.03),
-            ),
-            "knowledge": (knowledge, 0.20),
-            "efficiency": (efficiency, 0.15),
-        }
-        assessed = [(value, weight) for value, weight in dimensions.values() if value is not None]
-        overall = (
-            sum(value * weight for value, weight in assessed)
-            / sum(weight for _value, weight in assessed)
-            if assessed
-            else None
-        )
-        return ScoreSummary(
-            overall=overall,
-            knowledge_quality=knowledge,
-            security=security,
-            efficiency=efficiency,
         )
 
     def _scan_id(self) -> str:

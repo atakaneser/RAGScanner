@@ -8,7 +8,7 @@ subscription, entitlement, or commercial package decision.
 | OD-001 | **Resolved:** Apache-2.0; see `LICENSE_DECISION.md` | — |
 | OD-002 | Package name and single-repository module layout | RS-003 |
 | OD-003 | **Resolved:** explicit opt-in, no automatic deletion; see ADR-0019 | — |
-| OD-005 | Health score formula, critical-security cap, coverage, and calibration | RS-017 |
+| OD-005 | **Resolved for initial provisional policy:** versioned formula, critical-security cap, coverage snapshot, and labelled-corpus calibration; see ADR-0043 | — |
 | OD-006 | RAG Rot baseline/window and missing-data behavior | RS-027 |
 | OD-007 | **Resolved:** SQLAlchemy Core plus packaged Alembic migrations; see ADR-0019 | — |
 | OD-008 | **Resolved:** SQLite durable queue, one worker, and an idempotent interval materializer; see ADR-0007/0021/0034 | — |

@@ -11,7 +11,13 @@ from ragscanner.normalization import NormalizationConfig
 from ragscanner.parsers import DocxParserConfig, PdfParserConfig
 from ragscanner.pipeline.models import OutputFormat, StaticPipelineConfig
 from ragscanner.pipeline.registry import DEFAULT_DOCUMENT_PATTERNS, SUPPORTED_DOCUMENT_EXTENSIONS
-from ragscanner.quality import ChunkQualityConfig, NearDuplicateConfig
+from ragscanner.quality import (
+    ChunkQualityConfig,
+    NearDuplicateConfig,
+    RAGConfigurationConfig,
+    RAGProfile,
+)
+from ragscanner.scoring import ScoringPolicy
 
 
 class ScanFileSection(BaseModel):
@@ -59,6 +65,26 @@ class QualityFileSection(BaseModel):
     enabled: bool = True
 
 
+class RAGFileSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile: RAGProfile = RAGProfile.GENERAL_QA
+    embedding_context_tokens: int | None = Field(default=None, ge=128, le=10_000_000)
+    generator_context_tokens: int | None = Field(default=None, ge=128, le=10_000_000)
+    retrieval_top_k: int | None = Field(default=None, ge=1, le=1_000)
+
+
+class ScoringFileSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = "1.0.0"
+    security_weight: float = Field(default=0.35, ge=0, le=1)
+    knowledge_quality_weight: float = Field(default=0.20, ge=0, le=1)
+    efficiency_weight: float = Field(default=0.15, ge=0, le=1)
+    critical_security_cap: float | None = Field(default=54.99, ge=0, le=100)
+    minimum_assessed_dimensions: int = Field(default=2, ge=1, le=3)
+
+
 class LimitsFileSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -88,6 +114,8 @@ class LocalScanFileConfig(BaseModel):
     chunking: ChunkingFileSection = Field(default_factory=ChunkingFileSection)
     duplicates: DuplicateFileSection = Field(default_factory=DuplicateFileSection)
     quality: QualityFileSection = Field(default_factory=QualityFileSection)
+    rag: RAGFileSection = Field(default_factory=RAGFileSection)
+    scoring: ScoringFileSection = Field(default_factory=ScoringFileSection)
     limits: LimitsFileSection = Field(default_factory=LimitsFileSection)
     report: ReportFileSection = Field(default_factory=ReportFileSection)
 
@@ -120,6 +148,22 @@ class LocalScanFileConfig(BaseModel):
                 minimum_chunk_tokens=min(self.chunking.min_tokens, quality_target),
                 target_chunk_tokens=quality_target,
                 maximum_chunk_tokens=self.chunking.max_tokens,
+            ),
+            rag=RAGConfigurationConfig(
+                profile=self.rag.profile,
+                embedding_context_tokens=self.rag.embedding_context_tokens,
+                generator_context_tokens=self.rag.generator_context_tokens,
+                retrieval_top_k=self.rag.retrieval_top_k,
+            ),
+            scoring=ScoringPolicy(
+                version=self.scoring.version,
+                weights={
+                    "security": self.scoring.security_weight,
+                    "knowledge_quality": self.scoring.knowledge_quality_weight,
+                    "efficiency": self.scoring.efficiency_weight,
+                },
+                critical_security_cap=self.scoring.critical_security_cap,
+                minimum_assessed_dimensions=self.scoring.minimum_assessed_dimensions,
             ),
             chunking=chunking,
             pdf=PdfParserConfig(

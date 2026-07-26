@@ -166,6 +166,15 @@ def test_terminal_empty_missing_scores_no_ansi_and_failed_scan() -> None:
     assert "\x1b[" not in output
 
 
+def test_report_evidence_url_with_trailing_markup_does_not_break_redaction() -> None:
+    item = finding("url-markup")
+    item.metadata["matched_text"] = "http://localhost:8765`."
+
+    report = ReportBuilder().build(report_input(findings=[item]))
+
+    assert report.findings[0].evidence_highlight == "http://localhost:8765`."
+
+
 def test_terminal_default_is_concise_and_verbose_keeps_technical_details() -> None:
     source = report_input()
     source.ingestion_issues = [

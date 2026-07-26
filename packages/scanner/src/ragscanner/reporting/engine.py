@@ -52,9 +52,13 @@ def _redact_url(value: str) -> str:
         return "[UNSAFE-URL-SCHEME]"
     if not parts.scheme or not parts.netloc:
         return value
-    host = parts.hostname or ""
-    if parts.port:
-        host = f"{host}:{parts.port}"
+    try:
+        host = parts.hostname or ""
+        port = parts.port
+    except ValueError:
+        return value
+    if port:
+        host = f"{host}:{port}"
     query = urlencode(
         [
             (key, REDACTED if _SENSITIVE_KEY.search(key) else item)
@@ -207,6 +211,8 @@ class ReportBuilder:
                 errors=len(errors),
             ),
             scores=score_values,
+            score_policy_details=source.score_policy_details,
+            rag_configuration_advice=source.rag_configuration_advice,
             severity_summary=severity,
             classification_summary=classifications,
             findings=findings,

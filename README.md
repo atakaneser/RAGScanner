@@ -20,7 +20,7 @@ monitoring, and optional advisory AI analysis in a machine-local dashboard.
 | Local content | Single files and root-confined folders |
 | Formats | Markdown, TXT, HTML, PDF, DOCX, PPTX, XLSX, ODT, EPUB, RST, AsciiDoc, CSV/TSV, JSON/JSONL, YAML, XML, and logs |
 | Remote sources | OpenWebUI knowledge bases; HTTPS pages, documents, same-origin sitemaps, and accessible SharePoint URLs |
-| Analysis | Static security rules, exact/lexical duplicate checks, and chunk-quality checks |
+| Analysis | Static security rules, exact/lexical duplicate checks, chunk-quality checks, and workload-aware RAG configuration advice |
 | Reports | Terminal/JSON plus localized dashboard downloads in standalone HTML, Excel, and PDF |
 | History | Readable IDs, filters, detail, comparison, health trends, and permanent deletion |
 | Jobs | Durable one-time jobs, recurring intervals, cancellation, retry, progress, and safe logs |
@@ -91,10 +91,24 @@ The Create job drawer supports:
 - one-time execution or recurring interval monitoring.
 
 Job creation is a four-step guided flow: choose a connected or manual source, enter only that
-source's details, select one-time or recurring timing, and optionally enable AI. Recurring jobs accept
+source's details, select one-time or recurring timing, choose a RAG workload, and optionally enable AI. Recurring jobs accept
 an explicit first local date and time. Local AI providers are checked automatically; verified models
 appear in one selector, while endpoint, credentials, and manual model entry stay under optional
 connection controls.
+
+## RAG configuration and validation
+
+Every new report records the selected workload profile and compares the configured chunking with
+observed chunk statistics. It recommends an explainable starting range for factual lookup, general
+question answering, policies/procedures, long-context research, code, or tables, plus overlap and
+initial retrieval top-k. There is no universal best chunk size; the report always lists the retrieval,
+answer, citation, latency, and cost metrics required for representative-query validation.
+
+Use `--rag-profile` and the optional model context/top-k flags on direct or queued CLI scans, or set
+the `[rag]` table in `ragscanner.toml`. See [RAG configuration advice](docs/rag-configuration-advice.md).
+Rule authors can measure a labelled local corpus with `ragscanner quality calibrate`; see
+[Quality calibration](docs/quality-calibration.md). The bundled six-language corpus is a regression
+smoke test, not evidence of production accuracy.
 
 Remote web scans reject redirects and cross-origin sitemap entries, never execute scripts, and
 apply page, response-size, and timeout limits. Authenticated Microsoft Graph site/library discovery

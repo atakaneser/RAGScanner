@@ -87,6 +87,11 @@ def test_happy_path_txt_markdown_pdf_docx_security_quality_duplicates(tmp_path: 
     assert result.score_summary.answer_reliability is None
     assert result.score_summary.freshness is None
     assert result.score_summary.rag_rot is None
+    assert result.score_policy.policy_version == "1.0.0"
+    assert result.score_policy.minimum_assessed_dimensions == 2
+    assert result.rag_configuration_advice.profile.value == "general_qa"
+    assert result.rag_configuration_advice.recommended["target_tokens"] == 300
+    assert "Recall@k" in result.rag_configuration_advice.validation_metrics
 
 
 def test_one_file_failure_continues_and_all_failed_is_failed(tmp_path: Path) -> None:
@@ -111,6 +116,21 @@ def test_malformed_docx_oversized_file_and_missing_root(tmp_path: Path) -> None:
     missing = run(tmp_path / "missing")
     assert missing.scan.status is ScanStatus.FAILED
     assert missing.errors[0].fatal
+
+
+def test_single_file_scan_ignores_unrelated_siblings_without_warnings(tmp_path: Path) -> None:
+    selected = tmp_path / "selected.md"
+    selected.write_text("# Selected\n\nBounded source content.", encoding="utf-8")
+    (tmp_path / "unrelated.py").write_text("print('not selected')", encoding="utf-8")
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    (nested / "unrelated.toml").write_text("ignored = true", encoding="utf-8")
+
+    result = run(selected)
+
+    assert [document.source.source_path for document in result.documents] == ["selected.md"]
+    assert result.skipped_items == []
+    assert result.scan.warnings == []
 
 
 def test_scanner_failure_isolated_and_security_findings_do_not_fail_status(
@@ -166,6 +186,8 @@ def test_cli_terminal_json_html_fail_on_and_no_overwrite(tmp_path: Path) -> None
     payload = json.loads(json_path.read_text())
     assert payload["scan"]["type"] == "static"
     assert payload["scores"]["freshness"] is None
+    assert payload["score_policy_details"]["policy_version"] == "1.0.0"
+    assert payload["rag_configuration_advice"]["recommended"]["target_tokens"] == 300
     json_text = json_path.read_text()
     assert str(tmp_path) not in json_text
     assert "NotARealButSecretValue123" not in json_text
@@ -192,7 +214,10 @@ def test_cli_config_override_invalid_config_and_output_failure(tmp_path: Path) -
     (kb / "a.txt").write_text("Synthetic harmless content")
     config = tmp_path / "ragscanner.toml"
     config.write_text(
-        "[scan]\nmax_files = 1\n[report]\nformat = 'json'\nmax_findings = 10\n",
+        "[scan]\nmax_files = 1\n"
+        "[rag]\nprofile = 'policy_procedure'\nretrieval_top_k = 6\n"
+        "[scoring]\nminimum_assessed_dimensions = 2\n"
+        "[report]\nformat = 'json'\nmax_findings = 10\n",
         encoding="utf-8",
     )
     result = runner.invoke(
