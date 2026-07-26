@@ -145,6 +145,8 @@
   remediation
 - Conservative source-language inference for website reports, preserving the selected interface
   language when a page is ambiguous
+- One-pass OpenWebUI text-transport character-reference normalization, preserving literal source
+  HTML comments and punctuation without weakening report escaping
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after

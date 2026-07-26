@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed OpenWebUI text transports that supplied source punctuation as semicolon-terminated HTML
+  character references. Text and Markdown parsers now restore those characters exactly once before
+  analysis; local files remain byte-faithful, standalone HTML stays safely escaped once, and PDF
+  and Excel display plain source evidence.
+
 - Fixed valid local-model advisory responses being rejected as `ai_output_invalid` when they omitted
   a repeated severity sentence, technical coverage IDs, optional score commentary, or used common
   string/list and localized-enum shape variants. Verified severity and coverage facts are now added

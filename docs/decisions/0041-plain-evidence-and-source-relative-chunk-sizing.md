@@ -14,6 +14,9 @@ contained 13 low-severity findings that did not identify actionable source probl
 ## Decision
 
 - Store bounded and secret-masked finding evidence as plain source text in Core and report models.
+- Decode semicolon-terminated HTML character references exactly once when they arrive in a textual
+  OpenWebUI transport. Do not apply this compatibility normalization to local files, and do not
+  recursively decode double-encoded input.
 - Apply HTML, PDF-markup, spreadsheet-formula, and terminal handling only in the responsible delivery
   adapter. Untrusted evidence never becomes trusted markup.
 - Emit undersized and extreme-size-outlier findings only for documents split into multiple chunks.
@@ -28,3 +31,7 @@ PDF remains escaped before ReportLab parsing. Static-security and chunk-quality 
 advance because evidence and finding fingerprints can change. Existing saved reports remain
 immutable and can retain encoded evidence or superseded low-severity findings; users must rescan the
 source to obtain the corrected assessment.
+
+OpenWebUI compatibility normalization restores source characters such as `<`, `>`, `"`, and `'`
+before deterministic analysis. Delivery adapters still escape that plain text independently, so an
+HTML comment or tag cannot become executable or hide report markup.

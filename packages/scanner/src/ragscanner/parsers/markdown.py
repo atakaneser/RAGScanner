@@ -26,7 +26,7 @@ _FRONT_MATTER_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")
 
 class MarkdownParser:
     name = "markdown"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(self, clock: Callable[[], datetime] | None = None) -> None:
         self._clock = clock or (lambda: datetime.now(UTC))

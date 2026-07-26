@@ -38,6 +38,12 @@ mutate OpenWebUI, retrieve model credentials, scan chat endpoints, provide incre
 detection, or automatically include every standalone/chat attachment. Container metadata
 discovery and content retrieval remain separate consent boundaries.
 
+Some OpenWebUI versions return extracted text with semicolon-terminated HTML character references
+such as `&lt;`, `&gt;`, `&quot;`, or `&#x27;`. Text and Markdown parsing decodes that transport
+representation exactly once before analysis. Local files are unchanged, recursively encoded text
+is not repeatedly decoded, and every report adapter still treats the restored text as untrusted:
+HTML escapes it once, while PDF and Excel display the plain source characters.
+
 In the guided CLI, option 2 lists accessible knowledge bases first. The user can then choose one
 and explicitly consent to an immediate local content scan; the supplied API key exists only in that
 process memory and is removed when the scan completes. Durable job commands remain available for

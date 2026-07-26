@@ -1,6 +1,8 @@
 """Framework-independent parser result and parser protocol."""
 
 import hashlib
+import html
+import re
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
@@ -8,6 +10,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from ragscanner.domain import Document, SourceContent, SourceLocation
 from ragscanner.domain.helpers import contains_unreferenced_secret, document_content_hash
+
+_SEMICOLON_HTML_CHARACTER_REFERENCE = re.compile(
+    r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
+)
 
 
 class ParserWarning(BaseModel):
@@ -57,7 +63,18 @@ def decode_source(source: SourceContent) -> tuple[str, list[ParserWarning]]:
                 code="replacement_characters", message="Malformed byte sequences were replaced."
             )
         )
+    if source.metadata.get("upstream") == "openwebui":
+        text = _decode_semicolon_html_character_references_once(text)
     return text, warnings
+
+
+def _decode_semicolon_html_character_references_once(value: str) -> str:
+    """Restore character references introduced by an OpenWebUI text transport."""
+
+    return _SEMICOLON_HTML_CHARACTER_REFERENCE.sub(
+        lambda match: html.unescape(match.group(0)),
+        value,
+    )
 
 
 def normalize_newlines(value: str) -> str:

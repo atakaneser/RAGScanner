@@ -14,7 +14,7 @@ from ragscanner.parsers.base import (
 
 class PlainTextParser:
     name = "plain_text"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(self, clock: Callable[[], datetime] | None = None) -> None:
         self._clock = clock or (lambda: datetime.now(UTC))

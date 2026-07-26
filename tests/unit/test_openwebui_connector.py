@@ -65,6 +65,7 @@ async def test_openwebui_connector_lists_and_reads_bounded_knowledge_files() -> 
     assert [item.name for item in page.items] == ["Überblick.md"]
     assert content.content_bytes.startswith(b"# Synthetic")
     assert content.content_type == "text/markdown"
+    assert content.metadata == {"remote_content_consent": True, "upstream": "openwebui"}
     assert all("synthetic-runtime-token" not in str(request.url) for request in requests)
 
 
