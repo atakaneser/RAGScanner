@@ -48,6 +48,39 @@ _AI_OUTPUT_FALLBACKS = {
     "it": "Non è stato possibile generare l’analisi AI.",
 }
 
+_AI_OUTPUT_DETAILS = {
+    "en": {
+        "invalid_json": "The model did not return valid JSON after two attempts.",
+        "schema_mismatch": "The JSON did not contain the required core analysis text.",
+        "severity_contradiction": "The model commentary contradicted the verified severity counts.",
+    },
+    "tr": {
+        "invalid_json": "Model iki denemede de geçerli JSON döndürmedi.",
+        "schema_mismatch": "JSON, gerekli temel analiz metnini içermiyordu.",
+        "severity_contradiction": "Model yorumu doğrulanmış önem sayılarına aykırıydı.",
+    },
+    "de": {
+        "invalid_json": "Das Modell lieferte nach zwei Versuchen kein gültiges JSON.",
+        "schema_mismatch": "Das JSON enthielt nicht den erforderlichen Kernanalysetext.",
+        "severity_contradiction": "Der Modellkommentar widersprach den geprüften Schweregradzahlen.",
+    },
+    "fr": {
+        "invalid_json": "Le modèle n’a pas renvoyé de JSON valide après deux tentatives.",
+        "schema_mismatch": "Le JSON ne contenait pas le texte d’analyse principal requis.",
+        "severity_contradiction": "Le commentaire du modèle contredisait les nombres de sévérité vérifiés.",
+    },
+    "zh-CN": {
+        "invalid_json": "模型在两次尝试后仍未返回有效 JSON。",
+        "schema_mismatch": "JSON 不包含所需的核心分析文本。",
+        "severity_contradiction": "模型评论与已验证的严重性数量相矛盾。",
+    },
+    "it": {
+        "invalid_json": "Il modello non ha restituito JSON valido dopo due tentativi.",
+        "schema_mismatch": "Il JSON non conteneva il testo di analisi principale richiesto.",
+        "severity_contradiction": "Il commento del modello contraddiceva i conteggi di gravità verificati.",
+    },
+}
+
 
 class StaticScanJobPayload(BaseModel):
     """Bounded scan parameters safe to persist in a job record."""
@@ -332,11 +365,17 @@ class StaticScanApplicationService:
             return enriched
         except ModelProviderError as error:
             failure_code = error.code
-            failure_message = (
-                _AI_OUTPUT_FALLBACKS.get(config.output_language, _AI_OUTPUT_FALLBACKS["en"])
-                if error.code == "ai_output_invalid"
-                else error.safe_message
-            )
+            if error.code == "ai_output_invalid":
+                failure_message = _AI_OUTPUT_FALLBACKS.get(
+                    config.output_language, _AI_OUTPUT_FALLBACKS["en"]
+                )
+                detail = _AI_OUTPUT_DETAILS.get(
+                    config.output_language, _AI_OUTPUT_DETAILS["en"]
+                ).get(error.detail_code or "")
+                if detail:
+                    failure_message = f"{failure_message} {detail}"
+            else:
+                failure_message = error.safe_message
         except ValueError:
             failure_code = (
                 "ai_credential_unavailable"

@@ -19,8 +19,10 @@ Sending raw documents would violate the local-first boundary.
   causes, ordered actions, review questions, score commentary, and a coverage caveat.
 - Providers use temperature `0.1` and JSON mode when available. RAGScanner removes one optional JSON
   fence and retries invalid output once with an explicit JSON-only instruction.
-- Local validation rejects severity framing that omits the supplied non-zero distribution and
-  requires a caveat for every non-evaluated coverage area.
+- Adapters normalize bounded, unambiguous shape variations from smaller local models. Verified
+  severity distribution and non-evaluated coverage identifiers are added from deterministic report
+  data when omitted; contradictory severity framing and missing core analysis text are still
+  rejected.
 - A second invalid response records a localized advisory fallback. It never removes or changes
   deterministic report content.
 - Enum values stay stable in storage and are translated only by display/export adapters.
@@ -30,9 +32,10 @@ Sending raw documents would violate the local-first boundary.
 ## Consequences
 
 AI interpretation has enough bounded evidence to explain duplicate patterns without expanding its
-authority. Small local models may fail the stricter contract, but the retry and safe fallback make
-that failure visible and leave a usable deterministic report. Adding or changing advisory fields
-requires prompt, model, schema, export, and regression-test updates together.
+authority. Common local-model shape drift does not discard otherwise useful analysis, while
+deterministic facts are never delegated to the model. Irreparable output still triggers the retry
+and reason-specific safe fallback, leaving a usable deterministic report. Adding or changing
+advisory fields requires prompt, model, schema, export, and regression-test updates together.
 
 ## Links
 

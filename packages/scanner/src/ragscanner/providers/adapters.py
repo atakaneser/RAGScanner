@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from pydantic import ValidationError
 
 from ragscanner.ai_analysis.models import (
     AIAnalysisContent,
@@ -21,9 +22,10 @@ from ragscanner.ai_analysis.service import AnalysisRequest
 class ModelProviderError(RuntimeError):
     """A safe, user-facing provider failure."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, *, detail_code: str | None = None) -> None:
         self.code = code
         self.safe_message = message
+        self.detail_code = detail_code
         super().__init__(message)
 
 
@@ -114,12 +116,24 @@ class _BaseAnalysisProvider:
 
     def _analysis(self, content: str, request: AnalysisRequest) -> AIReportAnalysis:
         try:
-            generated = AIAnalysisContent.model_validate(_normalized_analysis_payload(content))
+            payload = _normalized_analysis_payload(content)
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             raise ModelProviderError(
-                "ai_output_invalid", "The model returned analysis that did not match the schema."
+                "ai_output_invalid",
+                "The model did not return one valid JSON object.",
+                detail_code="invalid_json",
             ) from error
-        self._validate_consistency(generated, request)
+        try:
+            generated = AIAnalysisContent.model_validate(
+                _compatible_analysis_payload(payload, request.report_language)
+            )
+        except ValidationError as error:
+            raise ModelProviderError(
+                "ai_output_invalid",
+                "The model JSON omitted required analysis content.",
+                detail_code="schema_mismatch",
+            ) from error
+        generated = self._apply_deterministic_guards(generated, request)
         finding_actions = [
             AIFindingAction(
                 finding_id=finding_id,
@@ -140,46 +154,55 @@ class _BaseAnalysisProvider:
         )
 
     @staticmethod
-    def _validate_consistency(generated: AIAnalysisContent, request: AnalysisRequest) -> None:
+    def _apply_deterministic_guards(
+        generated: AIAnalysisContent, request: AnalysisRequest
+    ) -> AIAnalysisContent:
         text = generated.ai_analysis.casefold()
         labels = _SEVERITY_LABELS.get(request.report_language, _SEVERITY_LABELS["en"])
         nonzero = [
             (severity, count) for severity, count in request.severity_counts.items() if count > 0
         ]
-        for severity, count in nonzero:
-            if str(count) not in text or labels[severity] not in text:
-                raise ModelProviderError(
-                    "ai_output_invalid",
-                    "The model analysis did not state the supplied severity distribution.",
-                )
+        distribution_missing = any(
+            str(count) not in text or labels[severity] not in text for severity, count in nonzero
+        )
         if request.severity_counts.get("medium", 0) > 0 and any(
             phrase in text for phrase in _LOW_ONLY_FRAMING.get(request.report_language, ())
         ):
             raise ModelProviderError(
                 "ai_output_invalid",
                 "The model analysis contradicted the supplied severity distribution.",
+                detail_code="severity_contradiction",
             )
+        analysis = generated.ai_analysis
+        if distribution_missing and nonzero:
+            analysis = f"{_severity_distribution(request)} {analysis}"
         skipped = [
             item
             for item in request.context.get("coverage", [])
             if isinstance(item, dict) and item.get("status") == "not_evaluated"
         ]
-        if skipped and not generated.coverage_caveat:
-            raise ModelProviderError(
-                "ai_output_invalid",
-                "The model analysis omitted the required coverage caveat.",
-            )
         caveat = (generated.coverage_caveat or "").casefold()
         missing_areas = [
             str(item.get("area"))
             for item in skipped
             if str(item.get("area")).casefold() not in caveat
         ]
+        coverage_caveat = generated.coverage_caveat
         if missing_areas:
-            raise ModelProviderError(
-                "ai_output_invalid",
-                "The model analysis did not name every unevaluated coverage area.",
+            deterministic_caveat = _coverage_caveat(missing_areas, request.report_language)
+            coverage_caveat = (
+                f"{coverage_caveat.rstrip()} {deterministic_caveat}"
+                if coverage_caveat
+                else deterministic_caveat
             )
+        return generated.model_copy(
+            update={
+                "ai_analysis": analysis[:2_000],
+                "coverage_caveat": (
+                    coverage_caveat[:1_500] if coverage_caveat is not None else None
+                ),
+            }
+        )
 
     async def _analysis_with_retry(
         self,
@@ -284,6 +307,201 @@ def _normalized_analysis_payload(content: str) -> dict[str, Any]:
     return value
 
 
+def _text(value: object, limit: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized[:limit] if normalized else None
+
+
+def _text_list(value: object, *, limit: int, item_limit: int) -> list[str]:
+    supplied = [value] if isinstance(value, str) else value
+    if not isinstance(supplied, list):
+        return []
+    return [text for item in supplied[:limit] if (text := _text(item, item_limit)) is not None]
+
+
+def _enum(
+    value: object,
+    *,
+    allowed: set[str],
+    aliases: Mapping[str, str],
+    fallback: str,
+) -> str:
+    normalized = str(value or "").strip().casefold().replace("-", "_").replace(" ", "_")
+    normalized = aliases.get(normalized, normalized)
+    return normalized if normalized in allowed else fallback
+
+
+def _compatible_analysis_payload(payload: dict[str, Any], report_language: str) -> dict[str, Any]:
+    """Repair bounded, unambiguous local-model shape variations before validation."""
+
+    for wrapper in ("analysis", "result", "output"):
+        nested = payload.get(wrapper)
+        if isinstance(nested, dict) and any(
+            key in nested for key in ("ai_analysis", "executive_summary", "summary")
+        ):
+            payload = nested
+            break
+
+    analysis = _text(
+        payload.get("ai_analysis") or payload.get("executive_summary") or payload.get("summary"),
+        2_000,
+    )
+    score_commentary = _text(payload.get("score_commentary"), 2_000) or analysis
+
+    root_causes: list[dict[str, object]] = []
+    raw_root_causes = payload.get("root_causes")
+    if isinstance(raw_root_causes, dict):
+        raw_root_causes = [raw_root_causes]
+    if isinstance(raw_root_causes, list):
+        for item in raw_root_causes[:8]:
+            if not isinstance(item, dict):
+                continue
+            finding_rules = _text_list(
+                item.get("finding_rules") or item.get("rules"),
+                limit=20,
+                item_limit=240,
+            )
+            example_files = _text_list(
+                item.get("example_files") or item.get("files"),
+                limit=20,
+                item_limit=500,
+            )
+            label = _text(item.get("label") or item.get("name"), 240)
+            explanation = _text(
+                item.get("explanation") or item.get("description"),
+                1_500,
+            )
+            if not finding_rules or not example_files or not label or not explanation:
+                continue
+            root_causes.append(
+                {
+                    "pattern": _enum(
+                        item.get("pattern"),
+                        allowed={"P1", "P2", "P3", "P4", "other"},
+                        aliases={
+                            "p1": "P1",
+                            "p2": "P2",
+                            "p3": "P3",
+                            "p4": "P4",
+                            "boilerplate_duplication": "P1",
+                            "self_duplication": "P2",
+                            "template_corpus": "P3",
+                            "version_variants": "P4",
+                            "diğer": "other",
+                        },
+                        fallback="other",
+                    ),
+                    "label": label,
+                    "finding_rules": finding_rules,
+                    "example_files": example_files,
+                    "explanation": explanation,
+                    "confidence": _enum(
+                        item.get("confidence"),
+                        allowed={"confirmed", "likely"},
+                        aliases={
+                            "kesin": "confirmed",
+                            "doğrulandı": "confirmed",
+                            "muhtemel": "likely",
+                            "olası": "likely",
+                        },
+                        fallback="likely",
+                    ),
+                }
+            )
+
+    action_default = _ACTION_EFFECT_DEFAULTS.get(report_language, _ACTION_EFFECT_DEFAULTS["en"])
+    priority_actions: list[dict[str, object]] = []
+    raw_actions = payload.get("priority_actions")
+    if isinstance(raw_actions, (dict, str)):
+        raw_actions = [raw_actions]
+    if isinstance(raw_actions, list):
+        for index, item in enumerate(raw_actions[:8], start=1):
+            supplied = {"action": item} if isinstance(item, str) else item
+            if not isinstance(supplied, dict):
+                continue
+            action = _text(
+                supplied.get("action") or supplied.get("recommendation"),
+                1_500,
+            )
+            if not action:
+                continue
+            priority_actions.append(
+                {
+                    "order": (
+                        supplied["order"]
+                        if isinstance(supplied.get("order"), int) and 1 <= supplied["order"] <= 20
+                        else index
+                    ),
+                    "action": action,
+                    "target": _enum(
+                        supplied.get("target"),
+                        allowed={"ingestion", "chunking", "corpus", "configuration"},
+                        aliases={
+                            "indexing": "ingestion",
+                            "index": "ingestion",
+                            "pipeline": "ingestion",
+                            "data_ingestion": "ingestion",
+                            "indeksleme": "ingestion",
+                            "veri_alımı": "ingestion",
+                            "parçalama": "chunking",
+                            "yapılandırma": "configuration",
+                        },
+                        fallback="configuration",
+                    ),
+                    "addresses": _text_list(
+                        supplied.get("addresses"),
+                        limit=20,
+                        item_limit=240,
+                    ),
+                    "expected_effect": (
+                        _text(supplied.get("expected_effect"), 1_500) or action_default
+                    ),
+                    "effort": _enum(
+                        supplied.get("effort"),
+                        allowed={"low", "medium", "high"},
+                        aliases={
+                            "düşük": "low",
+                            "orta": "medium",
+                            "yüksek": "high",
+                        },
+                        fallback="medium",
+                    ),
+                }
+            )
+
+    question_default = _QUESTION_INFORMS_DEFAULTS.get(
+        report_language, _QUESTION_INFORMS_DEFAULTS["en"]
+    )
+    review_questions: list[dict[str, str]] = []
+    raw_questions = payload.get("review_questions")
+    if isinstance(raw_questions, (dict, str)):
+        raw_questions = [raw_questions]
+    if isinstance(raw_questions, list):
+        for item in raw_questions[:8]:
+            supplied = {"question": item} if isinstance(item, str) else item
+            if not isinstance(supplied, dict):
+                continue
+            question = _text(supplied.get("question"), 1_000)
+            if question:
+                review_questions.append(
+                    {
+                        "question": question,
+                        "informs": (_text(supplied.get("informs"), 1_000) or question_default),
+                    }
+                )
+
+    return {
+        "ai_analysis": analysis,
+        "root_causes": root_causes,
+        "priority_actions": priority_actions,
+        "review_questions": review_questions,
+        "score_commentary": score_commentary,
+        "coverage_caveat": _text(payload.get("coverage_caveat"), 1_500),
+    }
+
+
 _SEVERITY_LABELS: dict[str, dict[str, str]] = {
     "en": {
         "critical": "critical",
@@ -328,6 +546,62 @@ _SEVERITY_LABELS: dict[str, dict[str, str]] = {
         "info": "informativo",
     },
 }
+
+_SEVERITY_DISTRIBUTION_TEMPLATES = {
+    "en": "Severity distribution: {items}.",
+    "tr": "Önem dağılımı: {items}.",
+    "de": "Schweregradverteilung: {items}.",
+    "fr": "Répartition des sévérités : {items}.",
+    "zh-CN": "严重性分布：{items}。",
+    "it": "Distribuzione della gravità: {items}.",
+}
+
+_COVERAGE_CAVEAT_TEMPLATES = {
+    "en": "Scores cover evaluated areas only; not evaluated: {areas}.",
+    "tr": "Puanlar yalnızca değerlendirilen alanları kapsar; değerlendirilmeyenler: {areas}.",
+    "de": "Die Bewertungen decken nur geprüfte Bereiche ab; nicht bewertet: {areas}.",
+    "fr": "Les scores couvrent uniquement les domaines évalués ; non évalués : {areas}.",
+    "zh-CN": "分数仅涵盖已评估领域；未评估：{areas}。",
+    "it": "I punteggi coprono solo le aree valutate; non valutate: {areas}.",
+}
+
+_ACTION_EFFECT_DEFAULTS = {
+    "en": "Re-run the deterministic scan to verify the effect.",
+    "tr": "Etkisini doğrulamak için deterministik taramayı yeniden çalıştırın.",
+    "de": "Führen Sie den deterministischen Scan erneut aus, um die Wirkung zu prüfen.",
+    "fr": "Relancez l’analyse déterministe pour vérifier l’effet.",
+    "zh-CN": "重新运行确定性扫描以验证效果。",
+    "it": "Esegui nuovamente la scansione deterministica per verificare l’effetto.",
+}
+
+_QUESTION_INFORMS_DEFAULTS = {
+    "en": "The related remediation decision.",
+    "tr": "İlgili düzeltme kararı.",
+    "de": "Die zugehörige Behebungsentscheidung.",
+    "fr": "La décision de correction associée.",
+    "zh-CN": "相关修复决策。",
+    "it": "La relativa decisione di correzione.",
+}
+
+
+def _severity_distribution(request: AnalysisRequest) -> str:
+    labels = _SEVERITY_LABELS.get(request.report_language, _SEVERITY_LABELS["en"])
+    values = [
+        f"{count} {labels[severity]}"
+        for severity, count in request.severity_counts.items()
+        if count > 0
+    ]
+    template = _SEVERITY_DISTRIBUTION_TEMPLATES.get(
+        request.report_language, _SEVERITY_DISTRIBUTION_TEMPLATES["en"]
+    )
+    return template.format(items=", ".join(values))
+
+
+def _coverage_caveat(areas: list[str], report_language: str) -> str:
+    template = _COVERAGE_CAVEAT_TEMPLATES.get(report_language, _COVERAGE_CAVEAT_TEMPLATES["en"])
+    return template.format(areas=", ".join(areas))
+
+
 _LOW_ONLY_FRAMING: dict[str, tuple[str, ...]] = {
     "en": ("low-level", "minor findings", "minor issues"),
     "tr": ("düşük seviyeli", "önemsiz bulgu", "küçük sorun"),

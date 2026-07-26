@@ -140,7 +140,9 @@
   an actionable `ai_provider_request_invalid` terminal error when compatibility mode also fails
 - Exact version 2 advisory AI schema with evidence-bound root causes, score commentary, ordered
   actions, decision questions, translated display enums, one JSON-only retry, severity/coverage
-  consistency validation, localized safe fallback, and rule-bound per-finding remediation
+  consistency guards, common local-model shape normalization, deterministic severity and scoped
+  coverage statements, localized reason-specific safe fallback, and rule-bound per-finding
+  remediation
 - Conservative source-language inference for website reports, preserving the selected interface
   language when a page is ambiguous
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report

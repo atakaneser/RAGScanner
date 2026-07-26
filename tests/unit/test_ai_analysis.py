@@ -168,6 +168,48 @@ def test_provider_accepts_one_optional_json_fence(report, monkeypatch) -> None:
     assert analysis.ai_analysis.startswith("The evaluated scan")
 
 
+def test_common_local_model_shape_variations_are_safely_normalized(report, monkeypatch) -> None:
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+    supplied = {
+        "summary": "Tarama bulguları için veri alımı ayarları gözden geçirilmelidir.",
+        "root_causes": {
+            "pattern": "boilerplate_duplication",
+            "name": "Şablon tekrarı",
+            "rules": "QUALITY-EXACT-DUPLICATE-CHUNK",
+            "files": "policy.pdf",
+            "description": "Aynı şablon metni birden fazla dosyada bulunuyor.",
+            "confidence": "olası",
+        },
+        "priority_actions": {
+            "recommendation": "Üstbilgileri veri alımı sırasında ayırın.",
+            "target": "veri alımı",
+            "effort": "düşük",
+        },
+        "review_questions": "Üstbilgiler arama için gerekli mi?",
+        "unexpected_local_model_field": "ignored",
+    }
+    payload = {"result": supplied}
+    requests = 0
+
+    async def fake_post(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        nonlocal requests
+        requests += 1
+        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    request = build_analysis_request(report("scan-a"), output_language="tr")
+    analysis = asyncio.run(adapter.analyze(request))
+
+    assert requests == 1
+    assert analysis.ai_analysis == supplied["summary"]
+    assert analysis.score_commentary == supplied["summary"]
+    assert analysis.root_causes[0].pattern == "P1"
+    assert analysis.root_causes[0].confidence == "likely"
+    assert analysis.priority_actions[0].target == "ingestion"
+    assert analysis.priority_actions[0].effort == "low"
+    assert analysis.review_questions[0].informs == "İlgili düzeltme kararı."
+
+
 def test_invalid_json_retries_once_with_strict_instruction(report, monkeypatch) -> None:
     adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
     payloads: list[dict[str, object]] = []
@@ -197,6 +239,7 @@ def test_second_invalid_json_returns_stable_error(report, monkeypatch) -> None:
     with pytest.raises(ModelProviderError) as captured:
         asyncio.run(adapter.analyze(build_analysis_request(report("scan-a"))))
     assert captured.value.code == "ai_output_invalid"
+    assert captured.value.detail_code == "invalid_json"
 
 
 def test_second_invalid_output_keeps_findings_and_uses_localized_fallback(
@@ -227,6 +270,34 @@ def test_second_invalid_output_keeps_findings_and_uses_localized_fallback(
     assert enriched.ai_analysis is None
     assert enriched.ai_analysis_error_code == "ai_output_invalid"
     assert enriched.ai_analysis_error == "AI analizi üretilemedi."
+
+
+def test_invalid_output_fallback_explains_the_safe_failure_stage(report, monkeypatch) -> None:
+    class InvalidProvider:
+        async def analyze(self, _request):  # type: ignore[no-untyped-def]
+            raise ModelProviderError(
+                "ai_output_invalid",
+                "The model did not return one valid JSON object.",
+                detail_code="invalid_json",
+            )
+
+    monkeypatch.setattr(
+        "ragscanner.application.static_scan.create_analysis_provider",
+        lambda *_args, **_kwargs: InvalidProvider(),
+    )
+    source_report = report("scan-a")
+    config = AIProviderConfig(
+        enabled=True,
+        provider="ollama",
+        model="installed-model",
+        output_language="tr",
+    )
+
+    enriched = asyncio.run(StaticScanApplicationService._enrich_async(source_report, config))
+    assert enriched.ai_analysis_error_code == "ai_output_invalid"
+    assert enriched.ai_analysis_error == (
+        "AI analizi üretilemedi. Model iki denemede de geçerli JSON döndürmedi."
+    )
 
 
 def test_severity_distribution_must_be_stated_without_low_only_framing(report, monkeypatch) -> None:
@@ -261,6 +332,35 @@ def test_severity_distribution_must_be_stated_without_low_only_framing(report, m
     assert "3 medium and 24 low" in analysis.ai_analysis
 
 
+def test_missing_severity_distribution_is_added_from_verified_counts(report, monkeypatch) -> None:
+    source_report = report("scan-a").model_copy(
+        update={
+            "severity_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 3,
+                "low": 24,
+                "info": 0,
+            }
+        }
+    )
+    payload = _analysis_payload("Tekrar bulguları verimlilik puanını etkiliyor.")
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+    requests = 0
+
+    async def fake_post(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        nonlocal requests
+        requests += 1
+        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    request = build_analysis_request(source_report, output_language="tr")
+    analysis = asyncio.run(adapter.analyze(request))
+
+    assert requests == 1
+    assert analysis.ai_analysis.startswith("Önem dağılımı: 3 orta, 24 düşük.")
+
+
 def test_coverage_caveat_names_every_unevaluated_area(report, monkeypatch) -> None:
     adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
     payload = _analysis_payload(
@@ -275,6 +375,23 @@ def test_coverage_caveat_names_every_unevaluated_area(report, monkeypatch) -> No
     analysis = asyncio.run(adapter.analyze(build_analysis_request(source_report)))
     assert analysis.coverage_caveat is not None
     assert "security" in analysis.coverage_caveat
+
+
+def test_missing_coverage_caveat_is_added_from_verified_scope(report, monkeypatch) -> None:
+    adapter = OpenAICompatibleAnalysisProvider(base_url="http://127.0.0.1:8000", model="test-model")
+
+    async def fake_post(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return {"choices": [{"message": {"content": json.dumps(_analysis_payload())}}]}
+
+    monkeypatch.setattr(adapter, "_post", fake_post)
+    source_report = report("scan-a", coverage="not_assessed")
+    request = build_analysis_request(source_report, output_language="tr")
+    analysis = asyncio.run(adapter.analyze(request))
+
+    assert analysis.coverage_caveat is not None
+    assert analysis.coverage_caveat == (
+        "Puanlar yalnızca değerlendirilen alanları kapsar; değerlendirilmeyenler: security."
+    )
 
 
 def test_provider_http_failure_has_safe_stable_code(monkeypatch) -> None:  # type: ignore[no-untyped-def]

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed valid local-model advisory responses being rejected as `ai_output_invalid` when they omitted
+  a repeated severity sentence, technical coverage IDs, optional score commentary, or used common
+  string/list and localized-enum shape variants. Verified severity and coverage facts are now added
+  deterministically; irreparable JSON/schema failures expose a localized safe reason after one retry.
+
 - Added report schema 1.6 with exact matching content, affected-chunk/group counts, and separate
   same-document lexical-repetition diagnostics across dashboard, HTML, PDF, and Excel. Replaced
   tolerant AI output repair with a version 2 evidence-bound schema, temperature `0.1`, provider JSON
