@@ -33,6 +33,12 @@ içerik connector’ları, cron/takvim zamanlaması, ayarlanabilir saklama, çok
 doğrulama ve Docker dağıtımı henüz yoktur. Bir platformun bulunması içerik erişimi veya değerlendirme
 anlamına gelmez.
 
+Kaynak ve iş formlarında yalnızca yukarıdaki uygulanmış içerik yolları gösterilir. Bir vektör veri
+tabanı yalnızca ürün veya container adından taranamaz: gerçek bir bağlayıcının yetkili
+collection’ları listelemesi, sınırlandırılmış payload metnini belge/chunk kaynak bilgisiyle okuması
+gerekir. Kabul edilmiş bir vektör veri tabanı bağlayıcısı henüz bulunmadığından Qdrant, Chroma,
+Weaviate, Milvus, pgvector ve benzerleri taranabilir kaynak olarak sunulmaz.
+
 ## Kurun ve açın
 
 Resmî depodan kurup makine servisini oluşturun:
@@ -128,12 +134,14 @@ bulgularının ve aynı etkilenen kaynaktaki diğer bulguların ham kanıtı ç�
 dosya/sayfa/satır, etki ve deterministik çözüm korunur. Böylece belge içindeki talimatlar AI
 talimatına dönüşmez.
 
-Çıktı şemayla doğrulanır. RAGScanner; JSON çiti, düşünme öneki veya serileştirilmiş JSON dizesi gibi
-yaygın yerel model sarmallarındaki tek ve açık analiz nesnesini kabul eder, bozuk çıktıyı daha katı
-tek alanlı JSON şemasıyla, kanıt metni içermeyen en fazla 6.500 karakterlik küçük bir bağlamda tekrar
-dener. Ollama analizi için 16.384 token bağlam penceresi ayrılır. Yaygın şema sapmaları
-normalleştirilir, uydurulan bulgu referansları güvenle atılır ve kabul edilen analiz her gerçek
-bulguya düzeltme ile doğrulama adımları bağlayabilir.
+İlk çıktı sürümlü şemayla doğrulanır. RAGScanner; JSON çiti, düşünme öneki veya serileştirilmiş JSON
+dizesi gibi yaygın yerel model sarmallarındaki tek ve açık analiz nesnesini kabul eder. Yanıt
+geçersizse kanıt metni içermeyen, en fazla 6.500 karakterlik küçük bağlamla bir kez düz metin ister;
+aynı modele yeniden JSON üretme zorunluluğu yüklemez. Kullanılabilir metni kendi doğrulanmış sonuç
+zarfına yerleştirir. Boş, bozuk, yanlış dilde veya önem dağılımıyla çelişen kurtarma yanıtı, yalnızca
+doğrulanmış rapor verilerinden seçili dilde özetlenir; rapor `ai_output_invalid` ile düşmek yerine bu
+sınırlamayı açıkça gösterir. Ollama analizi için 16.384 token bağlam penceresi ayrılır. Ayrıntılı AI
+eylemleri yalnızca yapılandırılmış yanıttan kabul edilir ve yalnızca gerçek kural kimliklerine bağlanır.
 
 ## Raporlar ve işletim
 

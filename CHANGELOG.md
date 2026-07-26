@@ -2,11 +2,22 @@
 
 ## Unreleased
 
+- Removed Qdrant, Chroma, Weaviate, Milvus, pgvector, Elasticsearch, OpenSearch, Pinecone,
+  Kubernetes, generic REST, and Custom entries from source creation and job selection because no
+  accepted content connector can read them. Automatic source discovery now checks only responsive
+  OpenWebUI services, unsupported source submissions are rejected, legacy metadata-only profiles
+  remain removable, and website/SharePoint profiles keep their real scan-ready capability.
+- Removed the terminal JSON-format dependency from advisory recovery. After one invalid structured
+  response, providers now receive a bounded evidence-free plain-text request. RAGScanner wraps
+  usable text in its own validated minimal result; empty, malformed, wrong-language, or
+  severity-contradicting text becomes a localized verified-fact summary with an explicit limitation
+  instead of another `ai_output_invalid`. Job activity records the degraded path with
+  `ai_output_recovered`.
 - Fixed repeated `ai_output_invalid` failures caused by advisory requests reaching roughly 290,000
   characters and repeating the same oversized context on recovery. Primary context is now globally
   capped at 18,000 characters and prioritized by severity/affected chunks; recovery uses an
-  evidence-free context capped at 6,500 characters and a single-field schema. Ollama receives an
-  explicit 16,384-token context allocation, and localized caveats disclose omitted advisory groups.
+  evidence-free context capped at 6,500 characters. Ollama receives an explicit 16,384-token context
+  allocation, and localized caveats disclose omitted advisory groups.
 - Fixed OpenWebUI character-reference restoration for PDF, DOCX, PPTX, XLSX, ODT, and EPUB parser
   paths, including page/block offsets. Advisory AI now omits detected security payloads (and other
   evidence from the same affected source), treats all report values as untrusted data, and accepts

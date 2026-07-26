@@ -138,9 +138,9 @@ source_profiles = Table(
     Column("created_at", String(40), nullable=False),
     Column("updated_at", String(40), nullable=False),
     CheckConstraint(
-        "kind IN ('openwebui', 'filesystem', 'qdrant', 'chroma', 'weaviate', "
-        "'milvus', 'pgvector', 'elasticsearch', 'opensearch', 'pinecone', 'kubernetes', "
-        "'generic', 'custom')",
+        "kind IN ('openwebui', 'filesystem', 'website', 'sharepoint', 'qdrant', 'chroma', "
+        "'weaviate', 'milvus', 'pgvector', 'elasticsearch', 'opensearch', 'pinecone', "
+        "'kubernetes', 'generic', 'custom')",
         name="ck_source_profiles_kind",
     ),
     CheckConstraint(

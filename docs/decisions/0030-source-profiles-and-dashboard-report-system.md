@@ -8,15 +8,16 @@
 Persist non-secret source profiles and local setup preferences in the existing versioned SQLite
 database. A profile records a source kind, location, discovery origin, capability status, and an
 optional external `env:` credential reference. It never records a credential value or document
-content. OpenWebUI and filesystem profiles are scan-ready; detected vector platforms remain
-metadata-only until a content connector is implemented.
+content. Filesystem profiles are scan-ready; OpenWebUI profiles become scan-ready after credentials
+resolve. Detected vector platforms remain metadata-only until a content connector is implemented.
+Website/sitemap and directly accessible SharePoint URL profiles are also scan-ready through the
+bounded website connector.
 
-Use one bounded local inventory across CLI setup and the dashboard. It may inspect running metadata
-from Docker, Podman, nerdctl, Finch, the active `kubectl` context, and a fixed list of loopback
-health endpoints. It does not inspect mounts, Kubernetes Secrets, ConfigMaps, volumes, document
-content, or arbitrary network ranges. Kubernetes cluster service addresses are recorded as
-connection-required because they may not be reachable by the Host Service without a port-forward or
-network route.
+User-facing automatic source discovery checks only responsive OpenWebUI services. It may inspect
+bounded running metadata from Docker, Podman, nerdctl, and Finch plus a fixed list of loopback
+health endpoints. It does not inspect mounts, secrets, volumes, document content, or arbitrary
+network ranges. Broader low-level runtime classifiers remain internal diagnostics for future
+connector work and cannot create or select a source.
 
 Treat persisted `ReportDocument` snapshots as the canonical interactive report. Guided scans and
 dashboard jobs save history and link to the dashboard report archive. The dashboard supplies
@@ -38,4 +39,7 @@ boundary while allowing the Host Service and worker to resolve credentials at ex
 - Discovery is broad across common local runtimes but intentionally shallow and bounded.
 - Qdrant, Chroma, Weaviate, Milvus, pgvector, and generic environments cannot create content scans
   until their individual connectors and consent boundaries are implemented.
+- User-facing source creation, automatic source discovery, and job selection expose only accepted
+  content connectors. Low-level metadata classifiers may remain for future connector diagnostics,
+  but unsupported platform names cannot be saved through the dashboard or selected as scan inputs.
 - Scheduling, retention, source change detection, and report UI localization remain separate work.

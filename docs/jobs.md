@@ -50,8 +50,10 @@ ragscanner jobs retry JOB_ID
 
 The dashboard polls durable state every two seconds and includes a Job activity log. Entries show
 stable codes such as `source_path_not_found`, `source_permission_denied`, `ai_provider_timeout`,
-`ai_provider_http_401`, and `ai_output_invalid` with bounded remediation-oriented messages. Raw
-exceptions, provider response bodies, document content, and credentials are never logged.
+`ai_provider_http_401`, and `ai_output_recovered` with bounded remediation-oriented messages.
+Historical reports may retain `ai_output_invalid`; current formatting recovery is a warning rather
+than a failed analysis. Raw exceptions, provider response bodies, document content, and credentials
+are never logged.
 
 Payloads are limited to 64 KiB. Plaintext credentials are rejected; only approved external
 references such as `env:VARIABLE`, `keychain:ITEM`, `vault:PATH`, or opaque `file-secret:` values may

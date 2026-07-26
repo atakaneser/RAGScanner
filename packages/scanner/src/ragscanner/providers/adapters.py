@@ -1,6 +1,7 @@
 """Consent-aware HTTP adapters for optional report enrichment."""
 
 import json
+import re
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -17,12 +18,113 @@ from ragscanner.ai_analysis.models import (
 )
 from ragscanner.ai_analysis.prompt import retry_system_prompt, system_prompt
 from ragscanner.ai_analysis.service import AnalysisRequest
+from ragscanner.domain.helpers import mask_secret_like_values, truncate_text
+from ragscanner.reporting.language import infer_report_language
 
 MAX_RETRY_CONTEXT_CHARACTERS = 6_500
-_MINIMAL_ANALYSIS_SCHEMA = {
-    "type": "object",
-    "properties": {"ai_analysis": {"type": "string"}},
-    "required": ["ai_analysis"],
+
+_RECOVERY_LIMITATIONS = {
+    "en": (
+        "The model's structured response could not be validated. This limited summary was wrapped "
+        "from the plain-text recovery response; structured root causes and finding-bound AI actions "
+        "were omitted."
+    ),
+    "tr": (
+        "Modelin yapılandırılmış yanıtı doğrulanamadı. Bu sınırlı özet düz metin kurtarma "
+        "yanıtından güvenle oluşturuldu; yapılandırılmış kök nedenler ve bulguya bağlı AI eylemleri "
+        "çıkarıldı."
+    ),
+    "de": (
+        "Die strukturierte Modellantwort konnte nicht validiert werden. Diese begrenzte "
+        "Zusammenfassung wurde aus der Klartext-Wiederherstellung übernommen; strukturierte "
+        "Ursachen und befundgebundene KI-Maßnahmen wurden ausgelassen."
+    ),
+    "fr": (
+        "La réponse structurée du modèle n'a pas pu être validée. Ce résumé limité provient de la "
+        "réponse de récupération en texte brut ; les causes structurées et les actions IA liées "
+        "aux constats ont été omises."
+    ),
+    "zh-CN": "模型的结构化响应无法验证。此受限摘要由纯文本恢复响应安全封装；结构化根因和绑定到发现的 AI 操作已省略。",
+    "it": (
+        "La risposta strutturata del modello non è stata convalidata. Questo riepilogo limitato è "
+        "stato ricavato dalla risposta di recupero in testo semplice; le cause strutturate e le "
+        "azioni AI legate ai risultati sono state omesse."
+    ),
+}
+
+_EMPTY_RECOVERY_SUMMARIES = {
+    "en": (
+        "The selected model did not produce usable analysis text. The verified severity "
+        "distribution and complete deterministic findings remain available in this report."
+    ),
+    "tr": (
+        "Seçilen model kullanılabilir analiz metni üretmedi. Doğrulanmış önem dağılımı ve eksiksiz "
+        "deterministik bulgular bu raporda yer almaya devam eder."
+    ),
+    "de": (
+        "Das ausgewählte Modell lieferte keinen verwendbaren Analysetext. Die geprüfte "
+        "Schweregradverteilung und die vollständigen deterministischen Befunde bleiben in diesem "
+        "Bericht verfügbar."
+    ),
+    "fr": (
+        "Le modèle sélectionné n'a produit aucun texte d'analyse exploitable. La répartition "
+        "vérifiée des sévérités et tous les constats déterministes restent disponibles dans ce "
+        "rapport."
+    ),
+    "zh-CN": "所选模型未生成可用的分析文本。经验证的严重性分布和完整的确定性发现仍保留在本报告中。",
+    "it": (
+        "Il modello selezionato non ha prodotto testo di analisi utilizzabile. La distribuzione "
+        "verificata della gravità e tutti i risultati deterministici restano disponibili nel "
+        "rapporto."
+    ),
+}
+
+_SCORE_LABELS = {
+    "en": {
+        "overall": "overall",
+        "security": "security",
+        "content_quality": "content quality",
+        "efficiency": "efficiency",
+    },
+    "tr": {
+        "overall": "genel",
+        "security": "güvenlik",
+        "content_quality": "içerik kalitesi",
+        "efficiency": "verimlilik",
+    },
+    "de": {
+        "overall": "gesamt",
+        "security": "sicherheit",
+        "content_quality": "inhaltsqualität",
+        "efficiency": "effizienz",
+    },
+    "fr": {
+        "overall": "global",
+        "security": "sécurité",
+        "content_quality": "qualité du contenu",
+        "efficiency": "efficacité",
+    },
+    "zh-CN": {
+        "overall": "总体",
+        "security": "安全",
+        "content_quality": "内容质量",
+        "efficiency": "效率",
+    },
+    "it": {
+        "overall": "complessivo",
+        "security": "sicurezza",
+        "content_quality": "qualità dei contenuti",
+        "efficiency": "efficienza",
+    },
+}
+
+_SCORE_SUMMARY_TEMPLATES = {
+    "en": "Verified scores: {items}.",
+    "tr": "Doğrulanmış puanlar: {items}.",
+    "de": "Geprüfte Bewertungen: {items}.",
+    "fr": "Scores vérifiés : {items}.",
+    "zh-CN": "经验证的分数：{items}。",
+    "it": "Punteggi verificati: {items}.",
 }
 
 
@@ -93,6 +195,26 @@ def _validate_url(base_url: str, *, consent_remote: bool) -> tuple[str, bool]:
 
 def _provider_text(value: object, limit: int) -> str:
     return str(value or "").strip()[:limit]
+
+
+def _coerce_response_text(value: object) -> str | None:
+    """Normalize text and parsed-content variants used by compatible provider APIs."""
+
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                supplied = item.get("text") or item.get("content")
+                if isinstance(supplied, str):
+                    parts.append(supplied)
+        return "".join(parts)
+    return None
 
 
 def _retry_context(request: AnalysisRequest) -> dict[str, Any]:
@@ -313,7 +435,50 @@ class _BaseAnalysisProvider:
         except ModelProviderError as error:
             if error.code != "ai_output_invalid":
                 raise
-        return self._analysis(await retry(), request)
+        recovered_content = await retry()
+        try:
+            return self._analysis(recovered_content, request)
+        except ModelProviderError as error:
+            if error.code != "ai_output_invalid":
+                raise
+        return self._recovered_analysis(recovered_content, request)
+
+    def _recovered_analysis(self, content: str, request: AnalysisRequest) -> AIReportAnalysis:
+        """Wrap a bounded plain-text retry so JSON-only limitations cannot fail the report."""
+
+        analysis_text = _plain_text_recovery(content, request.report_language)
+        if analysis_text is None:
+            analysis_text = _EMPTY_RECOVERY_SUMMARIES.get(
+                request.report_language, _EMPTY_RECOVERY_SUMMARIES["en"]
+            )
+        generated = AIAnalysisContent(
+            ai_analysis=analysis_text,
+            score_commentary=_verified_score_summary(request),
+        )
+        try:
+            generated = self._apply_deterministic_guards(generated, request)
+        except ModelProviderError as error:
+            if error.code != "ai_output_invalid":
+                raise
+            generated = self._apply_deterministic_guards(
+                AIAnalysisContent(
+                    ai_analysis=_EMPTY_RECOVERY_SUMMARIES.get(
+                        request.report_language, _EMPTY_RECOVERY_SUMMARIES["en"]
+                    ),
+                    score_commentary=_verified_score_summary(request),
+                ),
+                request,
+            )
+        return AIReportAnalysis(
+            **generated.model_dump(),
+            provider=self.provider_id,
+            model=self.model,
+            remote=self.remote,
+            finding_ids=sorted(request.finding_ids)[:25],
+            limitations=[
+                _RECOVERY_LIMITATIONS.get(request.report_language, _RECOVERY_LIMITATIONS["en"])
+            ],
+        )
 
     async def _request(
         self,
@@ -410,6 +575,57 @@ def _normalized_analysis_payload(content: str) -> dict[str, Any]:
     if not isinstance(value, dict) or not _looks_like_analysis_object(value):
         raise TypeError("analysis payload must be an analysis object")
     return value
+
+
+def _plain_text_recovery(content: str, report_language: str) -> str | None:
+    """Return only usable bounded narrative from a schema-free recovery response."""
+
+    text = content.strip().removeprefix("\ufeff").strip()
+    text = re.sub(r"(?is)<think\b[^>]*>.*?</think\s*>", "", text).strip()
+    if text.startswith("```") and text.endswith("```"):
+        lines = text.splitlines()
+        if len(lines) >= 3:
+            text = "\n".join(lines[1:-1]).strip()
+    if text.lstrip().startswith(("{", "[")):
+        match = re.search(
+            r'"(?:ai_analysis|executive_summary|summary|analysis|response|content|report)"'
+            r'\s*:\s*"((?:\\.|[^"\\])*)(?:"|$)',
+            text,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            return None
+        encoded = match.group(1)
+        try:
+            text = json.loads(f'"{encoded}"')
+        except json.JSONDecodeError:
+            text = encoded.replace("\\n", " ").replace('\\"', '"').replace("\\\\", "\\")
+    text = re.sub(r"^```[a-zA-Z0-9_-]*\s*|\s*```$", "", text).strip()
+    text = re.sub(
+        r"^(?:analysis|summary|final answer|response)\s*:\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = " ".join(text.split())
+    if not text or not re.search(r"[^\W\d_]", text, flags=re.UNICODE):
+        return None
+    text = truncate_text(mask_secret_like_values(text), 2_000)
+    detected = infer_report_language([(text, None)], fallback=report_language)
+    return text if detected == report_language else None
+
+
+def _verified_score_summary(request: AnalysisRequest) -> str:
+    scores = request.context.get("scores", {})
+    supplied = scores if isinstance(scores, dict) else {}
+    labels = _SCORE_LABELS.get(request.report_language, _SCORE_LABELS["en"])
+    values = [
+        f"{labels[key]} {float(value):.1f}"
+        for key in ("overall", "security", "content_quality", "efficiency")
+        if isinstance((value := supplied.get(key)), int | float)
+    ]
+    template = _SCORE_SUMMARY_TEMPLATES.get(request.report_language, _SCORE_SUMMARY_TEMPLATES["en"])
+    return template.format(items=", ".join(values) if values else "—")
 
 
 _ANALYSIS_ROOT_KEYS = {
@@ -798,33 +1014,37 @@ class OllamaAnalysisProvider(_BaseAnalysisProvider):
                 "model": self.model,
                 "messages": _messages(request, retry=retry),
                 "stream": False,
-                "format": ("json" if retry else AIAnalysisContent.model_json_schema()),
                 "options": {
                     "temperature": 0.1,
                     "num_ctx": 16_384,
-                    "num_predict": 768 if retry else 2_048,
+                    "num_predict": 512 if retry else 2_048,
                 },
             }
-            value = await self._post_with_http_400_fallback(
-                "/api/chat",
-                payload,
-                {**payload, "format": "json"},
-                terminal_message=(
-                    "Ollama rejected both schema and JSON compatibility requests. Verify that the "
-                    "selected model is installed and that the endpoint supports /api/chat."
-                ),
-            )
+            if retry:
+                value = await self._post("/api/chat", payload)
+            else:
+                payload["format"] = AIAnalysisContent.model_json_schema()
+                value = await self._post_with_http_400_fallback(
+                    "/api/chat",
+                    payload,
+                    {**payload, "format": "json"},
+                    terminal_message=(
+                        "Ollama rejected both schema and JSON compatibility requests. Verify that "
+                        "the selected model is installed and that the endpoint supports /api/chat."
+                    ),
+                )
             content = (
                 value.get("message", {}).get("content")
                 if isinstance(value.get("message"), dict)
                 else None
             )
-            if not isinstance(content, str):
+            content_text = _coerce_response_text(content)
+            if content_text is None:
                 raise ModelProviderError(
                     "ai_response_missing_content",
                     "The Ollama response did not contain analysis text.",
                 )
-            return content
+            return content_text
 
         content = await chat(retry=False)
         return await self._analysis_with_retry(content, request, lambda: chat(retry=True))
@@ -861,30 +1081,36 @@ class OpenAICompatibleAnalysisProvider(_BaseAnalysisProvider):
                 "model": self.model,
                 "messages": _messages(request, retry=retry),
                 "temperature": 0.1,
-                "response_format": {"type": "json_object"},
             }
-            value = await self._post_with_http_400_fallback(
-                "/v1/chat/completions",
-                payload,
-                {key: value for key, value in payload.items() if key != "response_format"},
-                headers=headers,
-                terminal_message=(
-                    "The provider rejected both structured and compatibility requests. Verify that "
-                    "the selected model exists and the endpoint supports chat completions."
-                ),
-            )
+            if retry:
+                value = await self._post("/v1/chat/completions", payload, headers)
+            else:
+                payload["response_format"] = {"type": "json_object"}
+                value = await self._post_with_http_400_fallback(
+                    "/v1/chat/completions",
+                    payload,
+                    {key: value for key, value in payload.items() if key != "response_format"},
+                    headers=headers,
+                    terminal_message=(
+                        "The provider rejected both structured and compatibility requests. Verify "
+                        "that the selected model exists and the endpoint supports chat completions."
+                    ),
+                )
             choices = value.get("choices")
-            content = (
-                choices[0].get("message", {}).get("content")
-                if isinstance(choices, list) and choices and isinstance(choices[0], dict)
-                else None
-            )
-            if not isinstance(content, str):
+            content: object = None
+            if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+                message = choices[0].get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                if content is None:
+                    content = choices[0].get("text")
+            content_text = _coerce_response_text(content)
+            if content_text is None:
                 raise ModelProviderError(
                     "ai_response_missing_content",
                     "The OpenAI-compatible response did not contain analysis text.",
                 )
-            return content
+            return content_text
 
         content = await chat(retry=False)
         return await self._analysis_with_retry(content, request, lambda: chat(retry=True))
@@ -929,13 +1155,22 @@ class AnthropicAnalysisProvider(_BaseAnalysisProvider):
                 {"x-api-key": self.api_key, "anthropic-version": "2023-06-01"},
             )
             blocks = value.get("content")
-            content = blocks[0].get("text") if isinstance(blocks, list) and blocks else None
-            if not isinstance(content, str):
+            content = (
+                [
+                    block.get("text")
+                    for block in blocks
+                    if isinstance(block, dict) and block.get("type") in {None, "text"}
+                ]
+                if isinstance(blocks, list)
+                else None
+            )
+            content_text = _coerce_response_text(content)
+            if content_text is None:
                 raise ModelProviderError(
                     "ai_response_missing_content",
                     "The Anthropic response did not contain analysis text.",
                 )
-            return content
+            return content_text
 
         content = await chat(retry=False)
         return await self._analysis_with_retry(content, request, lambda: chat(retry=True))
@@ -972,20 +1207,23 @@ class GeminiAnalysisProvider(_BaseAnalysisProvider):
         async def chat(*, retry: bool) -> str:
             messages = _messages(request, retry=retry)
             user_content = "\n\n".join(message["content"] for message in messages[1:])
+            generation_config: dict[str, object] = {"temperature": 0.1}
+            if retry:
+                generation_config["responseMimeType"] = "text/plain"
+                generation_config["maxOutputTokens"] = 512
+            else:
+                generation_config.update(
+                    {
+                        "responseMimeType": "application/json",
+                        "responseSchema": AIAnalysisContent.model_json_schema(),
+                    }
+                )
             value = await self._post(
                 f"/v1beta/models/{self.model}:generateContent",
                 {
                     "systemInstruction": {"parts": [{"text": messages[0]["content"]}]},
                     "contents": [{"role": "user", "parts": [{"text": user_content}]}],
-                    "generationConfig": {
-                        "temperature": 0.1,
-                        "responseMimeType": "application/json",
-                        "responseSchema": (
-                            _MINIMAL_ANALYSIS_SCHEMA
-                            if retry
-                            else AIAnalysisContent.model_json_schema()
-                        ),
-                    },
+                    "generationConfig": generation_config,
                 },
                 {"x-goog-api-key": self.api_key},
             )
@@ -995,14 +1233,15 @@ class GeminiAnalysisProvider(_BaseAnalysisProvider):
                 candidate_content = candidates[0].get("content")
                 if isinstance(candidate_content, dict):
                     parts = candidate_content.get("parts")
-                    if isinstance(parts, list) and parts and isinstance(parts[0], dict):
-                        content = parts[0].get("text")
-            if not isinstance(content, str):
+                    if isinstance(parts, list):
+                        content = [part.get("text") for part in parts if isinstance(part, dict)]
+            content_text = _coerce_response_text(content)
+            if content_text is None:
                 raise ModelProviderError(
                     "ai_response_missing_content",
                     "The Gemini response did not contain analysis text.",
                 )
-            return content
+            return content_text
 
         content = await chat(retry=False)
         return await self._analysis_with_retry(content, request, lambda: chat(retry=True))

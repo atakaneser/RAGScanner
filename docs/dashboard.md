@@ -4,6 +4,13 @@
 binds to `127.0.0.1` and the port is intentionally fixed. It shows the
 latest risk posture and assessment coverage, recent persisted scans, and durable job status.
 
+Sources lists only content paths that RAGScanner can actually read: local files/folders, OpenWebUI
+knowledge bases, bounded web/sitemap content, and directly accessible SharePoint URLs. Automatic
+discovery checks only responsive local OpenWebUI services. Vector databases, Kubernetes services,
+generic endpoints, and custom platform names are not add-source or job choices because platform
+detection alone cannot enumerate authorized content or preserve document/chunk provenance. Legacy
+metadata-only profiles remain removable from Sources but never appear in job selection.
+
 The New scan drawer can queue a one-time or recurring local file/folder scan, an explicitly
 consented OpenWebUI knowledge base, or a website source. Website sources accept one page, a supported
 document, a same-origin sitemap, or an accessible SharePoint URL. Optional authenticated web access
@@ -71,9 +78,14 @@ mode and still validates the response schema. If both requests fail, the report 
 
 Advisory input is globally capped at 18,000 characters and prioritizes highest-severity,
 highest-impact finding groups. If the first structured response is invalid, the model receives a
-separate recovery request capped at 6,500 characters, with no evidence snippets and only one required
-JSON field. Ollama receives a 16,384-token context allocation. The report states how many
-lower-priority groups remain in the exhaustive deterministic finding list.
+separate recovery request capped at 6,500 characters, with no evidence snippets and plain-text
+output instead of another JSON requirement. RAGScanner locally wraps usable text in its validated
+minimal result. Empty, malformed, wrong-language, or severity-contradicting text becomes a localized
+verified-fact summary. The report shows this limitation and omits unsupported structured sections
+instead of ending with `ai_output_invalid`. Ollama receives a 16,384-token context allocation. The
+report states how many lower-priority groups remain in the exhaustive deterministic finding list.
+Job activity records this degraded-but-usable path as the warning code `ai_output_recovered` rather
+than claiming that the structured analysis completed without limitations.
 
 Dashboard-entered source credentials remain outside SQLite. When a machine-data migration preserves
 the protected `secrets/` directory but invalidates an older absolute `file-secret:` path, dashboard

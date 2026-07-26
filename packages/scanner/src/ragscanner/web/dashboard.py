@@ -30,8 +30,8 @@ from ragscanner.jobs import JobKind, JobNotFoundError, JobRecord, JobStateError,
 from ragscanner.local_auth import LocalAdministratorStore
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
-    discover_local_rag_environments,
     discover_openwebui_knowledge_bases,
+    discover_openwebui_services,
 )
 from ragscanner.providers import PROVIDER_CATALOG, ModelProviderError, discover_provider_models
 from ragscanner.quality import RAGConfigurationConfig, RAGProfile
@@ -51,6 +51,7 @@ from ragscanner.storage import (
 )
 
 DASHBOARD_ASSET_ROOT = Path(__file__).with_name("templates")
+SCANNABLE_SOURCE_KINDS = frozenset({"filesystem", "openwebui", "website", "sharepoint"})
 templates = Jinja2Templates(directory=DASHBOARD_ASSET_ROOT)
 
 
@@ -122,9 +123,9 @@ def _effective_source_profile(
     repository: SQLiteSourceProfileRepository | None = None,
     secret_store: MachineSecretStore | None = None,
 ) -> SourceProfile:
-    if profile.kind == "filesystem":
+    if profile.kind in {"filesystem", "website", "sharepoint"}:
         status = "scan_ready"
-    elif profile.kind != "openwebui":
+    elif profile.kind not in SCANNABLE_SOURCE_KINDS:
         status = "metadata_only"
     else:
         try:
@@ -260,7 +261,7 @@ def register_dashboard(
         csrf_token: Annotated[str, Form()],
     ) -> JSONResponse:
         _validate_csrf(request, csrf_token)
-        return await _environment_inventory_response()
+        return await _openwebui_discovery_response()
 
     @app.post("/setup", response_class=HTMLResponse, response_model=None, include_in_schema=False)
     async def create_local_administrator(
@@ -269,9 +270,7 @@ def register_dashboard(
         password: Annotated[str, Form(min_length=14, max_length=512)],
         csrf_token: Annotated[str, Form()],
         interface_mode: Annotated[str, Form(pattern=r"^(web|cli)$")] = "web",
-        source_mode: Annotated[
-            str, Form(pattern=r"^(openwebui|environment|temporary_folder)$")
-        ] = "openwebui",
+        source_mode: Annotated[str, Form(pattern=r"^(openwebui|temporary_folder)$")] = "openwebui",
         source_name: Annotated[str | None, Form(max_length=160)] = None,
         source_location: Annotated[str | None, Form(max_length=4096)] = None,
         credential_ref: Annotated[str | None, Form(max_length=500)] = None,
@@ -283,16 +282,14 @@ def register_dashboard(
         try:
             pending_profile = None
             if source_location and source_mode != "temporary_folder":
-                kind = "openwebui" if source_mode == "openwebui" else "generic"
+                kind = "openwebui"
                 pending_profile = SourceProfile(
                     name=(source_name or kind).strip(),
                     kind=kind,
                     base_url=source_location.strip(),
                     credential_ref=None,
                     discovery_origin="setup",
-                    capability_status="connection_required"
-                    if kind == "openwebui"
-                    else "metadata_only",
+                    capability_status="connection_required",
                 )
                 normalized_credential_ref = normalize_env_credential_reference(credential_ref)
                 if api_key:
@@ -427,6 +424,9 @@ def register_dashboard(
                 )
                 for profile in source_repository.list()
             ]
+            job_profiles = [
+                profile for profile in profiles if profile.kind in SCANNABLE_SOURCE_KINDS
+            ]
             schedules = schedule_repository.list(limit=settings.rows_per_page)
             job_logs = [_job_log(job, history_repository) for job in jobs.items]
         finally:
@@ -472,6 +472,7 @@ def register_dashboard(
                 "score_delta": score_delta,
                 "page": page,
                 "profiles": profiles,
+                "job_profiles": job_profiles,
                 "schedules": schedules,
                 "selected_report": selected_report,
                 "regular_findings": regular_findings,
@@ -657,12 +658,7 @@ def register_dashboard(
         name: Annotated[str, Form(min_length=1, max_length=160)],
         kind: Annotated[
             str,
-            Form(
-                pattern=(
-                    r"^(openwebui|filesystem|website|sharepoint|qdrant|chroma|weaviate|milvus|pgvector|"
-                    r"elasticsearch|opensearch|pinecone|kubernetes|generic|custom)$"
-                )
-            ),
+            Form(pattern=r"^(openwebui|filesystem|website|sharepoint)$"),
         ],
         location: Annotated[str, Form(min_length=1, max_length=4096)],
         credential_ref: Annotated[str | None, Form(max_length=500)] = None,
@@ -684,8 +680,6 @@ def register_dashboard(
                     "scan_ready"
                     if kind in {"filesystem", "website", "sharepoint"}
                     else "connection_required"
-                    if kind == "openwebui"
-                    else "metadata_only"
                 ),
             )
             normalized_reference = normalize_env_credential_reference(credential_ref)
@@ -896,7 +890,7 @@ def register_dashboard(
                 {"error": "Explicit consent is required before local environment discovery."},
                 status_code=400,
             )
-        return await _environment_inventory_response()
+        return await _openwebui_discovery_response()
 
     @app.post("/dashboard/discovery/openwebui/knowledge-bases", include_in_schema=False)
     async def dashboard_discover_openwebui_knowledge_bases(
@@ -1346,30 +1340,22 @@ def _date_filters(request: Request) -> tuple[datetime | None, datetime | None]:
     return lower, upper
 
 
-async def _environment_inventory_response() -> JSONResponse:
-    environments = await run_in_threadpool(
-        lambda: discover_local_rag_environments(
-            include_container_runtimes=True, include_kubernetes=True
-        )
+async def _openwebui_discovery_response() -> JSONResponse:
+    services = await run_in_threadpool(
+        lambda: discover_openwebui_services(include_container_runtimes=True)
     )
     return JSONResponse(
         {
             "environments": [
                 {
-                    "platform": item.platform,
+                    "platform": "openwebui",
                     "base_url": item.base_url,
-                    "status": item.discovery_status,
-                    "runtime": item.runtime,
-                    "metadata_inventory_supported": item.metadata_inventory_supported,
-                    "capability_status": (
-                        "scan_ready"
-                        if item.platform == "openwebui" and item.discovery_status == "reachable"
-                        else "metadata_only"
-                        if item.discovery_status in {"reachable", "detected"}
-                        else "connection_required"
-                    ),
+                    "status": "reachable",
+                    "runtime": item.runtime or item.discovery_source,
+                    "metadata_inventory_supported": True,
+                    "capability_status": "connection_required",
                 }
-                for item in environments
+                for item in services
             ]
         }
     )
@@ -1412,8 +1398,16 @@ def _job_log(job: JobRecord, history_repository: SQLiteScanHistoryRepository) ->
                 message = report.ai_analysis_error or "AI analysis was unavailable."
                 level = "warning"
             elif report is not None and report.ai_analysis is not None:
-                code = "ai_analysis_completed"
-                message = "The scan and AI-assisted report analysis completed successfully."
+                if report.ai_analysis.prompt_version == "2.3.0" and report.ai_analysis.limitations:
+                    code = "ai_output_recovered"
+                    message = (
+                        "The model's structured output was invalid; a safe limited analysis "
+                        "was saved."
+                    )
+                    level = "warning"
+                else:
+                    code = "ai_analysis_completed"
+                    message = "The scan and AI-assisted report analysis completed successfully."
     elif job.status is JobStatus.FAILED:
         code = job.error_code or "job_failed"
         message = job.error_message or "The job failed."

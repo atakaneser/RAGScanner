@@ -31,12 +31,14 @@ RAGScanner does not silently repair or rewrite the source PDF.
 ## AI output is invalid
 
 Run `ragscanner update` before retrying so the Host Service uses the latest prompt and context
-budgets. RAGScanner caps the primary advisory context at 18,000 characters and uses a separate
-6,500-character recovery request after malformed output. Ollama is asked for a 16,384-token context
-window. If `ai_output_invalid` remains after an update and rescan, confirm that the selected model
-supports chat plus JSON output; then include the safe activity code, provider name, model name, and
-timestamp in a private diagnostic report. Never attach the model response, source evidence, or API
-key.
+budgets. RAGScanner caps the primary advisory context at 18,000 characters. After malformed
+structured output, a separate evidence-free request of at most 6,500 characters asks for plain text
+instead of requiring JSON again. Usable text is wrapped locally; unusable text becomes a localized
+verified-fact summary with a visible limitation. Provider output formatting alone should therefore
+not produce `ai_output_invalid` on a new scan. Ollama is asked for a 16,384-token context window.
+If a new scan still contains that code after updating to a version with prompt `2.3.0`, include the
+safe activity code, provider name, model name, timestamp, and RAGScanner version in a private
+diagnostic report. Never attach the model response, source evidence, or API key.
 
 ## Diagnostic information
 

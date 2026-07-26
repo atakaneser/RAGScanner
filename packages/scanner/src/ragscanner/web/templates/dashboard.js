@@ -164,25 +164,17 @@
   const connectionCredentialRef = document.querySelector("[data-connection-credential-ref]");
   const setConnectionState = (option) => {
     const needsConnection = option?.dataset.status === "connection_required";
-    const detectionOnly = option?.dataset.status === "metadata_only";
-    connectionPanel?.classList.toggle("hidden", !needsConnection && !detectionOnly);
+    connectionPanel?.classList.toggle("hidden", !needsConnection);
     if (connectionProfile) connectionProfile.value = option?.value || "";
-    if (connectionStatus) connectionStatus.textContent = detectionOnly
-      ? t("This environment was detected, but its content connector is not available yet. No API key is needed.")
-      : "";
-    connectionApiKey?.closest("label")?.classList.toggle("hidden", detectionOnly);
-    connectionCredentialRef?.closest("details")?.classList.toggle("hidden", detectionOnly);
-    const connectButton = document.querySelector("[data-connect-and-continue]");
-    connectButton?.classList.toggle("hidden", detectionOnly);
+    if (connectionStatus) connectionStatus.textContent = "";
     const savedContinue = savedSourcePanel?.querySelector("[data-source-continue]");
-    if (savedContinue) savedContinue.disabled = !option?.value || needsConnection || detectionOnly;
+    if (savedContinue) savedContinue.disabled = !option?.value || needsConnection;
   };
   profilePicker?.addEventListener("change", () => {
     const option = profilePicker.selectedOptions[0];
     setConnectionState(option);
     if (!option?.value) { selectedSourceKind = ""; return; }
     const kind = option.dataset.kind;
-    if (option.dataset.status === "metadata_only") return;
     const targetTab = kind === "filesystem" ? "local" : (["website", "sharepoint"].includes(kind) ? "website" : "openwebui");
     const selectedTab = tabs.find((tab) => tab.dataset.source === targetTab);
     selectedTab?.click();
@@ -265,11 +257,12 @@
   const populateSourceForm = (environment) => {
     const form = document.querySelector(".settings-form");
     if (!form) return;
-    form.querySelector('[name="name"]').value = environment.platform;
-    const kind = [...form.querySelector('[name="kind"]').options].some((option) => option.value === environment.platform) ? environment.platform : "generic";
-    form.querySelector('[name="kind"]').value = kind;
+    form.querySelector('[name="name"]').value = "OpenWebUI";
+    form.querySelector('[name="kind"]').value = "openwebui";
     form.querySelector('[name="location"]').value = environment.base_url;
     form.querySelector('[name="discovery_origin"]').value = environment.runtime || "localhost";
+    document.querySelectorAll("[data-source-choice]").forEach((item) => item.classList.toggle("selected", item.dataset.sourceChoice === "openwebui"));
+    updateSourceDefaults();
     form.scrollIntoView({ behavior: "smooth", block: "center" });
   };
   const populateSetupForm = (environment) => {
@@ -286,18 +279,18 @@
       const name = document.createElement("strong"); name.textContent = environment.platform;
       const address = document.createElement("code"); address.textContent = environment.base_url;
       const runtime = document.createElement("small"); runtime.textContent = environment.runtime || "localhost";
-      const capability = document.createElement("span"); capability.className = `capability capability-${environment.capability_status}`; capability.textContent = environment.capability_status.replaceAll("_", " ");
+      const capability = document.createElement("span"); capability.className = `capability capability-${environment.capability_status}`; capability.textContent = t("API key needed");
       const use = document.createElement("button"); use.type = "button"; use.className = "secondary small"; use.textContent = t(setupMode ? "Select" : "Use details");
       use.addEventListener("click", () => setupMode ? populateSetupForm(environment) : populateSourceForm(environment));
       row.append(name, address, runtime, capability, use); node.append(row);
     }));
   };
   const discover = async (setupMode) => {
-    setStatus(t("Scanning bounded local service metadata…"));
+    setStatus(t("Checking common local OpenWebUI addresses…"));
     try {
       const payload = await postForm(setupMode ? "/setup/discovery" : "/dashboard/discovery/environments", setupMode ? {} : { metadata_consent: "true" });
       const environments = payload.environments || [];
-      setStatus(environments.length ? `${environments.length} ${t("environment candidate(s) found.")}` : t("No supported local environment candidate was found."));
+      setStatus(environments.length ? `${environments.length} ${t("OpenWebUI service(s) found.")}` : t("No reachable local OpenWebUI service was found."));
       renderEnvironments(environments, setupMode);
     } catch (error) { setStatus(error instanceof Error ? error.message : t("Discovery failed.")); }
   };
@@ -315,7 +308,7 @@
     if (!option || !sourceForm) return;
     const name = sourceForm.querySelector('[name="name"]');
     const location = sourceForm.querySelector('[name="location"]');
-    if (name) name.value = option.dataset.name || "";
+    if (name) name.value = t(option.dataset.name || "");
     if (location) location.value = option.dataset.url || "";
     const ready = ["openwebui", "filesystem", "website", "sharepoint"].includes(option.value);
     if (sourceNote) sourceNote.innerHTML = ready
@@ -331,7 +324,7 @@
   sourceKind?.addEventListener("change", updateSourceDefaults);
   document.querySelectorAll("[data-source-choice]").forEach((button) => button.addEventListener("click", () => {
     if (!sourceKind) return;
-    sourceKind.value = button.dataset.sourceChoice || "custom";
+    sourceKind.value = button.dataset.sourceChoice || "openwebui";
     document.querySelectorAll("[data-source-choice]").forEach((item) => item.classList.toggle("selected", item === button));
     updateSourceDefaults();
   }));

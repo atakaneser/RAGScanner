@@ -8,19 +8,13 @@ After the one-time installation, normal users can start with:
 ragscanner
 ```
 
-The default English onboarding choice automatically discovers local RAG environment candidates after
-consent. It reads bounded Docker, Podman, nerdctl, and Finch running-container metadata and probes
-only approved OpenWebUI loopback health endpoints. It identifies OpenWebUI, Qdrant, Chroma,
-Weaviate, Milvus, and pgvector-related containers from their names/images and published loopback
-ports. Detection of a non-OpenWebUI platform is an inventory hint only: no connector, collection,
-or document access is claimed until that platform has a supported connector.
-
 The flow only lists immediate folders whose names indicate a likely RAG source, and labels them as
 name-based candidates rather than verified RAG data. It never treats generic folders such as
 Documents or the current working directory as an automatic RAG candidate. When OpenWebUI is selected,
 available Docker, Podman, nerdctl, and Finch CLIs are inspected only after consent. Only bounded
-running-container names, images, and published-port metadata are read without a shell. Candidate
-loopback health endpoints are then checked without redirects. A separate consent step and an API
+running-container names, images, and published-port metadata are read without a shell, and only
+OpenWebUI candidates are presented. Candidate loopback health endpoints are then checked without
+redirects. A separate consent step and an API
 key held only in memory can inventory accessible knowledge bases plus linked and standalone/chat
 file metadata. Discovery itself does not retrieve document content or prove version compatibility.
 Knowledge-base results remain visible even if a later file-inventory endpoint is unavailable. The
@@ -32,12 +26,16 @@ CLI process memory; durable `jobs enqueue-openwebui` remains available for autom
 The bare-command menu contains only two scan routes: a local file or folder, and an OpenWebUI API
 knowledge base. Detection-only platform inventory is not presented as a scan route.
 
-The dashboard at `http://localhost:8765` offers the same consented local environment discovery,
-can transfer a discovered reachable OpenWebUI URL into its scan form, and can list knowledge bases
+The dashboard at `http://localhost:8765` offers bounded discovery only for responsive local
+OpenWebUI services, can transfer a discovered URL into its source form, and can list knowledge bases
 using an `env:` credential reference. The key is resolved only in the local dashboard/worker process
 and is never sent to the browser, report, SQLite database, or job payload. The dashboard can process
 one already-consented queued job immediately. Normal installation uses the machine-wide Host Service;
 it remains available and processes queued work without an interactive user session.
+
+Neither dashboard nor terminal setup presents detected vector databases as sources. Scanning one
+would require a platform-specific connector that can enumerate authorized collections and retrieve
+bounded payload text plus stable document/chunk provenance; those connectors are not implemented.
 
 Guided HTML reports are written to the platform-native RAGScanner data directory, never the shell's
 current directory. Run `ragscanner paths` to see the exact data, report, and history locations.

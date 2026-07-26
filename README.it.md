@@ -32,6 +32,12 @@ OCR, duplicati semantici, rilevamento autenticato di librerie Microsoft Graph, c
 vector store, cron/calendario, conservazione configurabile, autenticazione multiutente e distribuzione
 Docker non sono ancora disponibili. Rilevare una piattaforma non equivale ad accesso o valutazione.
 
+I moduli di origine e job mostrano volutamente solo i percorsi di contenuto implementati sopra. Un
+database vettoriale non può essere analizzato dal nome del prodotto o del container: un vero
+connettore deve enumerare le collection autorizzate e leggere testo payload limitato con provenienza
+di documento/chunk. Non esiste ancora un connettore vector store accettato, quindi Qdrant, Chroma,
+Weaviate, Milvus, pgvector e piattaforme simili non vengono offerte come origini analizzabili.
+
 ## Installa e apri
 
 Installa dal repository ufficiale, quindi crea il servizio macchina:
@@ -119,7 +125,7 @@ L’analisi AI è facoltativa e non sostituisce i risultati deterministici. Le i
 modelli installati in Ollama, LM Studio, LocalAI o vLLM invece di conservare nomi obsoleti. I provider
 remoti richiedono HTTPS, riferimento credenziali esterno e consenso per scansione.
 
-Viene inviato solo un contesto di rapporto limitato e oscurato, mai documenti grezzi. Le prove grezze
+Viene inviato solo un contesto di rapporto limitato e oscurato, mai documenti grezzi.
 Il contesto ha un limite globale di 18.000 caratteri; i gruppi vengono selezionati prima per gravità
 massima e poi per chunk interessati. Ogni gruppo selezionato contiene al massimo quattro posizioni
 di prova; l’avviso di copertura indica i gruppi che restano nel rapporto deterministico completo.
@@ -127,13 +133,15 @@ Le prove grezze dei risultati di sicurezza statica e degli altri risultati della
 interessata vengono omesse; regola, file/pagina/riga, impatto e rimedio deterministico restano
 disponibili. Le istruzioni del documento non diventano quindi istruzioni per il modello.
 
-L’output è validato da schema. RAGScanner accetta un unico oggetto di analisi non ambiguo dai comuni
-involucri dei modelli locali—blocco JSON, prefisso di ragionamento o stringa JSON serializzata—poi
-riprova una volta l’output non valido con un contesto compatto di massimo 6.500 caratteri, senza
-estratti di prova, e uno schema JSON a campo singolo. Ollama riserva una finestra di contesto di
-16.384 token per l’analisi.
-Le deviazioni comuni dallo schema vengono normalizzate, i riferimenti inventati sono scartati in
-sicurezza e l’analisi accettata può associare correzione e verifica a ogni risultato reale.
+Il primo output viene convalidato rispetto allo schema versionato. RAGScanner accetta un unico
+oggetto di analisi non ambiguo dai comuni involucri dei modelli locali—blocco JSON, prefisso di
+ragionamento o stringa JSON serializzata. Se la risposta non è valida, un recupero compatto di
+massimo 6.500 caratteri e senza estratti di prova richiede una volta testo semplice invece di un
+altro JSON. Il testo utilizzabile viene inserito localmente in un involucro convalidato. Una risposta
+vuota, malformata, nella lingua errata o contraria alle gravità verificate diventa un riepilogo
+localizzato basato soltanto sui fatti del rapporto; il limite viene mostrato invece di terminare con
+`ai_output_invalid`. Ollama riserva 16.384 token di contesto. Le azioni AI dettagliate sono accettate
+solo dalla risposta strutturata e associate esclusivamente a veri ID di regola.
 
 ## Rapporti e operazioni
 

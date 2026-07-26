@@ -30,9 +30,10 @@
   the dashboard by default, with `--mode terminal` for CLI setup; legacy service groups are hidden
 - English guided local scanning from a bare `ragscanner` command, bounded name-based RAG-folder
   discovery that excludes generic Documents/current-working-directory candidates,
-  consent-based automatic Docker/Podman/nerdctl/Finch RAG-environment inventory, OpenWebUI endpoint
-  discovery, and separately consented authenticated knowledge-base plus linked/standalone file
-  metadata inventory with partial-result preservation and per-knowledge-base endpoint compatibility
+  consent-based OpenWebUI endpoint discovery using bounded Docker/Podman/nerdctl/Finch metadata and
+  approved loopback health checks, and separately consented authenticated knowledge-base plus
+  linked/standalone file metadata inventory with partial-result preservation and per-knowledge-base
+  endpoint compatibility
 - Platform-native central machine data, report, and history locations plus a separate per-user
   disposable cache location discoverable with
   `ragscanner paths`; guided reports never default to the current working directory
@@ -119,13 +120,13 @@
   owner-readable machine-file references, no submitted-value echo, and a connect-later state
 - Direct dashboard API-key entry for OpenWebUI setup, source creation, inline scan-job connection,
   and default AI settings. Submitted keys are stored outside SQLite in owner-readable machine files;
-  source profiles and durable jobs retain only opaque references, and the UI clearly distinguishes
-  scan-ready connectors from metadata-only detected environments
-- Simplified Sources and Scan jobs workflows with known-platform defaults, an explicit Custom
-  option, selectable incomplete sources, connection testing, and knowledge-base loading in the
-  same job drawer instead of a disabled `connection_required` dead end
-- Bounded Kubernetes service and common vector-platform localhost discovery in addition to
-  Docker, Podman, nerdctl, and Finch metadata inventory
+  source profiles and durable jobs retain only opaque references
+- Capability-honest Sources and Scan jobs workflows that offer only implemented content paths:
+  filesystem, OpenWebUI, bounded website/sitemap, and directly accessible SharePoint URLs;
+  automatic source discovery returns only responsive OpenWebUI services, unsupported form
+  submissions are rejected, and legacy metadata-only profiles never enter job selection
+- Inline OpenWebUI connection testing and knowledge-base loading in the same job drawer instead of
+  a disabled `connection_required` dead end
 - Guided local and OpenWebUI scans persist reports for dashboard viewing instead of creating a
   standalone HTML file by default; explicit CLI export formats remain available
 - HTML executive summary, assessment-coverage notice, and per-file ingestion remediation table
@@ -139,9 +140,9 @@
 - Compatibility retry for Ollama and OpenAI-compatible HTTP 400 structured-output rejection, with
   an actionable `ai_provider_request_invalid` terminal error when compatibility mode also fails
 - Exact version 2 advisory AI schema with evidence-bound root causes, score commentary, ordered
-  actions, decision questions, translated display enums, one JSON-only retry, severity/coverage
-  consistency guards, common local-model shape normalization, deterministic severity and scoped
-  coverage statements, localized reason-specific safe fallback, and rule-bound per-finding
+  actions, decision questions, translated display enums, one bounded plain-text recovery after an
+  invalid structured response, severity/coverage consistency guards, common local-model shape
+  normalization, deterministic severity and scoped coverage statements, and rule-bound per-finding
   remediation
 - Conservative source-language inference for website reports, preserving the selected interface
   language when a page is ambiguous
@@ -152,8 +153,11 @@
   same affected source are omitted while deterministic rule/provenance/remediation remain available;
   common unambiguous local-model JSON wrappers are accepted before the strict retry
 - Global 18,000-character advisory context selection ordered by severity and affected chunks, plus
-  a separate evidence-free 6,500-character single-field recovery request and explicit 16,384-token
-  Ollama context allocation
+  a separate evidence-free 6,500-character schema-free recovery request, local validated wrapping,
+  localized verified-fact fallback for unusable recovery text, and explicit 16,384-token Ollama
+  context allocation
+- Stable `ai_output_recovered` activity warning when a limited plain-text advisory is saved after
+  structured output validation fails
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after
@@ -172,8 +176,10 @@ synchronization, remembered per-source content consent, filesystem watch, cron/c
 retention, multi-user authentication, real LLM-assisted evaluation, and Docker deployment are not
 implemented.
 
-Qdrant, Chroma, Weaviate, Milvus, and pgvector containers can be detected from bounded local runtime
-metadata but do not yet have inventory or content connectors. Detection is not an assessment.
+Low-level bounded classifiers can recognize Qdrant, Chroma, Weaviate, Milvus, and pgvector runtime
+metadata for future connector work, but those platforms do not have inventory or content connectors
+and are not presented as sources. A vector source requires authorized collection enumeration,
+bounded payload reads, and stable document/chunk provenance. Detection is not an assessment.
 
 Domain models do not perform scans and contain no network, filesystem, database, or UI access.
 

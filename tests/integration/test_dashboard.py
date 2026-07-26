@@ -5,16 +5,18 @@ from pathlib import Path
 
 import httpx
 import pytest
+from ragscanner.ai_analysis import AIProviderConfig
 from ragscanner.ai_analysis.models import AIReportAnalysis
 from ragscanner.api import create_app
 from ragscanner.application import JobApplicationService, resolve_secret_reference
 from ragscanner.jobs import JobStatus
-from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
+from ragscanner.onboarding import KnowledgeBaseCandidate, ServiceCandidate
 from ragscanner.quality import RAGConfigurationAdvice, RAGProfile
 from ragscanner.storage import (
     MachineSecretStore,
     SourceProfile,
     SQLiteJobRepository,
+    SQLiteScanHistoryRepository,
     SQLiteSourceProfileRepository,
 )
 from ragscanner.web.dashboard import _score_band
@@ -68,6 +70,20 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         assert 'href="/sources#integrations"' not in dashboard.text
         assert 'data-source-choice="website"' in sources_page.text
         assert 'data-source-choice="sharepoint"' in sources_page.text
+        for unavailable_kind in (
+            "qdrant",
+            "chroma",
+            "weaviate",
+            "milvus",
+            "pgvector",
+            "elasticsearch",
+            "opensearch",
+            "pinecone",
+            "kubernetes",
+            "generic",
+            "custom",
+        ):
+            assert f'data-source-choice="{unavailable_kind}"' not in sources_page.text
         queued = await client.post(
             "/dashboard/scans/local",
             data={
@@ -164,6 +180,14 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         "Scarica rapporto",
     ):
         assert translated_download_action in i18n.text
+    for translated_connector_state in (
+        "Bağlayıcı kullanılamıyor",
+        "Connector nicht verfügbar",
+        "Connecteur indisponible",
+        "连接器不可用",
+        "Connettore non disponibile",
+    ):
+        assert translated_connector_state in i18n.text
     assert "Planlı tarama güncellendi." in i18n.text
     assert invalid.status_code == 403
     assert queued.status_code == 303
@@ -304,14 +328,13 @@ async def test_dashboard_discovers_local_environments_and_openwebui_knowledge_ba
     tmp_path: Path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "ragscanner.web.dashboard.discover_local_rag_environments",
+        "ragscanner.web.dashboard.discover_openwebui_services",
         lambda **kwargs: [
-            RAGEnvironmentCandidate(
-                platform="openwebui",
+            ServiceCandidate(
                 base_url="http://127.0.0.1:3000",
-                discovery_status="reachable",
+                health_path="/health",
+                discovery_source="container_runtime",
                 runtime="docker",
-                metadata_inventory_supported=True,
             )
         ],
     )
@@ -350,9 +373,62 @@ async def test_dashboard_discovers_local_environments_and_openwebui_knowledge_ba
 
     assert denied.status_code == 400
     assert environments.json()["environments"][0]["platform"] == "openwebui"
+    assert environments.json()["environments"][0]["capability_status"] == "connection_required"
     assert knowledge_bases.json()["knowledge_bases"] == [
         {"id": "kb-1", "name": "Engineering", "description": "Synthetic"}
     ]
+
+
+@pytest.mark.anyio
+async def test_dashboard_rejects_unimplemented_source_kinds_and_omits_legacy_profile_from_jobs(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "history.sqlite3"
+    repository = SQLiteSourceProfileRepository(database)
+    try:
+        repository.save(
+            SourceProfile(
+                name="Legacy vector database",
+                kind="qdrant",
+                base_url="http://127.0.0.1:6333",
+                capability_status="metadata_only",
+            )
+        )
+        repository.save(
+            SourceProfile(
+                name="Product website",
+                kind="website",
+                base_url="https://docs.example.test/sitemap.xml",
+                capability_status="scan_ready",
+            )
+        )
+    finally:
+        repository.close()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        sources = await client.get("/sources")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', sources.text)
+        assert csrf is not None
+        jobs = await client.get("/jobs")
+        rejected = await client.post(
+            "/dashboard/sources",
+            data={
+                "csrf_token": csrf.group(1),
+                "name": "New vector database",
+                "kind": "qdrant",
+                "location": "http://127.0.0.1:6333",
+            },
+        )
+
+    assert "Legacy vector database" in sources.text
+    assert "Connector unavailable" in sources.text
+    assert "Legacy vector database" not in jobs.text
+    assert "Product website · Ready" in jobs.text
+    assert rejected.status_code == 422
 
 
 @pytest.mark.anyio
@@ -465,6 +541,63 @@ async def test_dashboard_job_status_exposes_safe_failure_codes(tmp_path: Path) -
     assert status.json()["logs"][0]["message"] == (
         "The Host Service cannot read the selected source path."
     )
+
+
+@pytest.mark.anyio
+async def test_dashboard_job_status_exposes_plain_text_ai_recovery(tmp_path: Path, report) -> None:  # type: ignore[no-untyped-def]
+    database = tmp_path / "history.sqlite3"
+    source = tmp_path / "knowledge.md"
+    source.write_text("# Synthetic dashboard source", encoding="utf-8")
+    recovered = report("scan-recovered").model_copy(
+        update={
+            "ai_analysis": AIReportAnalysis(
+                ai_analysis="The deterministic report requires source review.",
+                score_commentary="Verified scores are retained.",
+                provider="ollama",
+                model="synthetic-model",
+                remote=False,
+                limitations=["The structured response was recovered as bounded plain text."],
+            )
+        }
+    )
+    history = SQLiteScanHistoryRepository(database)
+    jobs = SQLiteJobRepository(database)
+    try:
+        history_id = history.save(recovered)
+        queued = JobApplicationService(jobs).enqueue_local_scan(
+            source,
+            idempotency_key="dashboard:ai-recovery-log:001",
+            max_attempts=1,
+            ai_config=AIProviderConfig(
+                enabled=True,
+                provider="ollama",
+                model="synthetic-model",
+            ),
+        )
+        claimed = jobs.claim("test-worker", lease_duration=timedelta(seconds=30))
+        assert claimed is not None and claimed.id == queued.id
+        jobs.succeed(
+            queued.id,
+            "test-worker",
+            result_ref=f"history:{history_id}",
+        )
+    finally:
+        jobs.close()
+        history.close()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app(database)), base_url="http://testserver"
+    ) as client:
+        status = await client.get("/dashboard/jobs/status")
+        i18n = await client.get("/dashboard-assets/dashboard-i18n.js")
+
+    entry = status.json()["logs"][0]
+    assert entry["code"] == "ai_output_recovered"
+    assert entry["level"] == "warning"
+    assert entry["message"] == (
+        "The model's structured output was invalid; a safe limited analysis was saved."
+    )
+    assert "güvenli ve sınırlı bir analiz kaydedildi" in i18n.text
 
 
 @pytest.mark.anyio

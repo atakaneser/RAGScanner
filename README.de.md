@@ -33,6 +33,12 @@ Vektorspeicher-Inhaltskonnektoren, Cron/Kalender, konfigurierbare Aufbewahrung,
 Mehrbenutzer-Authentifizierung und Docker-Bereitstellung sind noch nicht verfügbar. Eine erkannte
 Plattform bedeutet weder Inhaltszugriff noch Bewertung.
 
+Quellen- und Auftragsformulare zeigen bewusst nur die oben implementierten Inhaltswege. Eine
+Vektordatenbank kann nicht anhand ihres Produkt- oder Containernamens geprüft werden: Ein echter
+Connector muss autorisierte Collections auflisten und begrenzten Payload-Text mit Dokument-/Chunk-
+Provenienz lesen. Da noch kein akzeptierter Vektorspeicher-Connector existiert, werden Qdrant,
+Chroma, Weaviate, Milvus, pgvector und ähnliche Plattformen nicht als scanbare Quellen angeboten.
+
 ## Installieren und öffnen
 
 Installieren Sie aus dem offiziellen Repository und erstellen Sie den Maschinendienst:
@@ -121,7 +127,7 @@ KI-Analyse ist optional und ersetzt keine deterministischen Befunde. Die Einstel
 installierte Modelle von Ollama, LM Studio, LocalAI oder vLLM, statt veraltete Namen zu behalten.
 Externe Anbieter benötigen HTTPS, eine externe Anmeldedatenreferenz und Zustimmung pro Scan.
 
-Nur begrenzter, geschwärzter Berichtskontext wird gesendet—keine Rohdokumente. Rohbeweise statischer
+Nur begrenzter, geschwärzter Berichtskontext wird gesendet—keine Rohdokumente.
 Der Kontext ist global auf 18.000 Zeichen begrenzt; Gruppen werden zuerst nach höchstem Schweregrad
 und dann nach betroffenen Chunks ausgewählt. Jede ausgewählte Gruppe enthält höchstens vier
 Nachweisorte; der Abdeckungshinweis nennt die Gruppen, die im vollständigen deterministischen
@@ -129,13 +135,15 @@ Bericht verbleiben. Rohbeweise statischer Sicherheitsbefunde und anderer Befunde
 betroffenen Quelle werden entfernt; Regel, Datei/Seite/Zeile, Auswirkung und deterministische
 Abhilfe bleiben erhalten. So werden Dokumentanweisungen nicht zu Modellanweisungen.
 
-Die Ausgabe wird gegen ein Schema geprüft. RAGScanner akzeptiert ein eindeutiges Analyseobjekt aus
-üblichen lokalen Modellhüllen wie JSON-Zaun, Denkpräfix oder serialisierter JSON-Zeichenfolge und
-wiederholt ungültige Ausgabe einmal mit einem kompakten Kontext von höchstens 6.500 Zeichen ohne
-Nachweisschnipsel und einem JSON-Schema mit einem Feld. Ollama reserviert für die Analyse ein
-Kontextfenster von 16.384 Token.
-Übliche Schemaabweichungen werden normalisiert, erfundene Befundreferenzen sicher verworfen und
-akzeptierte Analysen können jedem echten Befund Behebungs- und Prüfschritte zuordnen.
+Die erste Ausgabe wird gegen das versionierte Schema geprüft. RAGScanner akzeptiert ein eindeutiges
+Analyseobjekt aus üblichen lokalen Modellhüllen wie JSON-Zaun, Denkpräfix oder serialisierter
+JSON-Zeichenfolge. Ist die Antwort ungültig, fordert eine kompakte Wiederherstellung mit höchstens
+6.500 Zeichen und ohne Nachweisschnipsel einmal Klartext statt erneut JSON an. Verwendbarer Text wird
+lokal in eine validierte Ergebnishülle gelegt. Leere, fehlerhafte, anderssprachige oder der geprüften
+Schwere widersprechende Antworten werden nur aus geprüften Berichtsdaten lokalisiert
+zusammengefasst; statt eines abschließenden `ai_output_invalid` zeigt der Bericht diese Einschränkung.
+Ollama reserviert 16.384 Token Kontext. Detaillierte KI-Maßnahmen werden nur aus der strukturierten
+Antwort übernommen und ausschließlich echten Regel-IDs zugeordnet.
 
 ## Berichte und Betrieb
 

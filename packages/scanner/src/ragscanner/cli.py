@@ -67,7 +67,6 @@ from ragscanner.normalization import DocumentNormalizer
 from ragscanner.onboarding import (
     OpenWebUIDiscoveryError,
     ServiceCandidate,
-    discover_local_rag_environments,
     discover_local_sources,
     discover_openwebui_files,
     discover_openwebui_knowledge_bases,
@@ -763,78 +762,57 @@ def setup(
     if selected == "terminal":
         typer.echo("Choose your first source:")
         typer.echo("  1. OpenWebUI")
-        typer.echo("  2. Another RAG environment")
-        typer.echo("  3. Temporary file or folder scan")
-        source_choice = _prompt_choice("Your choice", {"1", "2", "3"}, default="1")
-        if source_choice == "3":
+        typer.echo("  2. Temporary file or folder scan")
+        source_choice = _prompt_choice("Your choice", {"1", "2"}, default="1")
+        if source_choice == "2":
             _guided_local_source_scan()
             return
-        environments = discover_local_rag_environments(
-            include_container_runtimes=True, include_kubernetes=True
-        )
-        matching = [
-            item for item in environments if source_choice != "1" or item.platform == "openwebui"
-        ]
-        if matching:
-            typer.echo("Discovered local environments:")
-            for index, item in enumerate(matching, start=1):
+        services = discover_openwebui_services(include_container_runtimes=True)
+        if services:
+            typer.echo("Responsive local OpenWebUI services:")
+            for index, item in enumerate(services, start=1):
                 typer.echo(
-                    f"  {index}. {item.platform} at {item.base_url} "
-                    f"({item.discovery_status} via {item.runtime or 'localhost'})"
+                    f"  {index}. {item.base_url} "
+                    f"({item.health_path} via {item.runtime or item.discovery_source})"
                 )
             choice = int(
                 _prompt_choice(
-                    "Environment",
-                    {str(index) for index in range(1, len(matching) + 1)},
+                    "OpenWebUI service",
+                    {str(index) for index in range(1, len(services) + 1)},
                     default="1",
                 )
             )
-            selected_environment = matching[choice - 1]
-            kind = selected_environment.platform
-            location = selected_environment.base_url
-            origin = selected_environment.runtime or "localhost"
+            selected_service = services[choice - 1]
+            location = selected_service.base_url
+            origin = selected_service.runtime or selected_service.discovery_source
         else:
-            typer.echo("No matching local environment was found. Enter one manually.")
-            kind = "openwebui" if source_choice == "1" else "generic"
-            location = str(typer.prompt("Service URL")).strip()
+            typer.echo("No responsive local OpenWebUI service was found. Enter one manually.")
+            location = str(typer.prompt("OpenWebUI URL", default="http://127.0.0.1:3000")).strip()
             origin = "manual"
-        name = str(typer.prompt("Source name", default=kind)).strip()
-        credential_ref = None
-        if kind == "openwebui":
-            value = str(
-                typer.prompt(
-                    "Credential reference (leave empty to configure later)",
-                    default="",
-                    show_default=False,
-                )
-            ).strip()
-            try:
-                credential_ref = normalize_env_credential_reference(value)
-            except ValueError as error:
-                raise typer.BadParameter(ENV_CREDENTIAL_REFERENCE_ERROR) from error
+        name = str(typer.prompt("Source name", default="OpenWebUI")).strip()
+        value = str(
+            typer.prompt(
+                "Credential reference (leave empty to configure later)",
+                default="",
+                show_default=False,
+            )
+        ).strip()
+        try:
+            credential_ref = normalize_env_credential_reference(value)
+        except ValueError as error:
+            raise typer.BadParameter(ENV_CREDENTIAL_REFERENCE_ERROR) from error
         repository = SQLiteSourceProfileRepository(_history_database(None))
         try:
             repository.set_setting("interface_mode", "cli")
-            repository.set_setting(
-                "initial_source_mode", "openwebui" if source_choice == "1" else "environment"
-            )
+            repository.set_setting("initial_source_mode", "openwebui")
             repository.save(
                 SourceProfile(
                     name=name,
-                    kind=kind
-                    if kind in {"openwebui", "qdrant", "chroma", "weaviate", "milvus", "pgvector"}
-                    else "generic",
+                    kind="openwebui",
                     base_url=location,
                     credential_ref=credential_ref,
                     discovery_origin=origin,
-                    capability_status=(
-                        "scan_ready"
-                        if kind == "openwebui"
-                        and selected_environment.discovery_status == "reachable"
-                        else "metadata_only"
-                    )
-                    if matching
-                    else ("scan_ready" if kind == "openwebui" else "metadata_only"),
+                    capability_status="scan_ready" if credential_ref else "connection_required",
                 )
             )
         finally:

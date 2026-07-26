@@ -9,7 +9,6 @@ from ragscanner.onboarding import (
     KnowledgeBaseCandidate,
     OpenWebUIDiscoveryError,
     OpenWebUIFileCandidate,
-    RAGEnvironmentCandidate,
     ServiceCandidate,
     discover_container_openwebui_endpoints,
     discover_container_rag_environments,
@@ -143,14 +142,13 @@ def test_failed_install_reports_service_registration_error(monkeypatch) -> None:
 def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("RAGSCANNER_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(
-        "ragscanner.cli.discover_local_rag_environments",
+        "ragscanner.cli.discover_openwebui_services",
         lambda **kwargs: [
-            RAGEnvironmentCandidate(
-                platform="openwebui",
+            ServiceCandidate(
                 base_url="http://127.0.0.1:3000",
-                discovery_status="reachable",
+                health_path="/health",
+                discovery_source="container_runtime",
                 runtime="docker",
-                metadata_inventory_supported=True,
             )
         ],
     )
@@ -165,7 +163,7 @@ def test_terminal_setup_discovers_and_saves_an_openwebui_source(tmp_path, monkey
         repository.close()
     assert result.exit_code == 0
     assert profiles[0].base_url == "http://127.0.0.1:3000"
-    assert profiles[0].capability_status == "scan_ready"
+    assert profiles[0].capability_status == "connection_required"
 
 
 def test_machine_update_replaces_runtime_and_restarts_service(monkeypatch) -> None:  # type: ignore[no-untyped-def]

@@ -26,14 +26,18 @@ Sending raw documents would violate the local-first boundary.
   analysis object from a JSON fence, reasoning prefix, serialized JSON string, or prose wrapper
   without repairing ambiguous JSON syntax.
 - Invalid output is retried once with a separate recovery prompt, a context capped at 6,500
-  characters, no evidence snippets, and a single required `ai_analysis` field. This keeps the schema
-  instruction in small local-model context windows instead of repeating the original request.
+  characters, no evidence snippets, no provider JSON constraint, and bounded plain-text output.
+  Requiring the same JSON behavior again made recovery depend on the capability that had already
+  failed.
 - Adapters normalize bounded, unambiguous shape variations from smaller local models. Verified
   severity distribution and non-evaluated coverage identifiers are added from deterministic report
   data when omitted; contradictory severity framing and missing core analysis text are still
   rejected.
-- A second invalid response records a localized advisory fallback. It never removes or changes
-  deterministic report content.
+- RAGScanner locally wraps usable plain text in a validated minimal `AIReportAnalysis`. It accepts no
+  structured root causes or finding-bound actions from this path. Empty, malformed, wrong-language,
+  or severity-contradicting text is replaced by a localized summary derived only from verified
+  report facts. The limitation remains visible in the report instead of producing a terminal
+  `ai_output_invalid`.
 - Enum values stay stable in storage and are translated only by display/export adapters.
 - An accepted action attaches to a finding only when its `addresses` value equals that finding's
   deterministic rule ID.
@@ -43,9 +47,10 @@ Sending raw documents would violate the local-first boundary.
 AI interpretation has enough prioritized bounded evidence to explain dominant patterns without
 expanding its authority or overflowing ordinary local-model windows. Common local-model shape drift
 does not discard otherwise useful analysis. A localized deterministic caveat identifies how many
-lower-priority groups remain in the exhaustive report. Irreparable output still triggers the compact
-retry and reason-specific safe fallback, leaving a usable deterministic report. Adding or changing
-advisory fields requires prompt, model, schema, export, and regression-test updates together.
+lower-priority groups remain in the exhaustive report. JSON-incapable models can still return a
+bounded minimal narrative, while unusable recovery text degrades to explicit verified facts rather
+than an unavailable section. Adding or changing advisory fields requires prompt, model, schema,
+export, and regression-test updates together.
 
 ## Links
 

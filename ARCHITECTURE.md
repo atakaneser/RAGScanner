@@ -160,14 +160,18 @@ and prioritized finding groups within a global 18,000-character context budget. 
 by highest severity and then affected-chunk count; each carries at most four evidence rows with
 source/page/line provenance and a truncated snippet. Raw documents are never transmitted. The
 adapter requests versioned JSON at temperature `0.1`, accepts only an unambiguous analysis object,
-and validates schema plus severity/coverage consistency. It retries invalid output once with a
-compact context capped at 6,500 characters, no evidence snippets, and a single-field JSON schema.
-Ollama receives an explicit 16,384-token context allocation.
-A second failure stores a localized advisory-unavailable state while leaving the deterministic
-report complete. Remote providers require HTTPS, an external credential reference, and explicit
-consent on that scan. Accepted group actions may attach advisory remediation only to supplied
-findings whose deterministic rule IDs the action addresses. A deterministic localized caveat states
-how many lower-priority groups remain available only in the exhaustive report.
+and validates schema plus severity/coverage consistency. If that output is invalid, one compact
+recovery request is capped at 6,500 characters, omits evidence snippets, disables provider JSON
+constraints, and asks for bounded plain text. RAGScanner—not the model—wraps usable recovery text in
+a validated `AIReportAnalysis`. Empty, malformed, wrong-language, or severity-contradicting recovery
+text is replaced by a localized summary derived only from verified scores, severity counts, and
+coverage. The report exposes a localized limitation and omits structured root causes and
+finding-bound AI actions instead of failing with `ai_output_invalid`. Ollama receives an explicit
+16,384-token context allocation.
+Remote providers require HTTPS, an external credential reference, and explicit consent on that
+scan. Detailed accepted group actions may attach advisory remediation only when the primary
+structured response addresses a supplied deterministic rule ID. A deterministic localized caveat
+states how many lower-priority groups remain available only in the exhaustive report.
 
 ## OpenWebUI content flow
 

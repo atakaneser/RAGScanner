@@ -33,6 +33,13 @@ contenu vectoriel, calendriers cron, rétention configurable, authentification m
 déploiement Docker ne sont pas encore disponibles. Détecter une plateforme ne donne ni accès au
 contenu ni évaluation.
 
+Les formulaires de source et de tâche n’affichent volontairement que les chemins de contenu
+implémentés ci-dessus. Une base vectorielle ne peut pas être analysée à partir de son nom de produit
+ou de conteneur : un vrai connecteur doit énumérer les collections autorisées et lire un texte de
+payload limité avec la provenance du document/chunk. Aucun connecteur vectoriel accepté n’existe
+encore ; Qdrant, Chroma, Weaviate, Milvus, pgvector et les plateformes similaires ne sont donc pas
+proposés comme sources analysables.
+
 ## Installer et ouvrir
 
 Installez depuis le dépôt officiel puis créez le service machine :
@@ -122,7 +129,7 @@ L’analyse IA est facultative et ne remplace pas les constats déterministes. L
 les modèles installés dans Ollama, LM Studio, LocalAI ou vLLM au lieu de conserver un nom obsolète.
 Les fournisseurs distants exigent HTTPS, une référence d’identifiants et un consentement par analyse.
 
-Seul un contexte de rapport limité et expurgé est envoyé—jamais les documents bruts. Les preuves
+Seul un contexte de rapport limité et expurgé est envoyé—jamais les documents bruts.
 Le contexte est limité globalement à 18 000 caractères ; les groupes sont sélectionnés d’abord par
 sévérité maximale, puis par nombre de fragments affectés. Chaque groupe sélectionné contient au
 plus quatre emplacements de preuve ; l’avertissement de couverture indique les groupes qui restent
@@ -131,13 +138,15 @@ autres constats de la même source affectée sont retirées ; règle, fichier/pa
 correction déterministe restent disponibles. Les instructions d’un document ne deviennent donc pas
 des instructions pour le modèle.
 
-La sortie est validée par schéma. RAGScanner accepte un objet d’analyse non ambigu dans les
-enveloppes locales courantes—bloc JSON, préfixe de raisonnement ou chaîne JSON sérialisée—puis
-réessaie une fois une sortie invalide avec un contexte compact de 6 500 caractères au maximum,
-sans extrait de preuve, et un schéma JSON à un champ. Ollama réserve une fenêtre de contexte de
-16 384 jetons pour l’analyse.
-Les écarts de schéma courants sont normalisés, les références inventées sont ignorées en sécurité et
-l’analyse acceptée peut associer correction et vérification à chaque constat réel.
+La première sortie est validée par le schéma versionné. RAGScanner accepte un objet d’analyse non
+ambigu dans les enveloppes locales courantes—bloc JSON, préfixe de raisonnement ou chaîne JSON
+sérialisée. Si la réponse est invalide, une récupération compacte de 6 500 caractères au maximum,
+sans extrait de preuve, demande une fois du texte brut plutôt qu’un nouveau JSON. Le texte
+exploitable est placé localement dans une enveloppe validée. Une réponse vide, malformée, dans la
+mauvaise langue ou contraire aux sévérités vérifiées devient un résumé localisé fondé uniquement sur
+les faits du rapport ; le rapport affiche cette limite au lieu d’échouer avec `ai_output_invalid`.
+Ollama réserve 16 384 jetons de contexte. Les actions IA détaillées ne proviennent que de la réponse
+structurée et ne sont associées qu’à de véritables identifiants de règle.
 
 ## Rapports et exploitation
 

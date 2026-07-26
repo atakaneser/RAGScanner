@@ -33,6 +33,12 @@ content connectors, cron/calendar schedules, configurable retention, multi-user 
 and Docker deployment are not available yet. Detection of a platform is not content access or an
 assessment.
 
+Source and job forms deliberately list only the implemented content paths above. A vector database
+cannot be assessed from its product or container name: a real connector must enumerate authorized
+collections and read bounded payload text with document/chunk provenance. No accepted vector-store
+connector exists yet, so Qdrant, Chroma, Weaviate, Milvus, pgvector, and similar platforms are not
+offered as scannable sources.
+
 ## Install and open
 
 Install from the official repository, then create the machine service:
@@ -132,14 +138,16 @@ report. Raw evidence is omitted for static-security findings and every other fin
 affected source, while rule, file/page/line, impact, and deterministic remediation remain available.
 This prevents document instructions from becoming advisory-model instructions.
 
-Output must match the versioned JSON schema. RAGScanner accepts one unambiguous analysis object from
-common local-model wrappers such as a JSON fence, reasoning prefix, or serialized JSON string, then
-retries malformed output once with a compact context of at most 6,500 characters, no evidence
-snippets, and a one-field JSON schema. Compatible providers use JSON mode with temperature `0.1`;
-Ollama reserves a 16,384-token context window for analysis.
-A second schema failure records a localized `ai_output_invalid` fallback while preserving every
-deterministic finding and score. Accepted group actions are attached only to real findings whose
-rule IDs they address.
+The primary output must match the versioned JSON schema. RAGScanner accepts one unambiguous analysis
+object from common local-model wrappers such as a JSON fence, reasoning prefix, or serialized JSON
+string. If that response is invalid, one compact recovery request uses at most 6,500 characters, no
+evidence snippets, and plain text instead of asking the same model for JSON again. RAGScanner wraps
+usable recovery text in its own validated result envelope. Empty, malformed, wrong-language, or
+severity-contradicting recovery text becomes a localized summary derived only from verified report
+facts, with the limitation shown in the report rather than a terminal `ai_output_invalid`.
+Compatible primary requests use JSON mode with temperature `0.1`; Ollama reserves a 16,384-token
+context window. Detailed group actions are accepted only from the structured response and attach
+only to real findings whose rule IDs they address.
 
 ## Reports and operations
 
