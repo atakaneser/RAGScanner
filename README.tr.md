@@ -120,11 +120,16 @@ AI analizi isteğe bağlıdır ve deterministik bulguların yerini almaz. Ayarla
 tutmak yerine Ollama, LM Studio, LocalAI veya vLLM’de kurulu modelleri bulur. Uzak sağlayıcılar HTTPS,
 harici kimlik bilgisi referansı ve tarama başına açık onay gerektirir.
 
-Seçilen modele yalnızca sınırlandırılmış ve maskelenmiş bulgu özeti gönderilir; ham belgeler ve bulgu
-kanıtları gönderilmez. Çıktı şemayla doğrulanır. Yerel uyumlu sunucu yapılandırılmış çıktı alanlarını
-HTTP 400 ile reddederse JSON uyumluluk modunda bir kez denenir; o da başarısızsa açıklayıcı hata kodu
-kaydedilir. Yaygın şema sapmaları normalleştirilir, uydurulan bulgu referansları güvenle atılır ve
-kabul edilen analiz her gerçek bulguya düzeltme ile doğrulama adımları bağlayabilir.
+Seçilen modele yalnızca sınırlandırılmış ve maskelenmiş rapor bağlamı gönderilir; ham belgeler
+gönderilmez. Statik güvenlik bulgularının ve aynı etkilenen kaynaktaki diğer bulguların ham kanıtı
+çıkarılır; kural, dosya/sayfa/satır, etki ve deterministik çözüm korunur. Böylece belge içindeki
+talimatlar AI talimatına dönüşmez.
+
+Çıktı şemayla doğrulanır. RAGScanner; JSON çiti, düşünme öneki veya serileştirilmiş JSON dizesi gibi
+yaygın yerel model sarmallarındaki tek ve açık analiz nesnesini kabul eder, bozuk çıktıyı daha katı
+JSON ve güvenilmeyen veri talimatıyla bir kez daha dener. Yaygın şema sapmaları normalleştirilir,
+uydurulan bulgu referansları güvenle atılır ve kabul edilen analiz her gerçek bulguya düzeltme ile
+doğrulama adımları bağlayabilir.
 
 ## Raporlar ve işletim
 

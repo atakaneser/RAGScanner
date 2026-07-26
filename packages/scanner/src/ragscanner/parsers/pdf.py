@@ -22,7 +22,13 @@ from ragscanner.domain.helpers import (
     normalize_control_characters,
     truncate_text,
 )
-from ragscanner.parsers.base import ParserResult, ParserWarning, build_document, normalize_newlines
+from ragscanner.parsers.base import (
+    ParserResult,
+    ParserWarning,
+    build_document,
+    canonicalize_upstream_text,
+    normalize_newlines,
+)
 
 PAGE_SEPARATOR = "\n<<<RAGSCANNER_PAGE_BOUNDARY:7F3D9A21>>>\n"
 ESCAPED_PAGE_SEPARATOR = "<<<RAGSCANNER_PAGE_BOUNDARY_ESCAPED:7F3D9A21>>>"
@@ -81,7 +87,7 @@ class PdfExtractionStatistics(BaseModel):
 
 class PdfParser:
     name = "pdf"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def __init__(
         self,
@@ -146,7 +152,9 @@ class PdfParser:
                 page_warning_codes: list[str] = []
                 try:
                     page = document.load_page(page_index)  # type: ignore[no-untyped-call]
-                    page_text = normalize_newlines(page.get_text("text", sort=True))
+                    page_text = canonicalize_upstream_text(
+                        source, normalize_newlines(page.get_text("text", sort=True))
+                    )
                 except (RuntimeError, ValueError):
                     page_text = ""
                     self._warn(
@@ -359,7 +367,9 @@ class PdfParser:
             page_number = page_index + 1
             page_warning_codes: list[str] = []
             try:
-                page_text = normalize_newlines(page.extract_text() or "")
+                page_text = canonicalize_upstream_text(
+                    source, normalize_newlines(page.extract_text() or "")
+                )
             except (PdfReadError, KeyError, TypeError, ValueError, RecursionError):
                 page_text = ""
                 self._warn(

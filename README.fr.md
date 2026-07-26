@@ -122,9 +122,14 @@ L’analyse IA est facultative et ne remplace pas les constats déterministes. L
 les modèles installés dans Ollama, LM Studio, LocalAI ou vLLM au lieu de conserver un nom obsolète.
 Les fournisseurs distants exigent HTTPS, une référence d’identifiants et un consentement par analyse.
 
-Seul un résumé limité et expurgé est envoyé—jamais les documents bruts ni les preuves. La sortie est
-validée par schéma. Si un serveur local compatible refuse les champs structurés avec HTTP 400,
-RAGScanner tente une fois le mode JSON compatible puis consigne un code explicite en cas d’échec.
+Seul un contexte de rapport limité et expurgé est envoyé—jamais les documents bruts. Les preuves
+brutes des constats de sécurité statique et des autres constats de la même source affectée sont
+retirées ; règle, fichier/page/ligne, impact et correction déterministe restent disponibles. Les
+instructions d’un document ne deviennent donc pas des instructions pour le modèle.
+
+La sortie est validée par schéma. RAGScanner accepte un objet d’analyse non ambigu dans les
+enveloppes locales courantes—bloc JSON, préfixe de raisonnement ou chaîne JSON sérialisée—puis
+réessaie une fois une sortie invalide avec des règles JSON et de données non fiables plus strictes.
 Les écarts de schéma courants sont normalisés, les références inventées sont ignorées en sécurité et
 l’analyse acceptée peut associer correction et vérification à chaque constat réel.
 

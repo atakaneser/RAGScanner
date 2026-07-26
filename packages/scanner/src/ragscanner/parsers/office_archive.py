@@ -9,7 +9,12 @@ from pathlib import PurePosixPath
 from defusedxml import ElementTree
 
 from ragscanner.domain import SourceContent
-from ragscanner.parsers.base import ParserResult, build_document, normalize_newlines
+from ragscanner.parsers.base import (
+    ParserResult,
+    build_document,
+    canonicalize_upstream_text,
+    normalize_newlines,
+)
 
 OFFICE_ARCHIVE_MIME_TYPES = {
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -26,7 +31,7 @@ class OfficeArchiveParser:
     """Extract inert text without rendering macros, formulas, links, or active content."""
 
     name = "office_archive"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def parse(self, source: SourceContent) -> ParserResult:
         suffix = PurePosixPath(source.item.path or "").suffix.casefold()
@@ -46,7 +51,10 @@ class OfficeArchiveParser:
                 fragments = [_xml_text(archive.read(item)) for item in selected]
         except (ElementTree.ParseError, zipfile.BadZipFile) as error:
             raise ValueError("office archive is malformed") from error
-        normalized = normalize_newlines("\n\n".join(item for item in fragments if item).strip())
+        normalized = canonicalize_upstream_text(
+            source,
+            normalize_newlines("\n\n".join(item for item in fragments if item).strip()),
+        )
         document = build_document(
             source,
             content=normalized,

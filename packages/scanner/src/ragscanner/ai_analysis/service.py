@@ -40,12 +40,25 @@ def _labels(section: str | None, metadata: dict[str, Any]) -> list[str]:
     return [_safe(value, 160) for value in values[:10]]
 
 
+def _evidence_snippet(rule_id: str, value: str, *, unsafe_source: bool = False) -> str:
+    """Keep adversarial security payloads out of the advisory model context."""
+
+    if rule_id.startswith("STATIC-") or unsafe_source:
+        return "[omitted: untrusted security payload]"
+    return _safe(value, 700)
+
+
 def build_analysis_request(
     report: ReportDocument, *, output_language: str = "en"
 ) -> AnalysisRequest:
     """Return a bounded, redacted, group-aware summary for advisory interpretation."""
 
     duplicate_by_id = {group.id: group for group in report.duplicate_groups}
+    unsafe_sources = {
+        finding.source
+        for finding in report.findings
+        if finding.rule_id.startswith("STATIC-") and finding.source
+    }
     grouped: defaultdict[str, list[Any]] = defaultdict(list)
     for finding in report.findings:
         group_id = finding.metadata.get("group_id")
@@ -68,7 +81,11 @@ def build_analysis_request(
                     "file": _safe(member.source or "unknown", 500),
                     "page": member.page,
                     "lines": _lines(member.line_start, member.line_end),
-                    "snippet": _safe(member.evidence_excerpt or "", 700),
+                    "snippet": _evidence_snippet(
+                        reference.rule_id,
+                        member.evidence_excerpt or "",
+                        unsafe_source=member.source in unsafe_sources,
+                    ),
                     "labels": _labels(member.section, {}),
                 }
                 for member in duplicate_group.members[:10]
@@ -77,6 +94,7 @@ def build_analysis_request(
             matched_content = (
                 _safe(duplicate_group.matched_content, 700)
                 if duplicate_group.matched_content
+                and not any(member.source in unsafe_sources for member in duplicate_group.members)
                 else None
             )
         else:
@@ -85,7 +103,11 @@ def build_analysis_request(
                     "file": _safe(item.source or "unknown", 500),
                     "page": item.page,
                     "lines": _lines(item.line_start, item.line_end),
-                    "snippet": _safe(item.evidence_highlight or item.evidence, 700),
+                    "snippet": _evidence_snippet(
+                        item.rule_id,
+                        item.evidence_highlight or item.evidence,
+                        unsafe_source=item.source in unsafe_sources,
+                    ),
                     "labels": _labels(item.section, item.metadata),
                 }
                 for item in items[:10]

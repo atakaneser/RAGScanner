@@ -145,8 +145,12 @@
   remediation
 - Conservative source-language inference for website reports, preserving the selected interface
   language when a page is ambiguous
-- One-pass OpenWebUI text-transport character-reference normalization, preserving literal source
-  HTML comments and punctuation without weakening report escaping
+- One-pass OpenWebUI character-reference normalization across every supported parser after inert
+  extraction and before source offsets, preserving literal source HTML comments and punctuation
+  without weakening report escaping
+- Advisory AI prompt-injection isolation: raw static-security evidence and other evidence from the
+  same affected source are omitted while deterministic rule/provenance/remediation remain available;
+  common unambiguous local-model JSON wrappers are accepted before the strict retry
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after

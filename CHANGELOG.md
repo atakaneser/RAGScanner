@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fixed OpenWebUI character-reference restoration for PDF, DOCX, PPTX, XLSX, ODT, and EPUB parser
+  paths, including page/block offsets. Advisory AI now omits detected security payloads (and other
+  evidence from the same affected source), treats all report values as untrusted data, and accepts
+  one unambiguous analysis object from common local-model wrappers before using its strict retry.
 - Fixed OpenWebUI text transports that supplied source punctuation as semicolon-terminated HTML
   character references. Text and Markdown parsers now restore those characters exactly once before
   analysis; local files remain byte-faithful, standalone HTML stays safely escaped once, and PDF

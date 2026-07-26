@@ -121,10 +121,14 @@ KI-Analyse ist optional und ersetzt keine deterministischen Befunde. Die Einstel
 installierte Modelle von Ollama, LM Studio, LocalAI oder vLLM, statt veraltete Namen zu behalten.
 Externe Anbieter benötigen HTTPS, eine externe Anmeldedatenreferenz und Zustimmung pro Scan.
 
-Nur eine begrenzte, geschwärzte Befundzusammenfassung wird gesendet—keine Rohdokumente oder Beweise.
-Die Ausgabe wird gegen ein Schema geprüft. Lehnt ein kompatibler lokaler Server strukturierte Felder
-mit HTTP 400 ab, wird einmal der JSON-Kompatibilitätsmodus versucht und andernfalls ein hilfreicher
-Fehlercode gespeichert.
+Nur begrenzter, geschwärzter Berichtskontext wird gesendet—keine Rohdokumente. Rohbeweise statischer
+Sicherheitsbefunde und anderer Befunde aus derselben betroffenen Quelle werden entfernt; Regel,
+Datei/Seite/Zeile, Auswirkung und deterministische Abhilfe bleiben erhalten. So werden
+Dokumentanweisungen nicht zu Modellanweisungen.
+
+Die Ausgabe wird gegen ein Schema geprüft. RAGScanner akzeptiert ein eindeutiges Analyseobjekt aus
+üblichen lokalen Modellhüllen wie JSON-Zaun, Denkpräfix oder serialisierter JSON-Zeichenfolge und
+wiederholt ungültige Ausgabe einmal mit strengeren JSON- und Nichtvertrauensregeln.
 Übliche Schemaabweichungen werden normalisiert, erfundene Befundreferenzen sicher verworfen und
 akzeptierte Analysen können jedem echten Befund Behebungs- und Prüfschritte zuordnen.
 

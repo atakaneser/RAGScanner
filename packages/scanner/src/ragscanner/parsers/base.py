@@ -63,14 +63,15 @@ def decode_source(source: SourceContent) -> tuple[str, list[ParserWarning]]:
                 code="replacement_characters", message="Malformed byte sequences were replaced."
             )
         )
-    if source.metadata.get("upstream") == "openwebui":
-        text = _decode_semicolon_html_character_references_once(text)
+    text = canonicalize_upstream_text(source, text)
     return text, warnings
 
 
-def _decode_semicolon_html_character_references_once(value: str) -> str:
-    """Restore character references introduced by an OpenWebUI text transport."""
+def canonicalize_upstream_text(source: SourceContent, value: str) -> str:
+    """Restore one layer of character references introduced by OpenWebUI transports."""
 
+    if source.metadata.get("upstream") != "openwebui":
+        return value
     return _SEMICOLON_HTML_CHARACTER_REFERENCE.sub(
         lambda match: html.unescape(match.group(0)),
         value,

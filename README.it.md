@@ -119,9 +119,14 @@ L’analisi AI è facoltativa e non sostituisce i risultati deterministici. Le i
 modelli installati in Ollama, LM Studio, LocalAI o vLLM invece di conservare nomi obsoleti. I provider
 remoti richiedono HTTPS, riferimento credenziali esterno e consenso per scansione.
 
-Viene inviato solo un riepilogo limitato e oscurato, mai documenti grezzi o prove. L’output è validato
-da schema. Se un server locale compatibile rifiuta i campi strutturati con HTTP 400, RAGScanner tenta
-una volta la modalità JSON compatibile e registra un codice utile se fallisce ancora.
+Viene inviato solo un contesto di rapporto limitato e oscurato, mai documenti grezzi. Le prove grezze
+dei risultati di sicurezza statica e degli altri risultati della stessa fonte interessata vengono
+omesse; regola, file/pagina/riga, impatto e rimedio deterministico restano disponibili. Le istruzioni
+del documento non diventano quindi istruzioni per il modello.
+
+L’output è validato da schema. RAGScanner accetta un unico oggetto di analisi non ambiguo dai comuni
+involucri dei modelli locali—blocco JSON, prefisso di ragionamento o stringa JSON serializzata—poi
+riprova una volta l’output non valido con regole JSON e dati non attendibili più severe.
 Le deviazioni comuni dallo schema vengono normalizzate, i riferimenti inventati sono scartati in
 sicurezza e l’analisi accettata può associare correzione e verifica a ogni risultato reale.
 

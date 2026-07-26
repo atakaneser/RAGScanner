@@ -9,8 +9,10 @@ advisory report. Core scanning must remain local-first and independent of model 
 
 ## Decision
 
-AI enrichment is an optional per-scan post-processing adapter. It receives a bounded, redacted summary that excludes
-raw documents and finding evidence, validates structured output, and produces a new report artefact.
+AI enrichment is an optional per-scan post-processing adapter. It receives a bounded, redacted
+summary that excludes raw documents, validates structured output, and produces a new report
+artefact. The evidence rules for structured analysis are refined by ADR-0045: bounded quality
+evidence may be included, while raw static-security evidence is always omitted.
 Ollama is loopback by default. Remote endpoints require explicit consent and HTTPS; credentials are
 resolved only from `env:` references and are not persisted.
 

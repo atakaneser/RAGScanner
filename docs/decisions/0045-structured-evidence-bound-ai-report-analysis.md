@@ -15,10 +15,15 @@ Sending raw documents would violate the local-first boundary.
 - AI adapters receive at most 25 finding groups and ten secret-masked, truncated evidence rows per
   group, with file/page/line provenance and complete affected-chunk counts. They never receive a raw
   document.
+- Raw evidence is omitted for static-security findings and every other finding from the same
+  affected source. Rule ID, provenance, impact, and deterministic recommendation remain available.
+  This prevents detected document instructions from crossing into the advisory instruction plane.
 - The version 2 prompt requires one exact JSON object containing analysis, evidence-bound root
   causes, ordered actions, review questions, score commentary, and a coverage caveat.
-- Providers use temperature `0.1` and JSON mode when available. RAGScanner removes one optional JSON
-  fence and retries invalid output once with an explicit JSON-only instruction.
+- Providers use temperature `0.1` and JSON mode when available. RAGScanner accepts one unambiguous
+  analysis object from a JSON fence, reasoning prefix, serialized JSON string, or prose wrapper
+  without repairing ambiguous JSON syntax. It retries invalid output once with explicit JSON-only
+  and untrusted-data instructions.
 - Adapters normalize bounded, unambiguous shape variations from smaller local models. Verified
   severity distribution and non-evaluated coverage identifiers are added from deterministic report
   data when omitted; contradictory severity framing and missing core analysis text are still

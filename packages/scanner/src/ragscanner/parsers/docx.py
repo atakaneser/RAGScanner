@@ -28,7 +28,12 @@ from ragscanner.domain.helpers import (
     normalize_control_characters,
     truncate_text,
 )
-from ragscanner.parsers.base import ParserResult, ParserWarning, build_document
+from ragscanner.parsers.base import (
+    ParserResult,
+    ParserWarning,
+    build_document,
+    canonicalize_upstream_text,
+)
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 BLOCK_SEPARATOR = "\n<<<RAGSCANNER_DOCX_BLOCK_BOUNDARY:4C10A82E>>>\n"
@@ -128,7 +133,7 @@ class PackageInspection(BaseModel):
 
 class DocxParser:
     name = "docx"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -159,6 +164,10 @@ class DocxParser:
         warnings = list(inspection.warnings)
         core = self._core_metadata(document, warnings)
         blocks, stats = self._blocks(document, inspection, warnings, started)
+        blocks = [
+            block.model_copy(update={"text": canonicalize_upstream_text(source, block.text)})
+            for block in blocks
+        ]
         visible = [block for block in blocks if block.text.strip()]
         if not visible:
             self._warn(warnings, "empty_document", "DOCX has no visible extractable text.")

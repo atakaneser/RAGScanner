@@ -14,9 +14,10 @@ contained 13 low-severity findings that did not identify actionable source probl
 ## Decision
 
 - Store bounded and secret-masked finding evidence as plain source text in Core and report models.
-- Decode semicolon-terminated HTML character references exactly once when they arrive in a textual
-  OpenWebUI transport. Do not apply this compatibility normalization to local files, and do not
-  recursively decode double-encoded input.
+- Decode semicolon-terminated HTML character references exactly once when they arrive through an
+  OpenWebUI transport. Apply this after inert text extraction and before source offsets are
+  calculated in every supported parser. Do not apply this compatibility normalization to local
+  files, and do not recursively decode double-encoded input.
 - Apply HTML, PDF-markup, spreadsheet-formula, and terminal handling only in the responsible delivery
   adapter. Untrusted evidence never becomes trusted markup.
 - Emit undersized and extreme-size-outlier findings only for documents split into multiple chunks.
