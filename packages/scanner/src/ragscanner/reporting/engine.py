@@ -10,6 +10,7 @@ from ragscanner.domain.helpers import REDACTED, mask_secret_like_values, truncat
 from ragscanner.reporting.models import (
     ReportDocument,
     ReportDuplicateGroup,
+    ReportDuplicateMember,
     ReportFilter,
     ReportFinding,
     ReportIngestionIssue,
@@ -329,13 +330,47 @@ class ReportBuilder:
         )
 
     def _group(self, item: Any, notices: list[str]) -> ReportDuplicateGroup:
-        related = [
-            member.item_id for member in item.members if member.item_id != item.canonical_item_id
-        ]
-        truncated = len(related) > self.limits.maximum_duplicate_group_members
+        selected_members = list(item.members)
+        truncated = len(selected_members) > self.limits.maximum_duplicate_group_members
         if truncated:
             notices.append(f"Duplicate group {item.id} members were limited.")
-            related = related[: self.limits.maximum_duplicate_group_members]
+            selected_members = selected_members[: self.limits.maximum_duplicate_group_members]
+
+        def member_source(member: Any) -> str | None:
+            value = member.source.source_path or member.source.source_name
+            if value and not self.show_absolute_paths:
+                value = Path(value).name
+            return _safe_string(value, 1_024) if value else None
+
+        members = [
+            ReportDuplicateMember(
+                item_type=member.item_type.value,
+                item_id=member.item_id,
+                document_id=member.document_id,
+                chunk_id=member.chunk_id,
+                source=member_source(member),
+                page=member.source.page_number,
+                section=_safe_string(member.source.section or "", self.limits.maximum_string_length)
+                or None,
+                line_start=member.source.line_start,
+                line_end=member.source.line_end,
+                character_count=member.character_count,
+                token_count=member.token_count,
+                evidence_excerpt=(
+                    _safe_string(
+                        member.evidence_excerpt,
+                        self.limits.maximum_evidence_length,
+                    )
+                    if member.evidence_excerpt
+                    else None
+                ),
+                canonical=member.item_id == item.canonical_item_id,
+            )
+            for member in selected_members
+        ]
+        related = [
+            member.item_id for member in item.members if member.item_id != item.canonical_item_id
+        ][: self.limits.maximum_duplicate_group_members]
         return ReportDuplicateGroup(
             id=item.id,
             category=item.category,
@@ -345,6 +380,12 @@ class ReportBuilder:
             estimated_redundant_characters=item.estimated_redundant_characters,
             estimated_redundant_tokens=item.estimated_redundant_tokens,
             members_truncated=truncated,
+            members=members,
+            shared_phrases=[
+                _safe_string(value, 200)
+                for value in item.metadata.get("shared_phrases", [])[:10]
+                if isinstance(value, str)
+            ],
         )
 
     def _bounded_messages(self, values: list[str], notices: list[str], label: str) -> list[str]:

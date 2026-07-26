@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added report schema 1.5 duplicate comparison snapshots so dashboard, standalone HTML, Excel, and
+  PDF show both bounded redacted excerpts with source/page/line provenance, match type, similarity,
+  shared lexical phrases, and estimated redundant tokens. Short template labels and headings no
+  longer create duplicate findings or reduce efficiency, historical reports request a rerun, RAG
+  chunk guidance is linked from the report summary, and new report text is localized in all six
+  supported product languages.
+
 - Replaced the raw Pydantic error shown for an invalid setup credential with bounded guidance that
   never echoes the submitted value, preserved the CSRF token for retry, strictly validates
   `env:VARIABLE_NAME` references, and lets OpenWebUI setup finish in `connection_required` state

@@ -18,8 +18,8 @@ from ragscanner.quality.models import ChunkQualityStatistics
 from ragscanner.scoring import ScorePolicySnapshot
 from ragscanner.security.static_models import StaticScanStatistics
 
-REPORT_SCHEMA_VERSION = "1.4.0"
-REPORTER_VERSION = "1.4.0"
+REPORT_SCHEMA_VERSION = "1.5.0"
+REPORTER_VERSION = "1.5.0"
 
 
 class ReportFilter(BaseModel):
@@ -123,6 +123,22 @@ class ReportFinding(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ReportDuplicateMember(BaseModel):
+    item_type: str
+    item_id: str
+    document_id: str
+    chunk_id: str | None = None
+    source: str | None = None
+    page: int | None = Field(default=None, ge=1)
+    section: str | None = None
+    line_start: int | None = Field(default=None, ge=1)
+    line_end: int | None = Field(default=None, ge=1)
+    character_count: int = Field(ge=0)
+    token_count: int = Field(ge=0)
+    evidence_excerpt: str | None = Field(default=None, max_length=4_096)
+    canonical: bool = False
+
+
 class ReportDuplicateGroup(BaseModel):
     id: str
     category: str
@@ -132,6 +148,8 @@ class ReportDuplicateGroup(BaseModel):
     estimated_redundant_characters: int = Field(ge=0)
     estimated_redundant_tokens: int = Field(ge=0)
     members_truncated: bool = False
+    members: list[ReportDuplicateMember] = Field(default_factory=list)
+    shared_phrases: list[str] = Field(default_factory=list)
 
 
 class ReportProcessingSummary(BaseModel):

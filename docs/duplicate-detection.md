@@ -11,6 +11,11 @@ documents, and identical normalized documents are distinct categories. Each grou
 canonical reporting reference—not an automatic keep/delete decision—and bounded redacted evidence
 plus estimated redundant characters/tokens.
 
+Duplicate chunk candidates must contain at least 48 characters and six tokens by default. This
+materiality gate suppresses isolated classification labels, punctuation fragments, and short
+headings that consume negligible retrieval capacity. It does not apply to complete-document
+duplicate analysis and is configurable through `DuplicateScanConfig`.
+
 RAGScanner-generated heading-only chunks are structural context, not duplicate content. A generated
 chunk that mirrors its complete normalized document is also excluded from chunk scope so one pair of
 identical single-chunk documents produces one document finding rather than duplicate document and
@@ -28,6 +33,11 @@ source content. Because lexical similarity does not prove semantic equivalence, 
 `probable` and require review. Multilingual text is supported without stemming or semantic analysis.
 Size balancing prevents a common subsection contained in a much longer document from being treated
 as if both complete documents were near duplicates.
+
+Report schema 1.5 preserves each retained member's basename, page, line range, and bounded redacted
+excerpt. Reports present the reference and matching occurrences together. Exact groups highlight
+the compared excerpts; near groups also show bounded common phrases. Older report snapshots remain
+readable but require a rerun to populate these comparison details.
 
 Document, chunk, group, finding, shingle, bucket, comparison, evidence, and runtime limits produce
 typed warnings and visible skipped IDs. Identical input, configuration, and scanner version produce

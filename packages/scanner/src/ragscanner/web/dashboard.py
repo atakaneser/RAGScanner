@@ -446,6 +446,15 @@ def register_dashboard(
         selected_report_summary = next(
             (item for item in all_history.items if item.history_id == report_id), None
         )
+        regular_findings = (
+            [
+                finding
+                for finding in selected_report.findings
+                if not finding.metadata.get("group_id")
+            ]
+            if selected_report
+            else []
+        )
         response = templates.TemplateResponse(
             request,
             "dashboard.html",
@@ -465,6 +474,7 @@ def register_dashboard(
                 "profiles": profiles,
                 "schedules": schedules,
                 "selected_report": selected_report,
+                "regular_findings": regular_findings,
                 "selected_report_summary": selected_report_summary,
                 "selected_report_id": report_id,
                 "comparison": comparison,

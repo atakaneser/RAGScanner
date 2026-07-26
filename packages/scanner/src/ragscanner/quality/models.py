@@ -22,6 +22,7 @@ class DuplicateMember(BaseModel):
     normalized_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
     character_count: int = Field(ge=0)
     token_count: int = Field(ge=0)
+    evidence_excerpt: str | None = Field(default=None, max_length=4_096)
 
 
 class DuplicateGroup(BaseModel):
@@ -47,6 +48,8 @@ class DuplicateScanConfig(BaseModel):
     maximum_groups: int = Field(default=10_000, gt=0)
     maximum_findings: int = Field(default=10_000, gt=0)
     maximum_evidence_length: int = Field(default=256, ge=64, le=4_096)
+    minimum_duplicate_chunk_characters: int = Field(default=48, ge=0, le=100_000)
+    minimum_duplicate_chunk_tokens: int = Field(default=6, ge=0, le=10_000)
     maximum_processing_seconds: float = Field(default=30, gt=0, le=600)
 
 

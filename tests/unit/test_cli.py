@@ -1257,7 +1257,7 @@ def test_report_cli_terminal_json_html_and_filters(tmp_path) -> None:  # type: i
     assert "Filters active: yes" in terminal.stdout
     json_result = runner.invoke(app, ["report", str(fixture), "--format", "json"])
     assert json_result.exit_code == 0
-    assert json.loads(json_result.stdout)["schema_version"] == "1.4.0"
+    assert json.loads(json_result.stdout)["schema_version"] == "1.5.0"
     target = tmp_path / "report.html"
     html_result = runner.invoke(
         app, ["report", str(fixture), "--format", "html", "--output", str(target)]

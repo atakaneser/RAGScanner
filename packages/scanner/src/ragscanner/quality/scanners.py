@@ -68,7 +68,7 @@ def _stable_hash(namespace: str, value: Any) -> str:
 
 
 def _safe_evidence(value: str, limit: int) -> str:
-    return mask_secret_like_values(value[:limit])
+    return mask_secret_like_values(value[:limit])[:limit]
 
 
 def _is_generated_chunk(chunk: Chunk) -> bool:
@@ -150,7 +150,7 @@ def _finding(
 
 class ExactDuplicateScanner:
     name = "exact_duplicate_scanner"
-    version = "1.2.0"
+    version = "1.3.0"
 
     def __init__(
         self,
@@ -265,6 +265,12 @@ class ExactDuplicateScanner:
                 continue
             if self._is_non_content_chunk(chunk.normalized_content):
                 continue
+            if (
+                len(chunk.normalized_content.strip())
+                < self.config.minimum_duplicate_chunk_characters
+                or chunk.token_count < self.config.minimum_duplicate_chunk_tokens
+            ):
+                continue
             result.append(
                 _Item(
                     DuplicateItemType.CHUNK,
@@ -298,9 +304,8 @@ class ExactDuplicateScanner:
             return "repeated_chunk_within_document"
         return "exact_duplicate_chunk"
 
-    @staticmethod
     def _group(
-        category: str, signature: str, members: list[_Item], similarity: float
+        self, category: str, signature: str, members: list[_Item], similarity: float
     ) -> DuplicateGroup:
         redundant = members[1:]
         group_id = _stable_hash(
@@ -325,6 +330,9 @@ class ExactDuplicateScanner:
                     normalized_hash=document_content_hash(member.text),
                     character_count=len(member.text),
                     token_count=member.token_count,
+                    evidence_excerpt=_safe_evidence(
+                        member.text, self.config.maximum_evidence_length
+                    ),
                 )
                 for member in members
             ],
@@ -416,7 +424,7 @@ class ExactDuplicateScanner:
 
 class NearDuplicateScanner(ExactDuplicateScanner):
     name = "near_duplicate_scanner"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def __init__(
         self,
@@ -523,14 +531,20 @@ class NearDuplicateScanner(ExactDuplicateScanner):
                 if members[0].item_type is DuplicateItemType.DOCUMENT
                 else "near_duplicate_chunk"
             )
-            groups.append(
-                self._group(
-                    category,
-                    _stable_hash("near-signature", sorted(component)),
-                    members,
-                    min(pair_scores),
-                )
+            group = self._group(
+                category,
+                _stable_hash("near-signature", sorted(component)),
+                members,
+                min(pair_scores),
             )
+            canonical_shingles = signatures[members[0].item_id]
+            shared = canonical_shingles.intersection(
+                *[signatures[member.item_id] for member in members[1:]]
+            )
+            group.metadata["shared_phrases"] = [
+                _safe_evidence(value, 200) for value in sorted(shared)[:5]
+            ]
+            groups.append(group)
             if len(groups) >= self.near_config.maximum_groups:
                 warnings.append(
                     QualityWarning(

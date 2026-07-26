@@ -27,6 +27,7 @@ from ragscanner.domain import (
 from ragscanner.domain import (
     TestExecution as ExecutionRecord,
 )
+from ragscanner.quality.models import DuplicateGroup, DuplicateItemType, DuplicateMember
 from ragscanner.reporting import (
     HtmlReporter,
     JsonReporter,
@@ -173,6 +174,54 @@ def test_report_evidence_url_with_trailing_markup_does_not_break_redaction() -> 
     report = ReportBuilder().build(report_input(findings=[item]))
 
     assert report.findings[0].evidence_highlight == "http://localhost:8765`."
+
+
+def test_report_duplicate_groups_keep_bounded_comparison_details() -> None:
+    source = report_input()
+    locations = [
+        SourceLocation(
+            source_id=f"source-{index}",
+            source_type="filesystem",
+            source_name=f"policy-{index}.md",
+            source_path=f"/private/customer/policy-{index}.md",
+            page_number=index + 1,
+            line_start=10,
+            line_end=12,
+        )
+        for index in range(2)
+    ]
+    source.duplicate_groups = [
+        DuplicateGroup(
+            id="a" * 64,
+            category="exact_duplicate_chunk",
+            canonical_item_id="chunk-0",
+            members=[
+                DuplicateMember(
+                    item_type=DuplicateItemType.CHUNK,
+                    item_id=f"chunk-{index}",
+                    document_id=f"document-{index}",
+                    chunk_id=f"chunk-{index}",
+                    source=locations[index],
+                    normalized_hash=str(index) * 64,
+                    character_count=80,
+                    token_count=14,
+                    evidence_excerpt="Shared support answer with [API_KEY_REDACTED].",
+                )
+                for index in range(2)
+            ],
+            similarity=1,
+            estimated_redundant_characters=80,
+            estimated_redundant_tokens=14,
+        )
+    ]
+
+    report = ReportBuilder().build(source)
+    group = report.duplicate_groups[0]
+
+    assert [member.source for member in group.members] == ["policy-0.md", "policy-1.md"]
+    assert [member.canonical for member in group.members] == [True, False]
+    assert group.members[1].page == 2
+    assert group.members[0].evidence_excerpt == "Shared support answer with [API_KEY_REDACTED]."
 
 
 def test_terminal_default_is_concise_and_verbose_keeps_technical_details() -> None:

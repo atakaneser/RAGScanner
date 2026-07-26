@@ -103,6 +103,9 @@
 - Workload-aware RAG configuration advice for factual lookup, general QA, policies/procedures,
   research, code, and tables; reports compare configured, recommended, and observed chunk values and
   require representative retrieval/answer validation metrics
+- Report schema 1.5 duplicate comparisons with both bounded redacted excerpts, source/page/line
+  provenance, exact/near match explanation, shared lexical phrases, historical-report rerun guidance,
+  and short template/heading materiality suppression
 - Local labelled-corpus calibration with precision, recall, F1, false-positive rate, Wilson 95%
   intervals, CI thresholds, and rule/language/format slices; the bundled positive/negative smoke
   corpus covers all six supported languages across text, Markdown, HTML, and JSON

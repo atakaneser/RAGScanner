@@ -103,6 +103,9 @@ observed chunk statistics. It recommends an explainable starting range for factu
 question answering, policies/procedures, long-context research, code, or tables, plus overlap and
 initial retrieval top-k. There is no universal best chunk size; the report always lists the retrieval,
 answer, citation, latency, and cost metrics required for representative-query validation.
+The report summary links directly to these values. Duplicate findings separately compare both
+bounded excerpts with source, page, line range, match type, and similarity; a stable reference is
+never an automatic keep/delete decision.
 
 Use `--rag-profile` and the optional model context/top-k flags on direct or queued CLI scans, or set
 the `[rag]` table in `ragscanner.toml`. See [RAG configuration advice](docs/rag-configuration-advice.md).

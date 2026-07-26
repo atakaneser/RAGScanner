@@ -440,6 +440,8 @@ _RAG_TRANSLATIONS = {
         "Retrieval top-k": "Getirme top-k",
         "Actions": "Eylemler",
         "Validation metrics": "Doğrulama metrikleri",
+        "Why this range?": "Neden bu aralık?",
+        "Recommended why": "Önerinin gerekçesi",
         "tokens": "token",
         "target": "hedef",
         "Starting point only; validate with representative queries before production use.": "Yalnızca başlangıç noktasıdır; üretimden önce temsili sorgularla doğrulayın.",
@@ -460,6 +462,8 @@ _RAG_TRANSLATIONS = {
         "Retrieval top-k": "Abruf Top-k",
         "Actions": "Maßnahmen",
         "Validation metrics": "Validierungsmetriken",
+        "Why this range?": "Warum dieser Bereich?",
+        "Recommended why": "Begründung der Empfehlung",
         "tokens": "Token",
         "target": "Ziel",
         "Starting point only; validate with representative queries before production use.": "Nur ein Ausgangspunkt; vor dem Produktionseinsatz mit repräsentativen Abfragen validieren.",
@@ -480,6 +484,8 @@ _RAG_TRANSLATIONS = {
         "Retrieval top-k": "Top-k de recherche",
         "Actions": "Actions",
         "Validation metrics": "Métriques de validation",
+        "Why this range?": "Pourquoi cette plage ?",
+        "Recommended why": "Justification de la recommandation",
         "tokens": "jetons",
         "target": "cible",
         "Starting point only; validate with representative queries before production use.": "Point de départ uniquement ; validez avec des requêtes représentatives avant la production.",
@@ -500,6 +506,8 @@ _RAG_TRANSLATIONS = {
         "Retrieval top-k": "检索 top-k",
         "Actions": "操作",
         "Validation metrics": "验证指标",
+        "Why this range?": "为何采用此范围？",
+        "Recommended why": "建议理由",
         "tokens": "令牌",
         "target": "目标",
         "Starting point only; validate with representative queries before production use.": "仅作为起点；生产使用前请用代表性查询进行验证。",
@@ -520,6 +528,8 @@ _RAG_TRANSLATIONS = {
         "Retrieval top-k": "Top-k di recupero",
         "Actions": "Azioni",
         "Validation metrics": "Metriche di validazione",
+        "Why this range?": "Perché questo intervallo?",
+        "Recommended why": "Motivo del suggerimento",
         "tokens": "token",
         "target": "obiettivo",
         "Starting point only; validate with representative queries before production use.": "Solo un punto di partenza; valida con query rappresentative prima dell'uso in produzione.",
@@ -648,10 +658,197 @@ _RAG_NARRATIVE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "zh-CN": "除非提供生产 tokenizer，否则令牌数只是与模型无关的近似值。",
         "it": "I conteggi dei token sono approssimazioni senza un tokenizer di produzione.",
     },
+    "Fine-grained factual retrieval usually benefits from smaller evidence units.": {
+        "tr": "İnce ayrıntılı olgusal getirme genellikle daha küçük kanıt birimlerinden yararlanır.",
+        "de": "Feingranulare Faktensuche profitiert meist von kleineren Evidenzeinheiten.",
+        "fr": "La recherche factuelle fine bénéficie généralement d’unités de preuve plus petites.",
+        "zh-CN": "细粒度事实检索通常更适合较小的证据单元。",
+        "it": "Il recupero fattuale dettagliato beneficia in genere di unità di prova più piccole.",
+    },
+    "Balanced starting point for mixed question types and ordinary documentation.": {
+        "tr": "Karma soru türleri ve olağan dokümantasyon için dengeli bir başlangıç noktasıdır.",
+        "de": "Ausgewogener Ausgangspunkt für gemischte Fragetypen und übliche Dokumentation.",
+        "fr": "Point de départ équilibré pour des questions variées et une documentation courante.",
+        "zh-CN": "适用于混合问题类型和普通文档的均衡起点。",
+        "it": "Punto di partenza bilanciato per domande miste e documentazione ordinaria.",
+    },
+    "Procedures need enough neighboring steps and heading context to remain actionable.": {
+        "tr": "Prosedürlerin uygulanabilir kalması için yeterli komşu adım ve başlık bağlamı gerekir.",
+        "de": "Verfahren benötigen genügend benachbarte Schritte und Überschriftenkontext.",
+        "fr": "Les procédures ont besoin d’étapes voisines et du contexte des titres pour rester applicables.",
+        "zh-CN": "流程需要足够的相邻步骤和标题上下文，才能保持可操作性。",
+        "it": "Le procedure richiedono passaggi vicini e contesto dei titoli per restare applicabili.",
+    },
+    "Broad synthesis questions need larger coherent evidence windows.": {
+        "tr": "Geniş sentez soruları daha büyük ve tutarlı kanıt pencereleri gerektirir.",
+        "de": "Breite Synthesefragen benötigen größere zusammenhängende Evidenzfenster.",
+        "fr": "Les questions de synthèse larges exigent des fenêtres de preuve cohérentes plus grandes.",
+        "zh-CN": "广泛的综合问题需要更大的连贯证据窗口。",
+        "it": "Le domande di sintesi ampie richiedono finestre di prova coerenti più grandi.",
+    },
+    "Code boundaries and related declarations matter more than arbitrary fixed windows.": {
+        "tr": "Kod sınırları ve ilişkili bildirimler, rastgele sabit pencerelerden daha önemlidir.",
+        "de": "Codegrenzen und zugehörige Deklarationen sind wichtiger als beliebige feste Fenster.",
+        "fr": "Les limites du code et les déclarations liées priment sur des fenêtres fixes arbitraires.",
+        "zh-CN": "代码边界和相关声明比任意固定窗口更重要。",
+        "it": "I confini del codice e le dichiarazioni correlate contano più di finestre fisse arbitrarie.",
+    },
+    "Tables should remain intact; duplicated row overlap can distort numeric retrieval.": {
+        "tr": "Tablolar bütün kalmalıdır; yinelenen satır bindirmesi sayısal getirmeyi bozabilir.",
+        "de": "Tabellen sollten intakt bleiben; überlappende Zeilen können numerischen Abruf verzerren.",
+        "fr": "Les tableaux doivent rester intacts ; le chevauchement des lignes peut fausser la recherche numérique.",
+        "zh-CN": "表格应保持完整；重复行重叠可能扭曲数值检索。",
+        "it": "Le tabelle devono restare integre; righe sovrapposte possono distorcere il recupero numerico.",
+    },
 }
 for _source_text, _localized_values in _RAG_NARRATIVE_TRANSLATIONS.items():
     for _rag_locale, _localized_text in _localized_values.items():
         _TRANSLATIONS[_rag_locale][_source_text] = _localized_text
+
+_DUPLICATE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "Duplicate comparisons": "Yinelenen içerik karşılaştırmaları",
+        "Other findings": "Diğer bulgular",
+        "Duplicate Comparison": "Yinelenen Karşılaştırma",
+        "Compared locations": "Karşılaştırılan konumlar",
+        "Reference occurrence": "Referans tekrar",
+        "Matching occurrence": "Eşleşen tekrar",
+        "Exact match after normalization": "Normalleştirme sonrası tam eşleşme",
+        "Near match requiring manual review": "Elle inceleme gerektiren yakın eşleşme",
+        "Same-document repetition": "Aynı belge içindeki tekrar",
+        "Similarity": "Benzerlik",
+        "Estimated redundant tokens": "Tahmini yinelenen token",
+        "Compared excerpt": "Karşılaştırılan metin",
+        "Shared phrases": "Ortak ifadeler",
+        "Review both locations together. A match is not an automatic deletion decision.": "Her iki konumu birlikte inceleyin. Bir eşleşme otomatik silme kararı değildir.",
+        "Comparison details are unavailable in this older report. Run the scan again.": "Bu eski raporda karşılaştırma ayrıntıları yok. Taramayı yeniden çalıştırın.",
+        "Near-duplicate content group": "Yakın yinelenen içerik grubu",
+        "Near-identical content may waste retrieval capacity or over-weight one statement.": "Neredeyse aynı içerik, getirme kapasitesini tüketebilir veya bir ifadeye gereğinden fazla ağırlık verebilir.",
+        "Review the group manually; similarity is not proof that an item should be deleted.": "İki tarafı birlikte elle inceleyin; benzerlik tek başına bir içeriğin silinmesi gerektiğini kanıtlamaz.",
+    },
+    "de": {
+        "Duplicate comparisons": "Duplikatvergleiche",
+        "Other findings": "Weitere Befunde",
+        "Duplicate Comparison": "Duplikatvergleich",
+        "Compared locations": "Verglichene Fundstellen",
+        "Reference occurrence": "Referenzvorkommen",
+        "Matching occurrence": "Übereinstimmendes Vorkommen",
+        "Exact match after normalization": "Exakte Übereinstimmung nach Normalisierung",
+        "Near match requiring manual review": "Ähnliche Fundstelle zur manuellen Prüfung",
+        "Same-document repetition": "Wiederholung im selben Dokument",
+        "Similarity": "Ähnlichkeit",
+        "Estimated redundant tokens": "Geschätzte redundante Token",
+        "Compared excerpt": "Verglichener Auszug",
+        "Shared phrases": "Gemeinsame Formulierungen",
+        "Review both locations together. A match is not an automatic deletion decision.": "Beide Fundstellen gemeinsam prüfen. Eine Übereinstimmung ist keine automatische Löschentscheidung.",
+        "Comparison details are unavailable in this older report. Run the scan again.": "In diesem älteren Bericht fehlen Vergleichsdetails. Scan erneut ausführen.",
+        "Near-duplicate content group": "Gruppe nahezu identischer Inhalte",
+        "Near-identical content may waste retrieval capacity or over-weight one statement.": "Nahezu identischer Inhalt kann Abrufkapazität verschwenden oder eine Aussage übergewichten.",
+        "Review the group manually; similarity is not proof that an item should be deleted.": "Beide Fundstellen manuell prüfen; Ähnlichkeit ist kein Beweis für eine Löschung.",
+    },
+    "fr": {
+        "Duplicate comparisons": "Comparaisons des doublons",
+        "Other findings": "Autres constats",
+        "Duplicate Comparison": "Comparaison doublons",
+        "Compared locations": "Emplacements comparés",
+        "Reference occurrence": "Occurrence de référence",
+        "Matching occurrence": "Occurrence correspondante",
+        "Exact match after normalization": "Correspondance exacte après normalisation",
+        "Near match requiring manual review": "Correspondance proche à vérifier manuellement",
+        "Same-document repetition": "Répétition dans le même document",
+        "Similarity": "Similarité",
+        "Estimated redundant tokens": "Jetons redondants estimés",
+        "Compared excerpt": "Extrait comparé",
+        "Shared phrases": "Expressions communes",
+        "Review both locations together. A match is not an automatic deletion decision.": "Examinez les deux emplacements ensemble. Une correspondance n’entraîne pas une suppression automatique.",
+        "Comparison details are unavailable in this older report. Run the scan again.": "Les détails de comparaison manquent dans cet ancien rapport. Relancez l’analyse.",
+        "Near-duplicate content group": "Groupe de contenus quasi dupliqués",
+        "Near-identical content may waste retrieval capacity or over-weight one statement.": "Un contenu quasi identique peut gaspiller la capacité de recherche ou surpondérer une affirmation.",
+        "Review the group manually; similarity is not proof that an item should be deleted.": "Examinez les deux côtés manuellement ; la similarité ne prouve pas qu’un élément doit être supprimé.",
+    },
+    "zh-CN": {
+        "Duplicate comparisons": "重复内容对比",
+        "Other findings": "其他发现",
+        "Duplicate Comparison": "重复对比",
+        "Compared locations": "对比位置",
+        "Reference occurrence": "参考位置",
+        "Matching occurrence": "匹配位置",
+        "Exact match after normalization": "规范化后完全匹配",
+        "Near match requiring manual review": "需要人工审核的近似匹配",
+        "Same-document repetition": "同一文档内重复",
+        "Similarity": "相似度",
+        "Estimated redundant tokens": "估算冗余令牌",
+        "Compared excerpt": "对比文本",
+        "Shared phrases": "共同短语",
+        "Review both locations together. A match is not an automatic deletion decision.": "请同时检查两个位置。匹配并不等于自动删除。",
+        "Comparison details are unavailable in this older report. Run the scan again.": "此旧报告没有对比详情，请重新运行扫描。",
+        "Near-duplicate content group": "近似重复内容组",
+        "Near-identical content may waste retrieval capacity or over-weight one statement.": "近似重复内容可能浪费检索容量或使某一陈述权重过高。",
+        "Review the group manually; similarity is not proof that an item should be deleted.": "请人工对比两侧；相似度本身不能证明应删除某项。",
+    },
+    "it": {
+        "Duplicate comparisons": "Confronti dei duplicati",
+        "Other findings": "Altri risultati",
+        "Duplicate Comparison": "Confronto duplicati",
+        "Compared locations": "Posizioni confrontate",
+        "Reference occurrence": "Occorrenza di riferimento",
+        "Matching occurrence": "Occorrenza corrispondente",
+        "Exact match after normalization": "Corrispondenza esatta dopo la normalizzazione",
+        "Near match requiring manual review": "Corrispondenza simile da verificare manualmente",
+        "Same-document repetition": "Ripetizione nello stesso documento",
+        "Similarity": "Somiglianza",
+        "Estimated redundant tokens": "Token ridondanti stimati",
+        "Compared excerpt": "Estratto confrontato",
+        "Shared phrases": "Espressioni comuni",
+        "Review both locations together. A match is not an automatic deletion decision.": "Esamina insieme entrambe le posizioni. Una corrispondenza non implica l’eliminazione automatica.",
+        "Comparison details are unavailable in this older report. Run the scan again.": "I dettagli non sono disponibili in questo vecchio rapporto. Esegui di nuovo la scansione.",
+        "Near-duplicate content group": "Gruppo di contenuti quasi duplicati",
+        "Near-identical content may waste retrieval capacity or over-weight one statement.": "Contenuti quasi identici possono sprecare capacità di recupero o sovrappesare un’affermazione.",
+        "Review the group manually; similarity is not proof that an item should be deleted.": "Confronta manualmente entrambi i lati; la somiglianza non dimostra che un elemento vada eliminato.",
+    },
+}
+for _duplicate_locale, _duplicate_catalog in _DUPLICATE_TRANSLATIONS.items():
+    _TRANSLATIONS[_duplicate_locale].update(_duplicate_catalog)
+
+_QUALITY_RECOMMENDATION_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "tr": {
+        "Rechunk with safer structural boundaries and review the affected source.": "Daha güvenli yapısal sınırlarla yeniden chunk'layın ve etkilenen kaynağı inceleyin.",
+        "Consider merging with a related adjacent chunk while preserving headings.": "Başlıkları koruyarak ilişkili komşu chunk ile birleştirmeyi değerlendirin.",
+        "Reparse the source and inspect extraction/mapping warnings.": "Kaynağı yeniden ayrıştırın; çıkarım ve kaynak eşleme uyarılarını inceleyin.",
+        "Review boilerplate policy before indexing; do not remove content automatically.": "İndekslemeden önce şablon metin politikasını inceleyin; içeriği otomatik kaldırmayın.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Chunk'ı inceleyin ve uygunsa deterministik chunk ayarlarını düzeltin.",
+    },
+    "de": {
+        "Rechunk with safer structural boundaries and review the affected source.": "Mit sichereren Strukturgrenzen neu aufteilen und die betroffene Quelle prüfen.",
+        "Consider merging with a related adjacent chunk while preserving headings.": "Zusammenführung mit einem benachbarten Chunk unter Erhalt der Überschriften prüfen.",
+        "Reparse the source and inspect extraction/mapping warnings.": "Quelle erneut parsen und Extraktions- sowie Zuordnungswarnungen prüfen.",
+        "Review boilerplate policy before indexing; do not remove content automatically.": "Standardtextregeln vor der Indexierung prüfen; Inhalte nicht automatisch entfernen.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Chunk prüfen und die deterministische Konfiguration bei Bedarf anpassen.",
+    },
+    "fr": {
+        "Rechunk with safer structural boundaries and review the affected source.": "Redécoupez avec des limites structurelles plus sûres et examinez la source concernée.",
+        "Consider merging with a related adjacent chunk while preserving headings.": "Envisagez la fusion avec un fragment voisin lié tout en conservant les titres.",
+        "Reparse the source and inspect extraction/mapping warnings.": "Analysez de nouveau la source et examinez les avertissements d’extraction et de mappage.",
+        "Review boilerplate policy before indexing; do not remove content automatically.": "Vérifiez la politique de texte standard avant l’indexation ; ne supprimez rien automatiquement.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Examinez le fragment et ajustez la configuration déterministe si nécessaire.",
+    },
+    "zh-CN": {
+        "Rechunk with safer structural boundaries and review the affected source.": "使用更安全的结构边界重新分块，并检查受影响的来源。",
+        "Consider merging with a related adjacent chunk while preserving headings.": "在保留标题的前提下，考虑与相关的相邻分块合并。",
+        "Reparse the source and inspect extraction/mapping warnings.": "重新解析来源，并检查提取和映射警告。",
+        "Review boilerplate policy before indexing; do not remove content automatically.": "索引前检查模板文本策略；不要自动删除内容。",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "检查分块，并按需调整确定性分块配置。",
+    },
+    "it": {
+        "Rechunk with safer structural boundaries and review the affected source.": "Suddividi di nuovo con confini strutturali più sicuri e verifica la fonte interessata.",
+        "Consider merging with a related adjacent chunk while preserving headings.": "Valuta l’unione con un chunk adiacente correlato conservando i titoli.",
+        "Reparse the source and inspect extraction/mapping warnings.": "Analizza nuovamente la fonte e verifica gli avvisi di estrazione e mappatura.",
+        "Review boilerplate policy before indexing; do not remove content automatically.": "Verifica la policy del testo standard prima dell’indicizzazione; non rimuovere automaticamente.",
+        "Review the chunk and adjust deterministic chunking configuration if appropriate.": "Esamina il chunk e modifica la configurazione deterministica se necessario.",
+    },
+}
+for _quality_locale, _quality_catalog in _QUALITY_RECOMMENDATION_TRANSLATIONS.items():
+    _TRANSLATIONS[_quality_locale].update(_quality_catalog)
 
 
 def _locale(value: str) -> str:
@@ -727,6 +924,26 @@ def _finding_location(finding: ReportFinding, t) -> str:  # type: ignore[no-unty
     return " · ".join(parts)
 
 
+def _duplicate_kind(category: str) -> str:
+    if category == "repeated_chunk_within_document":
+        return "Same-document repetition"
+    if category.startswith("near_duplicate"):
+        return "Near match requiring manual review"
+    return "Exact match after normalization"
+
+
+def _duplicate_member_location(member: Any, t) -> str:  # type: ignore[no-untyped-def]
+    parts = [member.source or t("Not assessed")]
+    if member.page is not None:
+        parts.append(f"{t('Page')} {member.page}")
+    if member.line_start is not None:
+        line = str(member.line_start)
+        if member.line_end is not None and member.line_end != member.line_start:
+            line += f"–{member.line_end}"
+        parts.append(f"{t('Line')} {line}")
+    return " · ".join(parts)
+
+
 def _render_html(report: ReportDocument, locale: str) -> str:
     locale = _locale(locale)
     t = _translator(locale)
@@ -756,6 +973,8 @@ def _render_html(report: ReportDocument, locale: str) -> str:
     )
     findings = []
     for finding in report.findings:
+        if finding.metadata.get("group_id"):
+            continue
         action = actions.get(finding.id)
         remediation = action.remediation if action else finding.recommendation
         verification = (
@@ -796,6 +1015,7 @@ def _render_html(report: ReportDocument, locale: str) -> str:
     if report.rag_configuration_advice:
         rag = report.rag_configuration_advice
         recommended = rag.recommended
+        rag_why = t(str(recommended.get("why") or "Not assessed"))
         rag_section = (
             f"<section><h2>{esc(t('RAG configuration advice'))}</h2>"
             f"<p><strong>{esc(t('Workload profile'))}:</strong> {esc(t(rag.profile.value))}</p>"
@@ -805,9 +1025,52 @@ def _render_html(report: ReportDocument, locale: str) -> str:
             f"<div><h3>{esc(t('Overlap'))}</h3><p>{esc(recommended.get('overlap_tokens'))} "
             f"{esc(t('tokens'))}</p></div><div><h3>{esc(t('Retrieval top-k'))}</h3>"
             f"<p>{esc(recommended.get('retrieval_top_k'))}</p></div></div>"
+            f"<h3>{esc(t('Why this range?'))}</h3><p>{esc(rag_why)}</p>"
             f"<h3>{esc(t('Actions'))}</h3><ul>{''.join(f'<li>{esc(t(item))}</li>' for item in rag.actions)}</ul>"
             f"<h3>{esc(t('Validation metrics'))}</h3><ul>{''.join(f'<li>{esc(t(item))}</li>' for item in rag.validation_metrics)}</ul>"
             f'<p class="muted">{esc(t("Starting point only; validate with representative queries before production use."))}</p></section>'
+        )
+    duplicate_section = ""
+    if report.duplicate_groups:
+        group_cards: list[str] = []
+        for group in report.duplicate_groups:
+            occurrences = []
+            for member in group.members:
+                role = "Reference occurrence" if member.canonical else "Matching occurrence"
+                excerpt = (
+                    f"<mark>{esc(member.evidence_excerpt)}</mark>"
+                    if member.evidence_excerpt
+                    else f'<span class="muted">{esc(t("Not assessed"))}</span>'
+                )
+                occurrences.append(
+                    f'<article class="occurrence"><h3>{esc(t(role))}</h3>'
+                    f"<p><strong>{esc(_duplicate_member_location(member, t))}</strong></p>"
+                    f'<p class="muted">{esc(t("Compared excerpt"))}</p><blockquote>{excerpt}</blockquote></article>'
+                )
+            comparison = (
+                '<div class="occurrence-grid">' + "".join(occurrences) + "</div>"
+                if occurrences
+                else f"<p>{esc(t('Comparison details are unavailable in this older report. Run the scan again.'))}</p>"
+            )
+            shared = (
+                f"<p><strong>{esc(t('Shared phrases'))}:</strong> "
+                + " ".join(f"<mark>{esc(value)}</mark>" for value in group.shared_phrases)
+                + "</p>"
+                if group.shared_phrases
+                else ""
+            )
+            group_cards.append(
+                f'<details class="duplicate-group" open><summary>{esc(t(_duplicate_kind(group.category)))}'
+                f" · {esc(t('Similarity'))} {group.similarity * 100:.1f}%"
+                f" · {len(group.members) or len(group.related_item_ids) + 1} {esc(t('Compared locations'))}</summary>"
+                f'<p class="muted">{esc(t("Estimated redundant tokens"))}: {group.estimated_redundant_tokens}</p>'
+                f"{shared}{comparison}</details>"
+            )
+        duplicate_section = (
+            f"<section><h2>{esc(t('Duplicate comparisons'))}</h2>"
+            f'<p class="muted">{esc(t("Review both locations together. A match is not an automatic deletion decision."))}</p>'
+            + "".join(group_cards)
+            + "</section>"
         )
     coverage_rows = "".join(
         f"<tr><td>{esc(area)}</td><td>{esc(t(str(value.get('status'))))}</td><td>{esc(t(str(value.get('reason'))))}</td></tr>"
@@ -818,8 +1081,8 @@ def _render_html(report: ReportDocument, locale: str) -> str:
         for item in report.ingestion_issues
     )
     return f'''<!doctype html><html lang="{html.escape(locale, quote=True)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>{esc(t("RAGScanner report"))}</title><style>
-:root{{--ink:#10233d;--muted:#5f6d7d;--line:#dce4ea;--accent:#078c91;--panel:#fff;--bg:#f3f7f9}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}}header{{padding:32px;background:linear-gradient(120deg,#061a35,#075b70);color:#fff}}header>div,main,footer{{max-width:1180px;margin:auto}}main,footer{{padding:24px}}section,.finding{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0}}h1,h2,h3{{line-height:1.2}}.meta,.score-grid,.severity,.columns{{display:grid;gap:12px}}.meta{{grid-template-columns:repeat(3,1fr)}}.score-grid{{grid-template-columns:repeat(4,1fr)}}.severity{{grid-template-columns:repeat(5,1fr)}}.columns{{grid-template-columns:repeat(3,1fr)}}.score,.severity>div{{border:1px solid var(--line);border-radius:10px;padding:14px}}.score strong,.severity strong{{display:block;font-size:24px}}.healthy{{border-top:5px solid #15935a}}.warning{{border-top:5px solid #e2b100;background:#fffbeb}}.poor{{border-top:5px solid #e17016;background:#fff4e8}}.critical{{border-top:5px solid #d23845;background:#fff0f1}}.unassessed{{border-top:5px solid #84909c}}.badge{{border:1px solid currentColor;border-radius:99px;padding:2px 8px;font-weight:700}}summary{{cursor:pointer;font-weight:700}}blockquote,mark{{overflow-wrap:anywhere}}blockquote{{margin:8px 0;padding:12px;border-left:4px solid var(--accent);background:#f6fafb}}mark{{background:#fff1a8;padding:2px}}table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}.muted{{color:var(--muted)}}code{{overflow-wrap:anywhere}}@media(max-width:760px){{.meta,.score-grid,.severity,.columns{{grid-template-columns:1fr}}table{{display:block;overflow:auto}}main,footer{{padding:14px}}}}@media print{{body{{background:#fff}}header{{background:#fff;color:#000;border-bottom:2px solid #000}}section,.finding{{break-inside:avoid}}}}
-</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(t(str(report.scan.get("status"))))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{rag_section}{ai_section}<section><h2>{esc(t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
+:root{{--ink:#10233d;--muted:#5f6d7d;--line:#dce4ea;--accent:#078c91;--panel:#fff;--bg:#f3f7f9}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,sans-serif}}header{{padding:32px;background:linear-gradient(120deg,#061a35,#075b70);color:#fff}}header>div,main,footer{{max-width:1180px;margin:auto}}main,footer{{padding:24px}}section,.finding{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:16px 0}}h1,h2,h3{{line-height:1.2}}.meta,.score-grid,.severity,.columns{{display:grid;gap:12px}}.meta{{grid-template-columns:repeat(3,1fr)}}.score-grid{{grid-template-columns:repeat(4,1fr)}}.severity{{grid-template-columns:repeat(5,1fr)}}.columns{{grid-template-columns:repeat(3,1fr)}}.score,.severity>div{{border:1px solid var(--line);border-radius:10px;padding:14px}}.score strong,.severity strong{{display:block;font-size:24px}}.healthy{{border-top:5px solid #15935a}}.warning{{border-top:5px solid #e2b100;background:#fffbeb}}.poor{{border-top:5px solid #e17016;background:#fff4e8}}.critical{{border-top:5px solid #d23845;background:#fff0f1}}.unassessed{{border-top:5px solid #84909c}}.badge{{border:1px solid currentColor;border-radius:99px;padding:2px 8px;font-weight:700}}summary{{cursor:pointer;font-weight:700}}blockquote,mark{{overflow-wrap:anywhere}}blockquote{{margin:8px 0;padding:12px;border-left:4px solid var(--accent);background:#f6fafb}}mark{{background:#fff1a8;padding:2px}}.duplicate-group{{border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}}.occurrence-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}.occurrence{{border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}}.occurrence h3{{margin-top:0}}table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}}.muted{{color:var(--muted)}}code{{overflow-wrap:anywhere}}@media(max-width:760px){{.meta,.score-grid,.severity,.columns,.occurrence-grid{{grid-template-columns:1fr}}table{{display:block;overflow:auto}}main,footer{{padding:14px}}}}@media print{{body{{background:#fff}}header{{background:#fff;color:#000;border-bottom:2px solid #000}}section,.finding{{break-inside:avoid}}}}
+</style></head><body><header><div><p>RAGScanner</p><h1>{esc(t("RAGScanner report"))}</h1><p>{esc(report.scan.get("id"))}</p></div></header><main><section><h2>{esc(t("Executive summary"))}</h2><div class="meta"><p><strong>{esc(t("Source"))}</strong><br>{esc(report.scan.get("source_name"))}</p><p><strong>{esc(t("Status"))}</strong><br>{esc(t(str(report.scan.get("status"))))}</p><p><strong>{esc(t("Generated"))}</strong><br>{esc(report.generated_at)}</p></div><div class="score-grid">{scores}</div><div class="severity">{severities}</div></section>{rag_section}{ai_section}{duplicate_section}<section><h2>{esc(t("Other findings") if report.duplicate_groups else t("Findings"))}</h2>{"".join(findings) or f"<p>{esc(t('No findings recorded.'))}</p>"}</section><section><h2>{esc(t("Coverage"))}</h2><table><thead><tr><th>{esc(t("Area"))}</th><th>{esc(t("Status"))}</th><th>{esc(t("Reason"))}</th></tr></thead><tbody>{coverage_rows}</tbody></table></section><section><h2>{esc(t("Ingestion issues"))}</h2>{f"<table><thead><tr><th>{esc(t('Path'))}</th><th>{esc(t('Stage'))}</th><th>{esc(t('Issue'))}</th><th>{esc(t('Remediation'))}</th></tr></thead><tbody>{ingestion_rows}</tbody></table>" if ingestion_rows else f"<p>{esc(t('No ingestion issues recorded.'))}</p>"}</section></main><footer><p>{esc(t("Generated locally by RAGScanner. No external assets or network requests."))}</p></footer></body></html>'''
 
 
 def _cell(value: Any) -> str | int | float:
@@ -933,6 +1196,63 @@ def _render_xlsx(report: ReportDocument, locale: str) -> bytes:
             ]
         )
     _style_sheet(finding_sheet, freeze="A2", auto_filter=True)
+
+    if report.duplicate_groups:
+        duplicate_sheet = workbook.create_sheet(t("Duplicate Comparison"))
+        duplicate_sheet.append(
+            [
+                t("Category"),
+                t("Similarity"),
+                t("Estimated redundant tokens"),
+                t("Reference occurrence"),
+                t("File"),
+                t("Page"),
+                t("Line"),
+                t("Compared excerpt"),
+                t("Shared phrases"),
+            ]
+        )
+        for group in report.duplicate_groups:
+            if not group.members:
+                duplicate_sheet.append(
+                    [
+                        t(_duplicate_kind(group.category)),
+                        group.similarity,
+                        group.estimated_redundant_tokens,
+                        "",
+                        t(
+                            "Comparison details are unavailable in this older report. Run the scan again."
+                        ),
+                        "",
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+                continue
+            for member in group.members:
+                duplicate_line: int | str | None = member.line_start
+                if member.line_start is not None and member.line_end not in (
+                    None,
+                    member.line_start,
+                ):
+                    duplicate_line = f"{member.line_start}-{member.line_end}"
+                duplicate_sheet.append(
+                    [
+                        _cell(t(_duplicate_kind(group.category))),
+                        group.similarity,
+                        group.estimated_redundant_tokens,
+                        _cell(
+                            t("Reference occurrence" if member.canonical else "Matching occurrence")
+                        ),
+                        _cell(member.source),
+                        _cell(member.page),
+                        _cell(duplicate_line),
+                        _cell(member.evidence_excerpt),
+                        _cell("\n".join(group.shared_phrases)),
+                    ]
+                )
+        _style_sheet(duplicate_sheet, freeze="A2", auto_filter=True)
 
     coverage = workbook.create_sheet(t("Coverage"))
     coverage.append([t("Area"), t("Status"), t("Reason")])
@@ -1246,6 +1566,7 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
     if report.rag_configuration_advice:
         rag = report.rag_configuration_advice
         recommended = rag.recommended
+        rag_why = t(str(recommended.get("why") or "Not assessed"))
         story.extend(
             [
                 Paragraph(esc(t("RAG configuration advice")), h2),
@@ -1258,6 +1579,8 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
                     f"<b>{esc(t('Retrieval top-k'))}:</b> {esc(recommended.get('retrieval_top_k'))}",
                     body,
                 ),
+                Paragraph(esc(t("Why this range?")), h3),
+                Paragraph(esc(rag_why), body),
                 Paragraph(esc(t("Actions")), h3),
                 *[Paragraph(f"- {esc(t(item))}", body) for item in rag.actions],
                 Paragraph(esc(t("Validation metrics")), h3),
@@ -1272,6 +1595,70 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
                 ),
             ]
         )
+
+    if report.duplicate_groups:
+        story.extend(
+            [
+                Paragraph(esc(t("Duplicate comparisons")), h2),
+                Paragraph(
+                    esc(
+                        t(
+                            "Review both locations together. A match is not an automatic deletion decision."
+                        )
+                    ),
+                    small,
+                ),
+            ]
+        )
+        for group in report.duplicate_groups:
+            story.append(
+                Paragraph(
+                    f"<b>{esc(t(_duplicate_kind(group.category)))}</b> · "
+                    f"{esc(t('Similarity'))}: {group.similarity * 100:.1f}% · "
+                    f"{esc(t('Estimated redundant tokens'))}: "
+                    f"{group.estimated_redundant_tokens}",
+                    h3,
+                )
+            )
+            if group.shared_phrases:
+                story.append(
+                    Paragraph(
+                        f"<b>{esc(t('Shared phrases'))}:</b> "
+                        + " · ".join(esc(value) for value in group.shared_phrases),
+                        body,
+                    )
+                )
+            if not group.members:
+                story.append(
+                    Paragraph(
+                        esc(
+                            t(
+                                "Comparison details are unavailable in this older report. Run the scan again."
+                            )
+                        ),
+                        body,
+                    )
+                )
+                continue
+            for member in group.members[:_PDF_OCCURRENCES_PER_GROUP]:
+                role = "Reference occurrence" if member.canonical else "Matching occurrence"
+                location = _duplicate_member_location(member, t)
+                excerpt = member.evidence_excerpt or t("Not assessed")
+                story.extend(
+                    [
+                        Paragraph(
+                            f"<b>{esc(t(role))}:</b> {esc(location)}",
+                            body,
+                        ),
+                        Paragraph(
+                            f'<font backColor="#FFF1A8">{esc(excerpt)}</font>',
+                            small,
+                        ),
+                    ]
+                )
+            omitted = len(group.members) - _PDF_OCCURRENCES_PER_GROUP
+            if omitted > 0:
+                story.append(Paragraph(f"+{omitted}", small))
 
     if report.ai_analysis:
         ai = report.ai_analysis
@@ -1301,8 +1688,12 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
             ]
         )
 
-    story.append(Paragraph(f"{esc(t('Findings'))} ({len(report.findings)})", h2))
-    if not report.findings:
+    regular_findings = [
+        finding for finding in report.findings if not finding.metadata.get("group_id")
+    ]
+    finding_heading = "Other findings" if report.duplicate_groups else "Findings"
+    story.append(Paragraph(f"{esc(t(finding_heading))} ({len(regular_findings)})", h2))
+    if not regular_findings:
         story.append(Paragraph(esc(t("No findings recorded.")), body))
     action_by_id = (
         {item.finding_id: item for item in report.ai_analysis.finding_actions}
@@ -1312,7 +1703,7 @@ def _render_pdf(report: ReportDocument, locale: str) -> bytes:
     grouped_findings: defaultdict[
         tuple[str, str, str, str, str, tuple[str, ...]], list[ReportFinding]
     ] = defaultdict(list)
-    for finding in report.findings:
+    for finding in regular_findings:
         action = action_by_id.get(finding.id)
         remediation = action.remediation if action else finding.recommendation
         verification = tuple(action.verification_steps) if action else ()

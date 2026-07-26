@@ -13,7 +13,7 @@
     "knowledge_base_mode", "source_count", "assessment_coverage", "ingestion_issues"
   ],
   "properties": {
-    "schema_version": {"const": "1.4.0"},
+    "schema_version": {"const": "1.5.0"},
     "reporter_version": {"type": "string"},
     "generated_at": {"type": "string", "format": "date-time"},
     "scan": {"type": "object"},

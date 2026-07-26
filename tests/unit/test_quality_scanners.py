@@ -97,11 +97,15 @@ def test_exact_document_duplicates_formatting_canonical_and_stability() -> None:
 
 def test_exact_chunk_duplicates_and_repeated_chunk_within_document() -> None:
     docs = [doc("d1", "body"), doc("d2", "body 2")]
+    repeated = "This identical chunk contains enough useful support detail for retrieval."
+    cross_document = (
+        "This cross-document answer contains enough useful support detail for retrieval."
+    )
     values = [
-        chunk("c1", "d1", 0, "identical chunk text"),
-        chunk("c2", "d1", 1, "identical chunk text"),
-        chunk("c3", "d2", 0, "cross document duplicate"),
-        chunk("c4", "d1", 2, "cross document duplicate"),
+        chunk("c1", "d1", 0, repeated),
+        chunk("c2", "d1", 1, repeated),
+        chunk("c3", "d2", 0, cross_document),
+        chunk("c4", "d1", 2, cross_document),
     ]
     result = ExactDuplicateScanner().scan(docs, normalized(docs), values)
     assert {group.category for group in result.groups} == {
@@ -109,6 +113,7 @@ def test_exact_chunk_duplicates_and_repeated_chunk_within_document() -> None:
         "exact_duplicate_chunk",
     }
     assert len(result.findings) == 2
+    assert all(member.evidence_excerpt for group in result.groups for member in group.members)
 
 
 def test_exact_duplicates_ignore_delimiters_and_front_matter_chunks() -> None:
@@ -125,6 +130,22 @@ def test_exact_duplicates_ignore_delimiters_and_front_matter_chunks() -> None:
     result = ExactDuplicateScanner().scan(docs, normalized(docs), values)
     assert len(result.groups) == 1
     assert result.groups[0].canonical_item_id == "content-1"
+
+
+def test_exact_duplicates_ignore_short_template_labels_and_headings() -> None:
+    docs = [doc("d1", "body"), doc("d2", "body 2")]
+    values = [
+        chunk("label-1", "d1", 0, "Genele Açık / Public — Kişisel Veri İçermez"),
+        chunk("label-2", "d2", 0, "Genele Açık / Public — Kişisel Veri İçermez"),
+        chunk("heading-1", "d1", 1, ".\nDEKONT YAZICI İLE İLGİLİ SORULAR"),
+        chunk("heading-2", "d2", 1, ".\nDEKONT YAZICI İLE İLGİLİ SORULAR"),
+    ]
+
+    result = ExactDuplicateScanner().scan(docs, normalized(docs), values)
+
+    assert result.groups == []
+    assert result.findings == []
+    assert result.statistics.duplicate_content_percentage == 0
 
 
 def test_document_mirror_and_generated_heading_chunks_do_not_duplicate_findings() -> None:

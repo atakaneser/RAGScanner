@@ -9,6 +9,7 @@ from ragscanner.api import create_app
 from ragscanner.application import JobApplicationService, resolve_secret_reference
 from ragscanner.jobs import JobStatus
 from ragscanner.onboarding import KnowledgeBaseCandidate, RAGEnvironmentCandidate
+from ragscanner.quality import RAGConfigurationAdvice, RAGProfile
 from ragscanner.storage import (
     MachineSecretStore,
     SourceProfile,
@@ -122,6 +123,22 @@ async def test_dashboard_renders_and_queues_local_scan_with_csrf(tmp_path: Path)
         "Sovrapposizione eccessiva",
     ):
         assert translated_quality_title in i18n.text
+    for translated_duplicate_section in (
+        "Yinelenen içerik karşılaştırmaları",
+        "Duplikatvergleiche",
+        "Comparaisons des doublons",
+        "重复内容对比",
+        "Confronti dei duplicati",
+    ):
+        assert translated_duplicate_section in i18n.text
+    for translated_rag_reason in (
+        "Neden bu aralık?",
+        "Warum dieser Bereich?",
+        "Pourquoi cette plage ?",
+        "为何采用此范围？",
+        "Perché questo intervallo?",
+    ):
+        assert translated_rag_reason in i18n.text
     for translated_password_action in (
         "Yönetici şifresini değiştir",
         "Administratorkennwort ändern",
@@ -464,7 +481,26 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     located.evidence_highlight = "MFA'yı devre dışı bırak"
     history = SQLiteScanHistoryRepository(database)
     try:
-        baseline = history.save(report("scan-a", findings=[located], overall=80))
+        baseline_report = report("scan-a", findings=[located], overall=80).model_copy(
+            update={
+                "rag_configuration_advice": RAGConfigurationAdvice(
+                    profile=RAGProfile.POLICY_PROCEDURE,
+                    configured={"target_tokens": 300},
+                    recommended={
+                        "minimum_tokens": 80,
+                        "target_tokens": 450,
+                        "maximum_tokens": 700,
+                        "overlap_tokens": 45,
+                        "retrieval_top_k": 6,
+                        "why": "Procedures need enough neighboring steps and heading context to remain actionable.",
+                    },
+                    observed={"median_chunk_tokens": 220, "chunks": 12},
+                    actions=["Benchmark representative policy questions."],
+                    validation_metrics=["Recall@k"],
+                )
+            }
+        )
+        baseline = history.save(baseline_report)
         candidate = history.save(report("scan-b", findings=[finding("b")]))
     finally:
         history.close()
@@ -512,6 +548,9 @@ async def test_dashboard_sources_reports_detail_and_comparison_are_real_pages(
     assert "Page</span> 4" in detail.text
     assert "Line</span> 18" in detail.text
     assert "Download report" in detail.text
+    assert "Recommended chunk size" in detail.text
+    assert "450 tokens" in detail.text
+    assert "Why this range?" in detail.text
     assert f"/reports/{baseline}/download/html" in detail.text
     assert html_export.status_code == 200
     assert html_export.headers["content-type"].startswith("text/html")

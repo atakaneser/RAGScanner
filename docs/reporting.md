@@ -26,6 +26,17 @@ Dashboard PDF downloads group identical rule/remediation occurrences, repeat the
 recommendation once, and print at most 20 locations per group. The omitted count is explicit; HTML
 and Excel downloads preserve the complete finding list for audit and filtering.
 
+Report schema 1.5 adds bounded duplicate-member snapshots. Duplicate comparisons show both the
+stable reference occurrence and every retained matching occurrence with source basename, page,
+line range, excerpt, similarity, match type, and estimated redundant tokens. The reference does not
+mean newest, correct, or safe to keep. Historical snapshots without member details display an
+explicit rerun message. Standalone HTML, Excel, and PDF use the same six product locales while
+leaving source evidence in its original language.
+
+Workload-aware RAG advice is linked directly from the report summary. It displays target chunk
+tokens, the recommended range, overlap, retrieval top-k, observed median, rationale/actions, and
+validation metrics. Reports created before the advisor was introduced require a new scan.
+
 Report-time filters support severity, category, classification, document, target, rule ID,
 informational inclusion, and maximum findings. Filters never mutate source results and truncation is
 always reported.
