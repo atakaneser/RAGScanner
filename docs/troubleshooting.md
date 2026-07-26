@@ -28,6 +28,16 @@ The error category distinguishes malformed, encrypted, zero-page, image-only/OCR
 timeout, and parser failures. Follow the remediation shown in the terminal or HTML ingestion table.
 RAGScanner does not silently repair or rewrite the source PDF.
 
+## AI output is invalid
+
+Run `ragscanner update` before retrying so the Host Service uses the latest prompt and context
+budgets. RAGScanner caps the primary advisory context at 18,000 characters and uses a separate
+6,500-character recovery request after malformed output. Ollama is asked for a 16,384-token context
+window. If `ai_output_invalid` remains after an update and rescan, confirm that the selected model
+supports chat plus JSON output; then include the safe activity code, provider name, model name, and
+timestamp in a private diagnostic report. Never attach the model response, source evidence, or API
+key.
+
 ## Diagnostic information
 
 For installed users:

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed repeated `ai_output_invalid` failures caused by advisory requests reaching roughly 290,000
+  characters and repeating the same oversized context on recovery. Primary context is now globally
+  capped at 18,000 characters and prioritized by severity/affected chunks; recovery uses an
+  evidence-free context capped at 6,500 characters and a single-field schema. Ollama receives an
+  explicit 16,384-token context allocation, and localized caveats disclose omitted advisory groups.
 - Fixed OpenWebUI character-reference restoration for PDF, DOCX, PPTX, XLSX, ODT, and EPUB parser
   paths, including page/block offsets. Advisory AI now omits detected security payloads (and other
   evidence from the same affected source), treats all report values as untrusted data, and accepts

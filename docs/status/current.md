@@ -151,6 +151,9 @@
 - Advisory AI prompt-injection isolation: raw static-security evidence and other evidence from the
   same affected source are omitted while deterministic rule/provenance/remediation remain available;
   common unambiguous local-model JSON wrappers are accepted before the strict retry
+- Global 18,000-character advisory context selection ordered by severity and affected chunks, plus
+  a separate evidence-free 6,500-character single-field recovery request and explicit 16,384-token
+  Ollama context allocation
 - CSRF-protected permanent report deletion; latest-health calculations use the latest remaining report
 - Reference-led icon navigation with implemented-section shortcuts, automatic local-provider model
   inventory in Settings, stale configured-model removal, and safe source-secret reference repair after

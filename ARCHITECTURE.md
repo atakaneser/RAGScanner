@@ -156,14 +156,18 @@ from remaining the long-term command owner.
 
 Each manual or durable scan may leave AI analysis off or select one local/remote provider. After the
 deterministic report is built, the provider receives only bounded, secret-masked scores, coverage,
-and at most 25 finding groups. A group carries at most ten evidence rows with source/page/line
-provenance and a truncated snippet; raw documents are never transmitted. The adapter requests
-versioned JSON at temperature `0.1`, strips one optional JSON fence, validates the exact schema and
-severity/coverage consistency, then retries invalid output once with a JSON-only instruction.
+and prioritized finding groups within a global 18,000-character context budget. Groups are ordered
+by highest severity and then affected-chunk count; each carries at most four evidence rows with
+source/page/line provenance and a truncated snippet. Raw documents are never transmitted. The
+adapter requests versioned JSON at temperature `0.1`, accepts only an unambiguous analysis object,
+and validates schema plus severity/coverage consistency. It retries invalid output once with a
+compact context capped at 6,500 characters, no evidence snippets, and a single-field JSON schema.
+Ollama receives an explicit 16,384-token context allocation.
 A second failure stores a localized advisory-unavailable state while leaving the deterministic
 report complete. Remote providers require HTTPS, an external credential reference, and explicit
 consent on that scan. Accepted group actions may attach advisory remediation only to supplied
-findings whose deterministic rule IDs the action addresses.
+findings whose deterministic rule IDs the action addresses. A deterministic localized caveat states
+how many lower-priority groups remain available only in the exhaustive report.
 
 ## OpenWebUI content flow
 

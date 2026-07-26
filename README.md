@@ -124,16 +124,19 @@ models from Ollama, LM Studio, LocalAI, or vLLM instead of retaining a stale mod
 providers require HTTPS, an external credential reference, and explicit per-scan consent.
 
 Only bounded, secret-masked report context is sent to the selected model—never a raw document.
-Each finding group includes at most ten evidence rows with source/page/line provenance and a
-truncated snippet; the complete affected-chunk count remains explicit. Raw evidence is omitted for
-static-security findings and every other finding from the same affected source, while rule,
-file/page/line, impact, and deterministic remediation remain available. This prevents document
-instructions from becoming advisory-model instructions.
+The context has a global 18,000-character limit and selects groups by highest severity, then affected
+chunk count. Each selected group includes at most four evidence rows with source/page/line
+provenance and a truncated snippet; the complete affected-chunk count remains explicit. The
+advisory coverage caveat states how many lower-priority groups remain in the exhaustive deterministic
+report. Raw evidence is omitted for static-security findings and every other finding from the same
+affected source, while rule, file/page/line, impact, and deterministic remediation remain available.
+This prevents document instructions from becoming advisory-model instructions.
 
 Output must match the versioned JSON schema. RAGScanner accepts one unambiguous analysis object from
 common local-model wrappers such as a JSON fence, reasoning prefix, or serialized JSON string, then
-retries malformed output once with a stricter JSON-only and untrusted-data instruction. Compatible
-providers use JSON mode with temperature `0.1`.
+retries malformed output once with a compact context of at most 6,500 characters, no evidence
+snippets, and a one-field JSON schema. Compatible providers use JSON mode with temperature `0.1`;
+Ollama reserves a 16,384-token context window for analysis.
 A second schema failure records a localized `ai_output_invalid` fallback while preserving every
 deterministic finding and score. Accepted group actions are attached only to real findings whose
 rule IDs they address.

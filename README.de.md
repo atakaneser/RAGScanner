@@ -122,13 +122,18 @@ installierte Modelle von Ollama, LM Studio, LocalAI oder vLLM, statt veraltete N
 Externe Anbieter benötigen HTTPS, eine externe Anmeldedatenreferenz und Zustimmung pro Scan.
 
 Nur begrenzter, geschwärzter Berichtskontext wird gesendet—keine Rohdokumente. Rohbeweise statischer
-Sicherheitsbefunde und anderer Befunde aus derselben betroffenen Quelle werden entfernt; Regel,
-Datei/Seite/Zeile, Auswirkung und deterministische Abhilfe bleiben erhalten. So werden
-Dokumentanweisungen nicht zu Modellanweisungen.
+Der Kontext ist global auf 18.000 Zeichen begrenzt; Gruppen werden zuerst nach höchstem Schweregrad
+und dann nach betroffenen Chunks ausgewählt. Jede ausgewählte Gruppe enthält höchstens vier
+Nachweisorte; der Abdeckungshinweis nennt die Gruppen, die im vollständigen deterministischen
+Bericht verbleiben. Rohbeweise statischer Sicherheitsbefunde und anderer Befunde aus derselben
+betroffenen Quelle werden entfernt; Regel, Datei/Seite/Zeile, Auswirkung und deterministische
+Abhilfe bleiben erhalten. So werden Dokumentanweisungen nicht zu Modellanweisungen.
 
 Die Ausgabe wird gegen ein Schema geprüft. RAGScanner akzeptiert ein eindeutiges Analyseobjekt aus
 üblichen lokalen Modellhüllen wie JSON-Zaun, Denkpräfix oder serialisierter JSON-Zeichenfolge und
-wiederholt ungültige Ausgabe einmal mit strengeren JSON- und Nichtvertrauensregeln.
+wiederholt ungültige Ausgabe einmal mit einem kompakten Kontext von höchstens 6.500 Zeichen ohne
+Nachweisschnipsel und einem JSON-Schema mit einem Feld. Ollama reserviert für die Analyse ein
+Kontextfenster von 16.384 Token.
 Übliche Schemaabweichungen werden normalisiert, erfundene Befundreferenzen sicher verworfen und
 akzeptierte Analysen können jedem echten Befund Behebungs- und Prüfschritte zuordnen.
 

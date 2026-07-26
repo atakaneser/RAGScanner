@@ -121,15 +121,19 @@ tutmak yerine Ollama, LM Studio, LocalAI veya vLLM’de kurulu modelleri bulur. 
 harici kimlik bilgisi referansı ve tarama başına açık onay gerektirir.
 
 Seçilen modele yalnızca sınırlandırılmış ve maskelenmiş rapor bağlamı gönderilir; ham belgeler
-gönderilmez. Statik güvenlik bulgularının ve aynı etkilenen kaynaktaki diğer bulguların ham kanıtı
-çıkarılır; kural, dosya/sayfa/satır, etki ve deterministik çözüm korunur. Böylece belge içindeki
-talimatlar AI talimatına dönüşmez.
+gönderilmez. Bağlamın genel sınırı 18.000 karakterdir; gruplar önce en yüksek önem derecesine, sonra
+etkilenen chunk sayısına göre seçilir. Seçilen her grupta en fazla dört kanıt konumu bulunur; kapsam
+uyarısı, düşük öncelikli kaç grubun eksiksiz deterministik raporda kaldığını açıklar. Statik güvenlik
+bulgularının ve aynı etkilenen kaynaktaki diğer bulguların ham kanıtı çıkarılır; kural,
+dosya/sayfa/satır, etki ve deterministik çözüm korunur. Böylece belge içindeki talimatlar AI
+talimatına dönüşmez.
 
 Çıktı şemayla doğrulanır. RAGScanner; JSON çiti, düşünme öneki veya serileştirilmiş JSON dizesi gibi
 yaygın yerel model sarmallarındaki tek ve açık analiz nesnesini kabul eder, bozuk çıktıyı daha katı
-JSON ve güvenilmeyen veri talimatıyla bir kez daha dener. Yaygın şema sapmaları normalleştirilir,
-uydurulan bulgu referansları güvenle atılır ve kabul edilen analiz her gerçek bulguya düzeltme ile
-doğrulama adımları bağlayabilir.
+tek alanlı JSON şemasıyla, kanıt metni içermeyen en fazla 6.500 karakterlik küçük bir bağlamda tekrar
+dener. Ollama analizi için 16.384 token bağlam penceresi ayrılır. Yaygın şema sapmaları
+normalleştirilir, uydurulan bulgu referansları güvenle atılır ve kabul edilen analiz her gerçek
+bulguya düzeltme ile doğrulama adımları bağlayabilir.
 
 ## Raporlar ve işletim
 

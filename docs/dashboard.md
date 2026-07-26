@@ -69,6 +69,12 @@ that optional parameter with HTTP 400, RAGScanner retries once in prompt-only JS
 mode and still validates the response schema. If both requests fail, the report records
 `ai_provider_request_invalid` with endpoint/model guidance.
 
+Advisory input is globally capped at 18,000 characters and prioritizes highest-severity,
+highest-impact finding groups. If the first structured response is invalid, the model receives a
+separate recovery request capped at 6,500 characters, with no evidence snippets and only one required
+JSON field. Ollama receives a 16,384-token context allocation. The report states how many
+lower-priority groups remain in the exhaustive deterministic finding list.
+
 Dashboard-entered source credentials remain outside SQLite. When a machine-data migration preserves
 the protected `secrets/` directory but invalidates an older absolute `file-secret:` path, dashboard
 rendering safely rebinds the reference by validated secret identifier within the current machine

@@ -12,18 +12,22 @@ Sending raw documents would violate the local-first boundary.
 ## Decision
 
 - Deterministic scanners remain the sole source of findings, severities, and scores.
-- AI adapters receive at most 25 finding groups and ten secret-masked, truncated evidence rows per
-  group, with file/page/line provenance and complete affected-chunk counts. They never receive a raw
-  document.
+- AI adapters apply a global 18,000-character context budget. Finding groups are ordered by highest
+  severity and then affected-chunk count; each selected group includes at most four secret-masked,
+  truncated evidence rows with file/page/line provenance and complete affected-chunk counts. They
+  never receive a raw document.
 - Raw evidence is omitted for static-security findings and every other finding from the same
   affected source. Rule ID, provenance, impact, and deterministic recommendation remain available.
   This prevents detected document instructions from crossing into the advisory instruction plane.
 - The version 2 prompt requires one exact JSON object containing analysis, evidence-bound root
   causes, ordered actions, review questions, score commentary, and a coverage caveat.
-- Providers use temperature `0.1` and JSON mode when available. RAGScanner accepts one unambiguous
+- Providers use temperature `0.1` and JSON mode when available. Ollama receives a 16,384-token
+  context allocation. RAGScanner accepts one unambiguous
   analysis object from a JSON fence, reasoning prefix, serialized JSON string, or prose wrapper
-  without repairing ambiguous JSON syntax. It retries invalid output once with explicit JSON-only
-  and untrusted-data instructions.
+  without repairing ambiguous JSON syntax.
+- Invalid output is retried once with a separate recovery prompt, a context capped at 6,500
+  characters, no evidence snippets, and a single required `ai_analysis` field. This keeps the schema
+  instruction in small local-model context windows instead of repeating the original request.
 - Adapters normalize bounded, unambiguous shape variations from smaller local models. Verified
   severity distribution and non-evaluated coverage identifiers are added from deterministic report
   data when omitted; contradictory severity framing and missing core analysis text are still
@@ -36,10 +40,11 @@ Sending raw documents would violate the local-first boundary.
 
 ## Consequences
 
-AI interpretation has enough bounded evidence to explain duplicate patterns without expanding its
-authority. Common local-model shape drift does not discard otherwise useful analysis, while
-deterministic facts are never delegated to the model. Irreparable output still triggers the retry
-and reason-specific safe fallback, leaving a usable deterministic report. Adding or changing
+AI interpretation has enough prioritized bounded evidence to explain dominant patterns without
+expanding its authority or overflowing ordinary local-model windows. Common local-model shape drift
+does not discard otherwise useful analysis. A localized deterministic caveat identifies how many
+lower-priority groups remain in the exhaustive report. Irreparable output still triggers the compact
+retry and reason-specific safe fallback, leaving a usable deterministic report. Adding or changing
 advisory fields requires prompt, model, schema, export, and regression-test updates together.
 
 ## Links

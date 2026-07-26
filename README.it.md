@@ -120,13 +120,18 @@ modelli installati in Ollama, LM Studio, LocalAI o vLLM invece di conservare nom
 remoti richiedono HTTPS, riferimento credenziali esterno e consenso per scansione.
 
 Viene inviato solo un contesto di rapporto limitato e oscurato, mai documenti grezzi. Le prove grezze
-dei risultati di sicurezza statica e degli altri risultati della stessa fonte interessata vengono
-omesse; regola, file/pagina/riga, impatto e rimedio deterministico restano disponibili. Le istruzioni
-del documento non diventano quindi istruzioni per il modello.
+Il contesto ha un limite globale di 18.000 caratteri; i gruppi vengono selezionati prima per gravità
+massima e poi per chunk interessati. Ogni gruppo selezionato contiene al massimo quattro posizioni
+di prova; l’avviso di copertura indica i gruppi che restano nel rapporto deterministico completo.
+Le prove grezze dei risultati di sicurezza statica e degli altri risultati della stessa fonte
+interessata vengono omesse; regola, file/pagina/riga, impatto e rimedio deterministico restano
+disponibili. Le istruzioni del documento non diventano quindi istruzioni per il modello.
 
 L’output è validato da schema. RAGScanner accetta un unico oggetto di analisi non ambiguo dai comuni
 involucri dei modelli locali—blocco JSON, prefisso di ragionamento o stringa JSON serializzata—poi
-riprova una volta l’output non valido con regole JSON e dati non attendibili più severe.
+riprova una volta l’output non valido con un contesto compatto di massimo 6.500 caratteri, senza
+estratti di prova, e uno schema JSON a campo singolo. Ollama riserva una finestra di contesto di
+16.384 token per l’analisi.
 Le deviazioni comuni dallo schema vengono normalizzate, i riferimenti inventati sono scartati in
 sicurezza e l’analisi accettata può associare correzione e verifica a ogni risultato reale.
 
